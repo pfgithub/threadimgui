@@ -231,13 +231,16 @@ const ImEvent = struct { // pinned?
     }
 };
 
+const TopRect = struct {
+    x: f64,
+    y: f64,
+    w: f64,
+};
 const VLayoutManager = struct {
-    top_rect: struct {
-        x: f64,
-        y: f64,
-        w: f64,
-    },
-    uncommitted_gap: f64,
+    top_rect: TopRect,
+    uncommitted_gap: f64, // maybe don't do this it's weird ; do the opposite maybe idk
+    bottom_offset: f64, // added with inset
+    start_y: f64,
     pub fn fromRect(rect: Rect) VLayoutManager {
         return VLayoutManager{
             .top_rect = .{
@@ -246,6 +249,20 @@ const VLayoutManager = struct {
                 .w = rect.w,
             },
             .uncommitted_gap = 0,
+            .bottom_offset = 0,
+            .start_y = rect.y,
+        };
+    }
+    pub fn fromTopRect(rect: TopRect) VLayoutManager {
+        return VLayoutManager{
+            .top_rect = .{
+                .x = rect.x,
+                .y = rect.y,
+                .w = rect.w,
+            },
+            .uncommitted_gap = 0,
+            .bottom_offset = 0,
+            .start_y = rect.y,
         };
     }
     pub fn cutRight(lm: *VLayoutManager, opts: struct { w: f64, gap: f64 }) VLayoutManager {
@@ -256,7 +273,9 @@ const VLayoutManager = struct {
                 .w = opts.w,
                 .y = lm.top_rect.y,
             },
-            .uncommitted_gap = 0,
+            .uncommitted_gap = lm.uncommitted_gap,
+            .bottom_offset = 0,
+            .start_y = lm.top_rect.y,
         };
     }
     pub fn take(lm: *VLayoutManager, opts: struct { h: f64, gap: f64 }) Rect {
@@ -271,7 +290,42 @@ const VLayoutManager = struct {
         lm.top_rect.y += opts.h;
         return res;
     }
+    pub fn topRect(lm: *VLayoutManager) TopRect {
+        return TopRect{
+            .x = lm.top_rect.x,
+            .y = lm.top_rect.y + lm.uncommitted_gap,
+            .w = lm.top_rect.w,
+        };
+    }
+    /// supports negatives I guess
+    pub fn inset(lm: *VLayoutManager, dist: f64) void {
+        // don't commit the gap? idk
+        lm.top_rect.x += dist;
+        lm.top_rect.y += dist;
+        lm.top_rect.w -= 2 * dist;
+        lm.bottom_offset += dist;
+    }
+    pub fn height(lm: VLayoutManager) f64 {
+        return lm.top_rect.y - lm.start_y + lm.bottom_offset;
+    }
 };
+
+fn renderSidebarWidget(imev: *ImEvent, container_area: TopRect, node: generic.SidebarNode) f64 {
+    //
+    switch (node) {
+        .sample => |sample| {
+            var layout = VLayoutManager.fromTopRect(container_area);
+            layout.inset(10);
+
+            imev.render().rect(.{ .rounded = .sm, .bg = .gray100 }, layout.take(.{ .h = 25, .gap = 10 }));
+            imev.render().rect(.{ .rounded = .sm, .bg = .gray100 }, layout.take(.{ .h = 15, .gap = 10 }));
+            imev.render().rect(.{ .rounded = .sm, .bg = .gray100 }, layout.take(.{ .h = 15, .gap = 10 }));
+            imev.render().rect(.{ .rounded = .sm, .bg = .gray100 }, layout.take(.{ .h = 15, .gap = 10 }));
+
+            return layout.height();
+        },
+    }
+}
 
 fn renderApp(imev: *ImEvent, area: Rect) void {
     // next step is figuring out:
@@ -290,6 +344,8 @@ fn renderApp(imev: *ImEvent, area: Rect) void {
     // eg bg_color: color-gray-500 (like that)
     // and that allows for automatic dark/light modes and stuff
 
+    const page = generic.sample;
+
     imev.render().rect(.{ .bg = .gray100 }, area);
 
     const fullscreen = area.inset(20);
@@ -301,6 +357,13 @@ fn renderApp(imev: *ImEvent, area: Rect) void {
 
     if (area.w > 1000) {
         var sidebar = layout.cutRight(.{ .w = sidebar_width, .gap = 20 });
+
+        for (page.sidebar) |sidebar_node| {
+            //
+            const box = imev.render();
+            const res_height = renderSidebarWidget(imev, sidebar.topRect(), sidebar_node);
+            box.rect(.{ .rounded = .md, .bg = .gray200 }, sidebar.take(.{ .h = res_height, .gap = 10 }));
+        }
 
         imev.render().rect(.{ .rounded = .md, .bg = .gray200 }, sidebar.take(.{ .h = 244, .gap = 10 }));
         imev.render().rect(.{ .rounded = .md, .bg = .gray200 }, sidebar.take(.{ .h = 66, .gap = 10 }));
