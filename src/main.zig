@@ -49,15 +49,41 @@ pub const ThemeColor = enum {
     black, // #000
     gray100, // #131516
     gray200, // #181a1b
+    gray500, // #9ca3af
     white, // #fff
     pub fn getColor(col: ThemeColor) Color {
         return switch (col) {
             .black => Color.hex(0x000000),
             .gray100 => Color.hex(0x131516),
             .gray200 => Color.hex(0x181a1b),
+            .gray500 => Color.hex(0x9ca3af),
             .white => Color.hex(0xFFFFFF),
         };
     }
+};
+pub const FontWeight = enum {
+    normal, // 400 ("normal")
+    bold, // 700 ("bold")
+    black, // 900 ("heavy")
+};
+pub const FontFamily = enum {
+    sans_serif,
+    monospace,
+};
+pub const FontSize = enum {
+    sm, // 0.875rem ≈ 10.541pt
+    base, // 1rem ≈ 12.0468pt
+    pub fn get(fsize: FontSize) []const u8 {
+        return switch (fsize) {
+            .sm => "10.541",
+            .base => "12.0468",
+        };
+    }
+};
+const AllFontOpts = enum {
+    size: FontSize,
+    family: FontFamily,
+    weight: FontWeight,
 };
 
 const FutureRender = struct {
@@ -78,6 +104,25 @@ const FutureRender = struct {
             .radius = opts.rounded.getPx(),
             .bg_color = opts.bg.getColor(),
         } } });
+    }
+    const FontOpts = struct {
+        family: FontFamily = .sans_serif,
+        weight: FontWeight = .normal,
+        size: FontSize,
+        color: ThemeColor,
+    };
+    pub fn text(fr: FutureRender, top_rect: TopRect, opts: FontOpts, text_val: []const u8) f64 {
+        // create and cache a layout using these opts
+        // render that layout
+        // make sure to use PANGO_WRAP_WORD_CHAR
+        // https://gist.github.com/bert/262331/9dcb6a35460f2eb84571164bf84cbb2a6fc8d367
+
+        // note the color is not included in the layout
+        // instead, use cairo_set_source_rgb before pango_cairo_show_layout
+
+        const h: f64 = 25;
+        fr.rect(.{ .bg = opts.color }, .{ .x = top_rect.x, .y = top_rect.y, .w = top_rect.w, .h = h });
+        return h;
     }
 };
 fn Queue(comptime T: type) type {
@@ -278,7 +323,8 @@ const VLayoutManager = struct {
             .start_y = lm.top_rect.y,
         };
     }
-    pub fn take(lm: *VLayoutManager, opts: struct { h: f64, gap: f64 }) Rect {
+    const TakeOpts = struct { h: f64, gap: f64 };
+    pub fn take(lm: *VLayoutManager, opts: TakeOpts) Rect {
         lm.top_rect.y += lm.uncommitted_gap;
         lm.uncommitted_gap = opts.gap;
         const res = Rect{
@@ -289,6 +335,9 @@ const VLayoutManager = struct {
         };
         lm.top_rect.y += opts.h;
         return res;
+    }
+    pub fn use(lm: *VLayoutManager, opts: TakeOpts) void {
+        _ = lm.take(opts);
     }
     pub fn topRect(lm: *VLayoutManager) TopRect {
         return TopRect{
@@ -317,10 +366,8 @@ fn renderSidebarWidget(imev: *ImEvent, container_area: TopRect, node: generic.Si
             var layout = VLayoutManager.fromTopRect(container_area);
             layout.inset(10);
 
-            imev.render().rect(.{ .rounded = .sm, .bg = .gray100 }, layout.take(.{ .h = 25, .gap = 10 }));
-            imev.render().rect(.{ .rounded = .sm, .bg = .gray100 }, layout.take(.{ .h = 15, .gap = 10 }));
-            imev.render().rect(.{ .rounded = .sm, .bg = .gray100 }, layout.take(.{ .h = 15, .gap = 10 }));
-            imev.render().rect(.{ .rounded = .sm, .bg = .gray100 }, layout.take(.{ .h = 15, .gap = 10 }));
+            layout.use(.{ .gap = 8, .h = imev.render().text(layout.topRect(), .{ .weight = .bold, .color = .gray500, .size = .base }, sample.title) });
+            layout.use(.{ .gap = 8, .h = imev.render().text(layout.topRect(), .{ .weight = .bold, .color = .white, .size = .base }, sample.body) });
 
             return layout.height();
         },
