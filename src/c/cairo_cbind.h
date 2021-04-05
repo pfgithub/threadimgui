@@ -15,6 +15,7 @@ IMPLONLY(
 void zig_on_draw_event(cairo_t *cr);
 gboolean zig_on_keypress_event(GdkEventKey *widget, GtkIMContext *im_context);
 void zig_on_keyrelease_event(GdkEventKey *widget);
+gboolean zig_on_resize_event(GtkWidget *widget, GdkRectangle *allocation, gpointer data);
 
 static gboolean on_draw_event(GtkWidget *widget, cairo_t *cr, gpointer user_data) {
 	zig_on_draw_event(cr);
@@ -66,6 +67,7 @@ IMPL({
 	g_signal_connect(window, "destroy", G_CALLBACK(destroy), NULL);
 	g_signal_connect(G_OBJECT(window), "key_press_event", G_CALLBACK(on_keypress_event), im_context);
 	g_signal_connect(G_OBJECT(window), "key_release_event", G_CALLBACK(on_keyrelease_event), NULL);
+	g_signal_connect(G_OBJECT(window), "size_allocate", G_CALLBACK(zig_on_resize_event), NULL);
 	
 	g_signal_connect(im_context, "commit", G_CALLBACK(zig_on_commit_event), NULL);
 	//g_signal_connect(im_context, "delete-surrounding", G_CALLBACK(zig_on_delete_surrounding_event), NULL);

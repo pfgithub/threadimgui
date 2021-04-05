@@ -47,9 +47,11 @@ pub const RawEvent = union(enum) {
     keypress: *GdkEventKey_f,
     keyrelease: *GdkEventKey_f,
     textcommit: []const u8,
+    resize: struct { x: c_int, y: c_int, w: c_int, h: c_int },
 };
 
 // oh I can have user data I should use that
+// pass it through the start fn
 export fn zig_on_draw_event(cr: *cairo_t) callconv(.C) void {
     main.renderFrame(Context{ .cr = cr });
 }
@@ -72,6 +74,10 @@ export fn zig_on_preedit_changed_event(context: *GtkIMContext, user_data: gpoint
 export fn zig_on_retrieve_surrounding_event(context: *GtkIMContext, user_data: gpointer) callconv(.C) gboolean {
     @panic("TODO implement IME support");
 }
+export fn zig_on_resize_event(widget: *GtkWidget, rect: *GdkRectangle, user_data: gpointer) callconv(.C) gboolean {
+    main.pushEvent(.{ .resize = .{ .x = rect.x, .y = rect.y, .w = rect.width, .h = rect.height } });
+    return 1;
+}
 
 fn roundedRectangle(cr: *cairo_t, x: f64, y: f64, w: f64, h: f64, corner_radius: f64) void {
     // TODO if radius == 0 skip this
@@ -93,7 +99,7 @@ pub const Context = struct {
         switch (node.value) {
             .unfilled => unreachable, // unfilled node exists. TODO additional debug info here.
             .rectangle => |rect| {
-                roundedRectangle(cr, rect.x, rect.y, rect.w, rect.h, rect.radius);
+                roundedRectangle(cr, rect.rect.x, rect.rect.y, rect.rect.w, rect.rect.h, rect.radius);
                 cairo_set_source_rgba(cr, rect.bg_color.r, rect.bg_color.g, rect.bg_color.b, rect.bg_color.a);
                 cairo_fill(cr);
             },
