@@ -99,6 +99,17 @@ const ImEvent = struct { // pinned?
 };
 
 fn renderApp(imev: *ImEvent) void {
+    // next step is figuring out:
+    // how consistent ids will work
+    // +
+    // text rendering (req. consistent IDs to cache text)
+    // alternatively, text can be a global cache for now
+    // a global cache is probably better anyway
+
+    // or: make some rect helper fns now
+    // so:
+    // allow me to recreate the layout of threadreader easily and start putting some content in
+
     imev.render().setRenderNode(.{
         .value = .{
             .rectangle = .{
