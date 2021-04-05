@@ -202,27 +202,12 @@ const GdkEventKey_f = extern struct {
     }
 };
 
-var nextEventFrame: ?anyframe = null;
 const RawEvent = union(enum) {
     render: *cairo_t,
     keypress: *GdkEventKey_f,
     keyrelease: *GdkEventKey_f,
     textcommit: []const u8,
 };
-var eventResult: ?RawEvent = undefined;
-
-pub fn waitNextEvent() ?RawEvent {
-    suspend {
-        nextEventFrame = @frame();
-    }
-    nextEventFrame = null;
-    return eventResult;
-}
-
-fn pushEvent(event: RawEvent) void {
-    eventResult = event;
-    resume nextEventFrame orelse @panic("No one is waiting for an event. TODO event queue thing.");
-}
 
 export fn zig_on_draw_event(cr: *cairo_t) callconv(.C) void {
     pushEvent(.{ .render = cr });
@@ -263,58 +248,47 @@ fn range(max: usize) []const void {
     return @as([]const void, &[_]void{}).ptr[0..max];
 }
 
-pub fn asyncMain() void {
-    var layout: ?*PangoLayout = null;
-    defer if (layout) |l| g_object_unref(l);
-    while (waitNextEvent()) |ev| {
-        switch (ev) {
-            .render => |cr| {
-                roundedRectangle(cr, 10, 10, 80, 80, 10);
-                cairo_set_source_rgb(cr, 0.5, 0.5, 1);
-                cairo_fill(cr);
-                // cairo_set_source_rgba(cr, 0.5, 0, 0, 0.5);
-                // cairo_set_line_width(cr, 10.0);
-                // cairo_stroke(cr);
+var layout: ?*PangoLayout = null;
+fn pushEvent(ev: RawEvent) void {
+    switch (ev) {
+        .render => |cr| {
+            roundedRectangle(cr, 10, 10, 80, 80, 10);
+            cairo_set_source_rgb(cr, 0.5, 0.5, 1);
+            cairo_fill(cr);
 
-                const text = "Cairo Test. 🙋→⎋ يونيكود.\n";
-                const font = "Monospace 12";
+            const text = "Cairo Test. 🙋→⎋ يونيكود.\n";
+            const font = "Monospace 12";
 
-                if (layout == null) {
-                    layout = pango_cairo_create_layout(cr);
+            if (layout == null) {
+                layout = pango_cairo_create_layout(cr);
 
-                    pango_layout_set_text(layout, text, -1);
-                    {
-                        const description = pango_font_description_from_string(font);
-                        defer pango_font_description_free(description);
-                        pango_layout_set_font_description(layout, description);
-                    }
+                pango_layout_set_text(layout, text, -1);
+                {
+                    const description = pango_font_description_from_string(font);
+                    defer pango_font_description_free(description);
+                    pango_layout_set_font_description(layout, description);
                 }
+            }
 
-                cairo_save(cr);
-                cairo_move_to(cr, 50, 150);
-                pango_cairo_show_layout(cr, layout);
-                cairo_restore(cr);
-            },
-            .keypress => |kp| {
-                std.debug.warn("Key↓: {}\n", .{kp.keyval});
-            },
-            .keyrelease => |kp| {
-                std.debug.warn("Key↑: {}\n", .{kp.keyval});
-            },
-            .textcommit => |str| {
-                std.debug.warn("On commit event `{s}`\n", .{str});
-            },
-        }
+            cairo_save(cr);
+            cairo_move_to(cr, 50, 150);
+            pango_cairo_show_layout(cr, layout);
+            cairo_restore(cr);
+        },
+        .keypress => |kp| {
+            std.debug.warn("Key↓: {}\n", .{kp.keyval});
+        },
+        .keyrelease => |kp| {
+            std.debug.warn("Key↑: {}\n", .{kp.keyval});
+        },
+        .textcommit => |str| {
+            std.debug.warn("On commit event `{s}`\n", .{str});
+        },
     }
 }
-// one of the reasons for this is I think buttons could look neat if they tilted and that would work better if there was a bit of gradient
-// would look neat
-// reminder to try that
-// mostly I want shadows and rounded rectangles though.
-// and sane, working text rendering
 
 pub fn main() !void {
-    _ = async asyncMain(); // run until first suspend
-    _ = nextEventFrame orelse @panic("main fn did not suspend at waitNextEvent");
+    defer if (layout) |l| g_object_unref(l);
+
     if (start_gtk(0, undefined) != 0) return error.Failure;
 }
