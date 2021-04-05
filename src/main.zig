@@ -10,7 +10,17 @@ pub const Color = struct {
     r: f64,
     g: f64,
     b: f64,
-    a: f64,
+    a: f64 = 1,
+    pub fn hex(v: u24) Color {
+        const r = (v & 0xFF0000) >> 16;
+        const g = (v & 0x00FF00) >> 8;
+        const b = (v & 0x0000FF) >> 0;
+        return Color{
+            .r = @intToFloat(f64, r) / 0xFF,
+            .g = @intToFloat(f64, g) / 0xFF,
+            .b = @intToFloat(f64, b) / 0xFF,
+        };
+    }
 };
 pub const RenderNode = struct { value: union(enum) {
     unfilled: void, // TODO store some debug info here
@@ -20,6 +30,36 @@ pub const RenderNode = struct { value: union(enum) {
         bg_color: Color,
     },
 } };
+
+pub const RoundedStyle = enum {
+    none,
+    sm, // 5px
+    md, // 10px
+    xl, // 15px
+    pub fn getPx(rs: RoundedStyle) f64 {
+        return switch (rs) {
+            .none => 0,
+            .sm => 5,
+            .md => 10,
+            .xl => 15,
+        };
+    }
+};
+pub const ThemeColor = enum {
+    black, // #000
+    gray100, // #131516
+    gray200, // #181a1b
+    white, // #fff
+    pub fn getColor(col: ThemeColor) Color {
+        return switch (col) {
+            .black => Color.hex(0x000000),
+            .gray100 => Color.hex(0x131516),
+            .gray200 => Color.hex(0x181a1b),
+            .white => Color.hex(0xFFFFFF),
+        };
+    }
+};
+
 const FutureRender = struct {
     event: *ImEvent,
     index: ?usize, // if null, no actual rendering is happening so who cares
@@ -27,6 +67,17 @@ const FutureRender = struct {
         const index = fr.index orelse return;
         if (fr.event.render_nodes.items[index].value != .unfilled) unreachable; // render node cannot be set twice
         fr.event.render_nodes.items[index] = render_node;
+    }
+    const RectOpts = struct {
+        rounded: RoundedStyle = .none,
+        bg: ThemeColor,
+    };
+    pub fn rect(fr: FutureRender, opts: RectOpts, area: Rect) void {
+        fr.setRenderNode(RenderNode{ .value = .{ .rectangle = .{
+            .rect = area,
+            .radius = opts.rounded.getPx(),
+            .bg_color = opts.bg.getColor(),
+        } } });
     }
 };
 fn Queue(comptime T: type) type {
@@ -197,16 +248,11 @@ fn renderApp(imev: *ImEvent, area: Rect) void {
     // eg bg_color: color-gray-500 (like that)
     // and that allows for automatic dark/light modes and stuff
 
+    imev.render().rect(.{ .bg = .gray100 }, area);
+
     const fullscreen = area.inset(10);
-    imev.render().setRenderNode(.{
-        .value = .{
-            .rectangle = .{
-                .rect = fullscreen,
-                .radius = 6,
-                .bg_color = Color{ .r = 0.8, .g = 0.5, .b = 0.5, .a = 1 },
-            },
-        },
-    });
+
+    imev.render().rect(.{ .rounded = .md, .bg = .gray200 }, fullscreen);
 }
 
 var content: generic.Page = undefined;
