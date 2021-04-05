@@ -231,6 +231,48 @@ const ImEvent = struct { // pinned?
     }
 };
 
+const VLayoutManager = struct {
+    top_rect: struct {
+        x: f64,
+        y: f64,
+        w: f64,
+    },
+    uncommitted_gap: f64,
+    pub fn fromRect(rect: Rect) VLayoutManager {
+        return VLayoutManager{
+            .top_rect = .{
+                .x = rect.x,
+                .y = rect.y,
+                .w = rect.w,
+            },
+            .uncommitted_gap = 0,
+        };
+    }
+    pub fn cutRight(lm: *VLayoutManager, opts: struct { w: f64, gap: f64 }) VLayoutManager {
+        lm.top_rect.w -= opts.w + opts.gap;
+        return VLayoutManager{
+            .top_rect = .{
+                .x = lm.top_rect.x + lm.top_rect.w + opts.gap,
+                .w = opts.w,
+                .y = lm.top_rect.y,
+            },
+            .uncommitted_gap = 0,
+        };
+    }
+    pub fn take(lm: *VLayoutManager, opts: struct { h: f64, gap: f64 }) Rect {
+        lm.top_rect.y += lm.uncommitted_gap;
+        lm.uncommitted_gap = opts.gap;
+        const res = Rect{
+            .x = lm.top_rect.x,
+            .y = lm.top_rect.y,
+            .w = lm.top_rect.w,
+            .h = opts.h,
+        };
+        lm.top_rect.y += opts.h;
+        return res;
+    }
+};
+
 fn renderApp(imev: *ImEvent, area: Rect) void {
     // next step is figuring out:
     // how consistent ids will work
@@ -250,9 +292,27 @@ fn renderApp(imev: *ImEvent, area: Rect) void {
 
     imev.render().rect(.{ .bg = .gray100 }, area);
 
-    const fullscreen = area.inset(10);
+    const fullscreen = area.inset(20);
 
-    imev.render().rect(.{ .rounded = .md, .bg = .gray200 }, fullscreen);
+    const sidebar_width = 300;
+    const cutoff = 1000;
+
+    var layout = VLayoutManager.fromRect(fullscreen);
+
+    if (area.w > 1000) {
+        var sidebar = layout.cutRight(.{ .w = sidebar_width, .gap = 20 });
+
+        imev.render().rect(.{ .rounded = .md, .bg = .gray200 }, sidebar.take(.{ .h = 244, .gap = 10 }));
+        imev.render().rect(.{ .rounded = .md, .bg = .gray200 }, sidebar.take(.{ .h = 66, .gap = 10 }));
+        imev.render().rect(.{ .rounded = .md, .bg = .gray200 }, sidebar.take(.{ .h = 172, .gap = 10 }));
+        imev.render().rect(.{ .rounded = .md, .bg = .gray200 }, sidebar.take(.{ .h = 332, .gap = 10 }));
+        imev.render().rect(.{ .rounded = .md, .bg = .gray200 }, sidebar.take(.{ .h = 128, .gap = 10 }));
+        imev.render().rect(.{ .rounded = .md, .bg = .gray200 }, sidebar.take(.{ .h = 356, .gap = 10 }));
+    }
+
+    for (range(20)) |_| {
+        imev.render().rect(.{ .rounded = .md, .bg = .gray200 }, layout.take(.{ .h = 92, .gap = 10 }));
+    }
 }
 
 var content: generic.Page = undefined;
