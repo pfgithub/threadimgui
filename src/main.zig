@@ -91,7 +91,7 @@ pub const FontFamily = enum {
             .sans_serif => "ui-sans-serif,system-ui",
             // TODO ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
             // "Courier New", monospace
-            .monospace => "monospace",
+            .monospace => "ui-monospace",
         };
     }
 };
@@ -150,7 +150,10 @@ const RenderNodeFrame = struct {
     }
 };
 // TODO maybe RenderResult(WH)? not sure
-// or just get rid of this entirely
+// or get rid of this entirely
+// that's an option : get rid of this, items that want to be placed with a vertical layout manager can
+// return the vertical layout manager result encapsulation struct thing or something
+// then place would be a function of renderNodeFrame rather than of RenderResult
 const RenderResult = struct {
     wh: WH,
     nodes: ?*Queue(RenderNode).Node,
@@ -572,22 +575,6 @@ fn renderContextNode(imev: *ImEvent, width: f64, node: generic.PostContext) Rend
 }
 
 fn renderApp(imev: *ImEvent, wh: WH) RenderResult {
-    // next step is figuring out:
-    // how consistent ids will work
-    // +
-    // text rendering (req. consistent IDs to cache text)
-    // alternatively, text can be a global cache for now
-    // a global cache is probably better anyway
-
-    // or: make some rect helper fns now
-    // so:
-    // allow me to recreate the layout of threadreader easily and start putting some content in
-
-    // also:
-    // do some tailwind-like stuff
-    // eg bg_color: color-gray-500 (like that)
-    // and that allows for automatic dark/light modes and stuff
-
     const page = generic.sample;
     var ctx = imev.render();
 
@@ -612,8 +599,6 @@ fn renderApp(imev: *ImEvent, wh: WH) RenderResult {
         var sidebar = layout.cutRight(.{ .w = sidebar_width, .gap = 20 });
 
         for (page.sidebar) |sidebar_node| {
-            //
-            // const box = imev.render();
             const sidebar_widget = renderSidebarWidget(imev, sidebar.top_rect.w, sidebar_node);
             const placement_rect = sidebar.take(.{ .h = sidebar_widget.wh.h, .gap = 10 });
             primitives.rect(imev, .{ .w = placement_rect.w, .h = placement_rect.h }, .{ .rounded = .md, .bg = .gray200 })
@@ -669,43 +654,6 @@ pub fn pushEvent(ev: cairo.RawEvent) void {
     const imev = &global_imevent;
 
     imev.addEvent(ev) catch @panic("oom");
-
-    // switch (ev) {
-    //     .render => |cr| {
-    //         roundedRectangle(cr, 10, 10, 80, 80, 10);
-    //         cairo_set_source_rgb(cr, 0.5, 0.5, 1);
-    //         cairo_fill(cr);
-
-    //         const text = "Cairo Test. 🙋→⎋ يونيكود.\n";
-    //         const font = "Monospace 12";
-
-    //         if (layout == null) {
-    //             layout = pango_cairo_create_layout(cr); // ?*PangoLayout, g_object_unref(layout)
-
-    //             pango_layout_set_text(layout, text, -1);
-    //             {
-    //                 const description = pango_font_description_from_string(font);
-    //                 defer pango_font_description_free(description);
-    //                 pango_layout_set_font_description(layout, description);
-    //             }
-    //         }
-
-    //         cairo_save(cr);
-    //         cairo_move_to(cr, 50, 150);
-    //         pango_cairo_show_layout(cr, layout);
-    //         cairo_restore(cr);
-    //     },
-    //     .keypress => |kp| {
-    //         std.debug.warn("Key↓: {}\n", .{kp.keyval});
-    //         // these will call the render fn, but with a void value
-    //     },
-    //     .keyrelease => |kp| {
-    //         std.debug.warn("Key↑: {}\n", .{kp.keyval});
-    //     },
-    //     .textcommit => |str| {
-    //         std.debug.warn("On commit event `{s}`\n", .{str});
-    //     },
-    // }
 }
 
 pub fn main() !void {
