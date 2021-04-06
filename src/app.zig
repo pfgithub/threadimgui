@@ -89,7 +89,6 @@ const HLayoutManager = struct {
                 return null;
             }
         } else if (hlm.x > 0 and hlm.x + widget.wh.w > hlm.max_w) {
-            // hlm.ctx.place(widget.node, .{ .x = hlm.x, .y = hlm.y });
             hlm.y += hlm.current_h + hlm.gap_y;
             hlm.current_h = 0;
             hlm.x = 0;
@@ -113,8 +112,6 @@ fn renderPost(imev: *ImEvent, width: f64, node: generic.Post) VLayoutManager.Chi
     var layout = VLayoutManager.fromWidth(width);
 
     layout.place(&ctx, .{ .gap = 0 }, primitives.textV(imev, layout.top_rect.w, .{ .color = .white, .size = .base }, node.title));
-    // now need a horizontal layout manager for this info bar
-    // then another for action buttons
     {
         var actions_lm = HLayoutManager.init(imev, .{ .max_w = layout.top_rect.w, .gap_x = 8, .gap_y = 0 });
         actions_lm.overflow(renderExtraActionsMenu(imev, node.actions));
@@ -122,29 +119,6 @@ fn renderPost(imev: *ImEvent, width: f64, node: generic.Post) VLayoutManager.Chi
             actions_lm.put(renderAction(imev, action)) orelse break;
         }
         layout.place(&ctx, .{ .gap = 0 }, actions_lm.build());
-
-        // var toprect = layout.topRect();
-        // var btn_x = toprect.x;
-        // var btn_y = toprect.y;
-        // var max_h: f64 = 0;
-
-        // const extra_actions_menu = renderExtraActionsMenu(imev, node.actions);
-
-        // for (node.actions) |action| {
-        //     const rendered = renderAction(imev, action);
-
-        //     if (btn_x + rendered.wh.w > toprect.w - extra_actions_menu.wh.w) {
-        //         ctx.place(extra_actions_menu.node, .{ .x = btn_x, .y = btn_y });
-        //         if (extra_actions_menu.wh.h > max_h) max_h = rendered.wh.h;
-        //         break;
-        //     }
-
-        //     ctx.place(rendered.node, .{ .x = btn_x, .y = btn_y });
-        //     if (rendered.wh.h > max_h) max_h = rendered.wh.h;
-        //     btn_x += rendered.wh.w;
-        //     btn_x += 8;
-        // }
-        // layout.use(.{ .gap = 0, .h = max_h });
     }
 
     return layout.result(&ctx);
