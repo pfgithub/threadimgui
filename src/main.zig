@@ -234,6 +234,7 @@ fn Queue(comptime T: type) type {
 pub const Point = struct {
     x: f64,
     y: f64,
+    pub const origin = Point{ .x = 0, .y = 0 };
 };
 pub const Rect = struct {
     x: f64,

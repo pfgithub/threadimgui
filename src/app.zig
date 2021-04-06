@@ -55,11 +55,28 @@ fn renderContextNode(imev: *ImEvent, width: f64, node: generic.PostContext) VLay
     return layout.result(&ctx);
 }
 
+pub fn topLevelContainer(imev: *ImEvent, width: f64, child: VLayoutManager.Child, opts: struct { rounded: bool }) VLayoutManager.Child {
+    // return rectEncapsulating(rounding, .bg = .gray200,
+    //    child
+    // )
+    var ctx = imev.render();
+
+    const rounding: RoundedStyle = if (opts.rounded) .md else .none;
+
+    ctx.place(primitives.rect(imev, .{ .w = width, .h = child.h }, .{ .rounded = rounding, .bg = .gray200 }), Point.origin);
+    ctx.place(child.node, Point.origin);
+
+    return VLayoutManager.Child{
+        .node = ctx.result(),
+        .h = child.h,
+    };
+}
+
 pub fn renderApp(imev: *ImEvent, wh: WH) RenderResult {
     const page = generic.sample;
     var ctx = imev.render();
 
-    ctx.place(primitives.rect(imev, wh, .{ .bg = .gray100 }), Point{ .x = 0, .y = 0 });
+    ctx.place(primitives.rect(imev, wh, .{ .bg = .gray100 }), Point.origin);
 
     const sidebar_width = 300;
     const cutoff = 1000;
@@ -82,29 +99,23 @@ pub fn renderApp(imev: *ImEvent, wh: WH) RenderResult {
         for (page.sidebar) |sidebar_node| {
             const sidebar_widget = renderSidebarWidget(imev, sidebar.top_rect.w, sidebar_node);
 
-            const placement_rect = sidebar.take(.{ .h = sidebar_widget.h, .gap = 10 });
-            ctx.place(primitives.rect(imev, placement_rect.wh(), .{ .rounded = .md, .bg = .gray200 }), placement_rect.ul());
-            ctx.place(sidebar_widget.node, placement_rect.ul());
+            sidebar.place(&ctx, .{ .gap = 10 }, topLevelContainer(imev, sidebar.top_rect.w, sidebar_widget, .{ .rounded = true }));
         }
 
         for ([_]f64{ 244, 66, 172, 332, 128, 356 }) |height| {
-            const placement_rect = sidebar.take(.{ .h = height, .gap = 10 });
-            ctx.place(primitives.rect(imev, placement_rect.wh(), .{ .rounded = .md, .bg = .gray200 }), placement_rect.ul());
+            sidebar.place(&ctx, .{ .gap = 10 }, topLevelContainer(imev, sidebar.top_rect.w, VLayoutManager.Child{ .h = height, .node = null }, .{ .rounded = true }));
         }
     }
 
-    const rounding: RoundedStyle = if (wh.w > mobile_cutoff) .md else .none;
+    const rounded = wh.w > mobile_cutoff;
     for (page.content) |context_node| {
         const box = imev.render();
         const context_widget = renderContextNode(imev, layout.top_rect.w, context_node);
 
-        const placement_rect = layout.take(.{ .h = context_widget.h, .gap = 10 });
-        ctx.place(primitives.rect(imev, placement_rect.wh(), .{ .rounded = rounding, .bg = .gray200 }), placement_rect.ul());
-        ctx.place(context_widget.node, placement_rect.ul());
+        layout.place(&ctx, .{ .gap = 10 }, topLevelContainer(imev, layout.top_rect.w, context_widget, .{ .rounded = rounded }));
     }
     for (range(20)) |_| {
-        const placement_rect = layout.take(.{ .h = 92, .gap = 10 });
-        ctx.place(primitives.rect(imev, placement_rect.wh(), .{ .rounded = .md, .bg = .gray200 }), placement_rect.ul());
+        layout.place(&ctx, .{ .gap = 10 }, topLevelContainer(imev, layout.top_rect.w, VLayoutManager.Child{ .h = 92, .node = null }, .{ .rounded = rounded }));
     }
 
     return ctx.result();
