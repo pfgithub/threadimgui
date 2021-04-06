@@ -8,6 +8,7 @@ const RenderResult = ui.RenderResult;
 const VLayoutManager = ui.VLayoutManager;
 const RoundedStyle = ui.RoundedStyle;
 const Widget = ui.Widget;
+const RenderCtx = ui.RenderCtx;
 const range = ui.range;
 const generic = @import("generic.zig");
 
@@ -53,6 +54,59 @@ fn renderExtraActionsMenu(imev: *ImEvent, actions: []const generic.Action) Widge
     return inset(imev, 4, text);
 }
 
+const HLayoutManager = struct {
+    ctx: RenderCtx,
+    max_w: f64,
+    gap_x: f64,
+    gap_y: f64,
+
+    x: f64 = 0,
+    y: f64 = 0,
+    overflow_widget: ?Widget = null,
+    current_h: f64 = 0,
+
+    over: bool = false,
+
+    pub fn init(imev: *ImEvent, opts: struct { max_w: f64, gap_x: f64, gap_y: f64 }) HLayoutManager {
+        return .{
+            .ctx = imev.render(),
+            .max_w = opts.max_w,
+            .gap_x = opts.gap_x,
+            .gap_y = opts.gap_y,
+        };
+    }
+    pub fn overflow(hlm: *HLayoutManager, widget: Widget) void {
+        hlm.overflow_widget = widget;
+    }
+    pub fn put(hlm: *HLayoutManager, widget: Widget) ?void {
+        if (hlm.over) unreachable;
+        if (hlm.overflow_widget) |overflow_w| {
+            // TODO if (is_last), skip `- overflow.w`
+            if (hlm.x + widget.wh.w > hlm.max_w - overflow_w.wh.w - hlm.gap_x) {
+                hlm.ctx.place(overflow_w.node, .{ .x = hlm.x, .y = hlm.y });
+                if (overflow_w.wh.h > hlm.current_h) hlm.current_h = overflow_w.wh.h;
+                hlm.over = true;
+                return null;
+            }
+        } else if (hlm.x > 0 and hlm.x + widget.wh.w > hlm.max_w) {
+            // hlm.ctx.place(widget.node, .{ .x = hlm.x, .y = hlm.y });
+            hlm.y += hlm.current_h + hlm.gap_y;
+            hlm.current_h = 0;
+            hlm.x = 0;
+        }
+        hlm.ctx.place(widget.node, .{ .x = hlm.x, .y = hlm.y });
+        if (widget.wh.h > hlm.current_h) hlm.current_h = widget.wh.h;
+        hlm.x += widget.wh.w + hlm.gap_x;
+        return {};
+    }
+    pub fn build(hlm: *HLayoutManager) VLayoutManager.Child {
+        return VLayoutManager.Child{
+            .h = hlm.current_h + hlm.y + if (hlm.current_h == 0) 0 else -hlm.gap_y,
+            .node = hlm.ctx.result(),
+        };
+    }
+};
+
 fn renderPost(imev: *ImEvent, width: f64, node: generic.Post) VLayoutManager.Child {
     var ctx = imev.render();
 
@@ -62,32 +116,35 @@ fn renderPost(imev: *ImEvent, width: f64, node: generic.Post) VLayoutManager.Chi
     // now need a horizontal layout manager for this info bar
     // then another for action buttons
     {
-        var toprect = layout.topRect();
-        var btn_x = toprect.x;
-        var btn_y = toprect.y;
-        var max_h: f64 = 0;
-
-        // render "…" button, likely to be discarded
-        // render all buttons
-        // if button is too wide, end rendering
-
-        const extra_actions_menu = renderExtraActionsMenu(imev, node.actions);
-
+        var actions_lm = HLayoutManager.init(imev, .{ .max_w = layout.top_rect.w, .gap_x = 8, .gap_y = 0 });
+        actions_lm.overflow(renderExtraActionsMenu(imev, node.actions));
         for (node.actions) |action| {
-            const rendered = renderAction(imev, action);
-
-            if (btn_x + rendered.wh.w > toprect.w - extra_actions_menu.wh.w) {
-                ctx.place(extra_actions_menu.node, .{ .x = btn_x, .y = btn_y });
-                if (extra_actions_menu.wh.h > max_h) max_h = rendered.wh.h;
-                break;
-            }
-
-            ctx.place(rendered.node, .{ .x = btn_x, .y = btn_y });
-            if (rendered.wh.h > max_h) max_h = rendered.wh.h;
-            btn_x += rendered.wh.w;
-            btn_x += 8;
+            actions_lm.put(renderAction(imev, action)) orelse break;
         }
-        layout.use(.{ .gap = 0, .h = max_h });
+        layout.place(&ctx, .{ .gap = 0 }, actions_lm.build());
+
+        // var toprect = layout.topRect();
+        // var btn_x = toprect.x;
+        // var btn_y = toprect.y;
+        // var max_h: f64 = 0;
+
+        // const extra_actions_menu = renderExtraActionsMenu(imev, node.actions);
+
+        // for (node.actions) |action| {
+        //     const rendered = renderAction(imev, action);
+
+        //     if (btn_x + rendered.wh.w > toprect.w - extra_actions_menu.wh.w) {
+        //         ctx.place(extra_actions_menu.node, .{ .x = btn_x, .y = btn_y });
+        //         if (extra_actions_menu.wh.h > max_h) max_h = rendered.wh.h;
+        //         break;
+        //     }
+
+        //     ctx.place(rendered.node, .{ .x = btn_x, .y = btn_y });
+        //     if (rendered.wh.h > max_h) max_h = rendered.wh.h;
+        //     btn_x += rendered.wh.w;
+        //     btn_x += 8;
+        // }
+        // layout.use(.{ .gap = 0, .h = max_h });
     }
 
     return layout.result(&ctx);
