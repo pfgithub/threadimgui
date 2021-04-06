@@ -142,11 +142,14 @@ const RenderNodeFrame = struct {
     pub fn putRenderNode(nf: *RenderNodeFrame, node: RenderNode) void {
         nf.nodes.push(nf.imev.arena(), node) catch @panic("oom");
     }
-    pub fn result(nf: *RenderNodeFrame, size: WH) RenderResult {
-        return RenderResult{
-            .wh = size,
-            .nodes = nf.nodes.start,
-        };
+    pub fn result(nf: *RenderNodeFrame) RenderResult {
+        return nf.nodes.start;
+    }
+    pub fn place(ctx: *RenderNodeFrame, node: RenderResult, point: Point) void {
+        ctx.putRenderNode(.{ .value = .{ .place = .{
+            .node = node,
+            .offset = point,
+        } } });
     }
 };
 // TODO maybe RenderResult(WH)? not sure
@@ -154,21 +157,8 @@ const RenderNodeFrame = struct {
 // that's an option : get rid of this, items that want to be placed with a vertical layout manager can
 // return the vertical layout manager result encapsulation struct thing or something
 // then place would be a function of renderNodeFrame rather than of RenderResult
-const RenderResult = struct {
-    wh: WH,
-    nodes: ?*Queue(RenderNode).Node,
-    pub fn place(rres: RenderResult, frame: *RenderNodeFrame, point: Point) void {
-        // TODO prevent placing an item twice ; events won't work properly
-        frame.putRenderNode(.{ .value = .{ .place = .{
-            .node = rres.nodes,
-            .offset = point,
-        } } });
-    }
-    pub fn drop(rres: RenderResult) void {
-        // discards the rendered stuff
-        // this kinda does nothing is there a point to this function existing?
-    }
-};
+const RenderResult = ?*Queue(RenderNode).Node;
+
 const primitives = struct {
     const RectOpts = struct {
         rounded: RoundedStyle = .none,
@@ -181,7 +171,7 @@ const primitives = struct {
             .radius = opts.rounded.getPx(),
             .bg_color = opts.bg.getColor(),
         } } });
-        return ctx.result(size);
+        return ctx.result();
     }
     const FontOpts = struct {
         family: FontFamily = .sans_serif,
@@ -189,7 +179,7 @@ const primitives = struct {
         size: FontSize,
         color: ThemeColor,
     };
-    pub fn text(imev: *ImEvent, width: f64, opts: FontOpts, text_val: []const u8) RenderResult {
+    pub fn text(imev: *ImEvent, width: f64, opts: FontOpts, text_val: []const u8) VLayoutManager.Child {
         var ctx = imev.render();
 
         const all_font_opts = AllFontOpts{ .size = opts.size, .family = opts.family, .weight = opts.weight };
@@ -204,7 +194,10 @@ const primitives = struct {
             .color = opts.color.getColor(),
         } } });
 
-        return ctx.result(size);
+        return VLayoutManager.Child{
+            .h = size.h,
+            .node = ctx.result(),
+        };
     }
 };
 
@@ -258,6 +251,21 @@ pub const Rect = struct {
             .w = rect.w - distance * 2,
             .h = rect.h - distance * 2,
         };
+    }
+    pub fn wh(rect: Rect) WH {
+        return .{ .w = rect.w, .h = rect.h };
+    }
+    pub fn ul(rect: Rect) Point {
+        return .{ .x = rect.x, .y = rect.y };
+    }
+    pub fn ur(rect: Rect) Point {
+        return .{ .x = rect.x + rect.w, .y = rect.y };
+    }
+    pub fn bl(rect: Rect) Point {
+        return .{ .x = rect.x, .y = rect.y + rect.h };
+    }
+    pub fn br(rect: Rect) Point {
+        return .{ .x = rect.x + rect.w, .y = rect.y + rect.h };
     }
 };
 pub const WH = struct {
@@ -361,7 +369,7 @@ const ImEvent = struct { // pinned?
             else => {},
         };
     }
-    pub fn internalRender(imev: *ImEvent, nodes: ?*Queue(RenderNode).Node, offset: Point) void {
+    pub fn internalRender(imev: *ImEvent, nodes: RenderResult, offset: Point) void {
         var nodeiter = nodes;
         while (nodeiter) |node| {
             const rnode: RenderNode = node.value;
@@ -382,7 +390,7 @@ const ImEvent = struct { // pinned?
     pub fn endFrameRender(imev: *ImEvent, render_v: RenderResult) void {
         if (!imev.should_render) unreachable;
 
-        imev.internalRender(render_v.nodes, imev.internal_screen_offset);
+        imev.internalRender(render_v, imev.internal_screen_offset);
 
         var keys_to_remove = Queue(TextHashKey){};
         var iter = imev.text_cache.iterator();
@@ -439,27 +447,28 @@ const ImEvent = struct { // pinned?
     }
 };
 
-const TopRect = struct {
+pub const TopRect = struct {
     x: f64,
     y: f64,
     w: f64,
 };
-const VLayoutManager = struct {
+pub const VLayoutManager = struct {
     top_rect: TopRect,
     uncommitted_gap: f64, // maybe don't do this it's weird ; do the opposite maybe idk
     bottom_offset: f64, // added with inset
     start_y: f64,
-    pub fn fromRect(rect: Rect) VLayoutManager {
-        return VLayoutManager{
-            .top_rect = .{
-                .x = rect.x,
-                .y = rect.y,
-                .w = rect.w,
-            },
-            .uncommitted_gap = 0,
-            .bottom_offset = 0,
-            .start_y = rect.y,
+    pub const Child = struct {
+        node: RenderResult,
+        h: f64,
+    };
+    pub fn result(lm: *VLayoutManager, ctx: *RenderNodeFrame) Child {
+        return Child{
+            .h = lm.height(),
+            .node = ctx.result(),
         };
+    }
+    pub fn fromWidth(w: f64) VLayoutManager {
+        return fromTopRect(.{ .x = 0, .y = 0, .w = w });
     }
     pub fn fromTopRect(rect: TopRect) VLayoutManager {
         return VLayoutManager{
@@ -527,64 +536,64 @@ const VLayoutManager = struct {
         lm.top_rect.x = lm.top_rect.x + @divFloor(lm.top_rect.w, 2) - @divFloor(res_w, 2);
         lm.top_rect.w = res_w;
     }
-    pub fn place(lm: *VLayoutManager, ctx: *RenderNodeFrame, opts: struct { gap: f64 }, node: RenderResult) void {
-        const rect = lm.take(.{ .gap = opts.gap, .h = node.wh.h });
-        node.place(ctx, .{ .x = rect.x, .y = rect.y });
+    pub fn place(lm: *VLayoutManager, ctx: *RenderNodeFrame, opts: struct { gap: f64 }, node: Child) void {
+        const rect = lm.take(.{ .gap = opts.gap, .h = node.h });
+        ctx.place(node.node, .{ .x = rect.x, .y = rect.y });
     }
 };
 
-fn renderSidebarWidget(imev: *ImEvent, width: f64, node: generic.SidebarNode) RenderResult {
+fn renderSidebarWidget(imev: *ImEvent, width: f64, node: generic.SidebarNode) VLayoutManager.Child {
     var ctx = imev.render();
 
     switch (node) {
         .sample => |sample| {
-            var layout = VLayoutManager.fromTopRect(.{ .x = 0, .y = 0, .w = width });
+            var layout = VLayoutManager.fromWidth(width);
             layout.inset(10);
 
             layout.place(&ctx, .{ .gap = 8 }, primitives.text(imev, layout.top_rect.w, .{ .weight = .bold, .color = .gray500, .size = .base }, sample.title));
             layout.place(&ctx, .{ .gap = 8 }, primitives.text(imev, layout.top_rect.w, .{ .color = .white, .size = .sm }, sample.body));
 
-            return ctx.result(.{ .w = width, .h = layout.height() });
+            return layout.result(&ctx);
         },
     }
 }
 
-fn renderPost(imev: *ImEvent, width: f64, node: generic.Post) RenderResult {
+fn renderPost(imev: *ImEvent, width: f64, node: generic.Post) VLayoutManager.Child {
     var ctx = imev.render();
 
-    var layout = VLayoutManager.fromTopRect(.{ .x = 0, .y = 0, .w = width });
+    var layout = VLayoutManager.fromWidth(width);
 
     layout.place(&ctx, .{ .gap = 0 }, primitives.text(imev, layout.top_rect.w, .{ .color = .white, .size = .base }, node.title));
     // now need a horizontal layout manager for this info bar
     // then another for action buttons
 
-    return ctx.result(.{ .w = width, .h = layout.height() });
+    return layout.result(&ctx);
 }
 
-fn renderContextNode(imev: *ImEvent, width: f64, node: generic.PostContext) RenderResult {
+fn renderContextNode(imev: *ImEvent, width: f64, node: generic.PostContext) VLayoutManager.Child {
     var ctx = imev.render();
 
-    var layout = VLayoutManager.fromTopRect(.{ .x = 0, .y = 0, .w = width });
+    var layout = VLayoutManager.fromWidth(width);
     layout.inset(10);
 
     for (node.parents) |post| {
         layout.place(&ctx, .{ .gap = 8 }, renderPost(imev, layout.top_rect.w, post));
     }
 
-    return ctx.result(.{ .w = width, .h = layout.height() });
+    return layout.result(&ctx);
 }
 
 fn renderApp(imev: *ImEvent, wh: WH) RenderResult {
     const page = generic.sample;
     var ctx = imev.render();
 
-    primitives.rect(imev, wh, .{ .bg = .gray100 }).place(&ctx, Point{ .x = 0, .y = 0 });
+    ctx.place(primitives.rect(imev, wh, .{ .bg = .gray100 }), Point{ .x = 0, .y = 0 });
 
     const sidebar_width = 300;
     const cutoff = 1000;
     const mobile_cutoff = 600;
 
-    var layout = VLayoutManager.fromRect(.{ .x = 0, .y = 0, .w = wh.w, .h = wh.h });
+    var layout = VLayoutManager.fromWidth(wh.w);
     if (wh.w > mobile_cutoff) layout.inset(20) //
     else layout.insetY(20);
 
@@ -600,18 +609,15 @@ fn renderApp(imev: *ImEvent, wh: WH) RenderResult {
 
         for (page.sidebar) |sidebar_node| {
             const sidebar_widget = renderSidebarWidget(imev, sidebar.top_rect.w, sidebar_node);
-            const placement_rect = sidebar.take(.{ .h = sidebar_widget.wh.h, .gap = 10 });
-            primitives.rect(imev, .{ .w = placement_rect.w, .h = placement_rect.h }, .{ .rounded = .md, .bg = .gray200 })
-                .place(&ctx, .{ .x = placement_rect.x, .y = placement_rect.y }) //
-            ;
-            sidebar_widget.place(&ctx, .{ .x = placement_rect.x, .y = placement_rect.y });
+
+            const placement_rect = sidebar.take(.{ .h = sidebar_widget.h, .gap = 10 });
+            ctx.place(primitives.rect(imev, placement_rect.wh(), .{ .rounded = .md, .bg = .gray200 }), placement_rect.ul());
+            ctx.place(sidebar_widget.node, placement_rect.ul());
         }
 
         for ([_]f64{ 244, 66, 172, 332, 128, 356 }) |height| {
             const placement_rect = sidebar.take(.{ .h = height, .gap = 10 });
-            primitives.rect(imev, .{ .w = placement_rect.w, .h = placement_rect.h }, .{ .rounded = .md, .bg = .gray200 })
-                .place(&ctx, .{ .x = placement_rect.x, .y = placement_rect.y }) //
-            ;
+            ctx.place(primitives.rect(imev, placement_rect.wh(), .{ .rounded = .md, .bg = .gray200 }), placement_rect.ul());
         }
     }
 
@@ -620,20 +626,16 @@ fn renderApp(imev: *ImEvent, wh: WH) RenderResult {
         const box = imev.render();
         const context_widget = renderContextNode(imev, layout.top_rect.w, context_node);
 
-        const placement_rect = layout.take(.{ .h = context_widget.wh.h, .gap = 10 });
-        primitives.rect(imev, .{ .w = placement_rect.w, .h = placement_rect.h }, .{ .rounded = rounding, .bg = .gray200 })
-            .place(&ctx, .{ .x = placement_rect.x, .y = placement_rect.y }) //
-        ;
-        context_widget.place(&ctx, .{ .x = placement_rect.x, .y = placement_rect.y });
+        const placement_rect = layout.take(.{ .h = context_widget.h, .gap = 10 });
+        ctx.place(primitives.rect(imev, placement_rect.wh(), .{ .rounded = rounding, .bg = .gray200 }), placement_rect.ul());
+        ctx.place(context_widget.node, placement_rect.ul());
     }
     for (range(20)) |_| {
         const placement_rect = layout.take(.{ .h = 92, .gap = 10 });
-        primitives.rect(imev, .{ .w = placement_rect.w, .h = placement_rect.h }, .{ .rounded = .md, .bg = .gray200 })
-            .place(&ctx, .{ .x = placement_rect.x, .y = placement_rect.y }) //
-        ;
+        ctx.place(primitives.rect(imev, placement_rect.wh(), .{ .rounded = .md, .bg = .gray200 }), placement_rect.ul());
     }
 
-    return ctx.result(wh);
+    return ctx.result();
 }
 
 var content: generic.Page = undefined;
@@ -643,7 +645,7 @@ pub fn renderFrame(cr: cairo.Context) void {
 
     while (true) {
         imev.startFrame(cr, false) catch @panic("Start frame error");
-        renderApp(imev, imev.screen_size).drop();
+        _ = renderApp(imev, imev.screen_size);
         if (imev.endFrame()) break;
     }
 
