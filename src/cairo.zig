@@ -79,16 +79,23 @@ export fn zig_on_resize_event(widget: *GtkWidget, rect: *GdkRectangle, user_data
     return 1;
 }
 
-fn roundedRectangle(cr: *cairo_t, x: f64, y: f64, w: f64, h: f64, corner_radius: f64) void {
+fn roundedRectangle(cr: *cairo_t, x: f64, y: f64, w: f64, h: f64, corner_radius_raw: f64) void {
     // TODO if radius == 0 skip this
-    const radius = corner_radius;
-    const degrees = std.math.pi / 180.0;
 
     cairo_new_sub_path(cr);
-    cairo_arc(cr, x + w - radius, y + radius, radius, -90 * degrees, 0 * degrees);
-    cairo_arc(cr, x + w - radius, y + h - radius, radius, 0 * degrees, 90 * degrees);
-    cairo_arc(cr, x + radius, y + h - radius, radius, 90 * degrees, 180 * degrees);
-    cairo_arc(cr, x + radius, y + radius, radius, 180 * degrees, 270 * degrees);
+    if (corner_radius_raw == 0) {
+        cairo_rectangle(cr, x, y, w, h);
+    } else {
+        const corner_radius = std.math.min(w / 2, corner_radius_raw);
+
+        const radius = corner_radius;
+        const degrees = std.math.pi / 180.0;
+
+        cairo_arc(cr, x + w - radius, y + radius, radius, -90 * degrees, 0 * degrees);
+        cairo_arc(cr, x + w - radius, y + h - radius, radius, 0 * degrees, 90 * degrees);
+        cairo_arc(cr, x + radius, y + h - radius, radius, 90 * degrees, 180 * degrees);
+        cairo_arc(cr, x + radius, y + radius, radius, 180 * degrees, 270 * degrees);
+    }
     cairo_close_path(cr);
 }
 
