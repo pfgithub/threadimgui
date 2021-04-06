@@ -1,8 +1,9 @@
 const std = @import("std");
+const app = @import("app.zig");
 const cairo = @import("cairo.zig");
-const generic = @import("generic.zig");
+const generic = @import("generic.zig"); // temporary
 
-fn range(max: usize) []const void {
+pub fn range(max: usize) []const void {
     return @as([]const void, &[_]void{}).ptr[0..max];
 }
 
@@ -130,7 +131,7 @@ const TextHashKey = struct {
     }
 };
 
-const RenderCtx = struct {
+pub const RenderCtx = struct {
     imev: *ImEvent,
     nodes: Queue(RenderNode),
     pub fn init(imev: *ImEvent) RenderCtx {
@@ -152,14 +153,9 @@ const RenderCtx = struct {
         } } });
     }
 };
-// TODO maybe RenderResult(WH)? not sure
-// or get rid of this entirely
-// that's an option : get rid of this, items that want to be placed with a vertical layout manager can
-// return the vertical layout manager result encapsulation struct thing or something
-// then place would be a function of RenderCtx rather than of RenderResult
-const RenderResult = ?*Queue(RenderNode).Node;
+pub const RenderResult = ?*Queue(RenderNode).Node;
 
-const primitives = struct {
+pub const primitives = struct {
     const RectOpts = struct {
         rounded: RoundedStyle = .none,
         bg: ThemeColor,
@@ -284,7 +280,7 @@ const TextCacheHM = std.HashMap(
     TextHashKey.eql,
     std.hash_map.default_max_load_percentage,
 );
-const ImEvent = struct { // pinned?
+pub const ImEvent = struct { // pinned?
     unprocessed_events: Queue(cairo.RawEvent),
     should_render: bool,
     should_continue: bool,
@@ -542,102 +538,6 @@ pub const VLayoutManager = struct {
     }
 };
 
-fn renderSidebarWidget(imev: *ImEvent, width: f64, node: generic.SidebarNode) VLayoutManager.Child {
-    var ctx = imev.render();
-
-    switch (node) {
-        .sample => |sample| {
-            var layout = VLayoutManager.fromWidth(width);
-            layout.inset(10);
-
-            layout.place(&ctx, .{ .gap = 8 }, primitives.textV(imev, layout.top_rect.w, .{ .weight = .bold, .color = .gray500, .size = .base }, sample.title));
-            layout.place(&ctx, .{ .gap = 8 }, primitives.textV(imev, layout.top_rect.w, .{ .color = .white, .size = .sm }, sample.body));
-
-            return layout.result(&ctx);
-        },
-    }
-}
-
-fn renderPost(imev: *ImEvent, width: f64, node: generic.Post) VLayoutManager.Child {
-    var ctx = imev.render();
-
-    var layout = VLayoutManager.fromWidth(width);
-
-    layout.place(&ctx, .{ .gap = 0 }, primitives.textV(imev, layout.top_rect.w, .{ .color = .white, .size = .base }, node.title));
-    // now need a horizontal layout manager for this info bar
-    // then another for action buttons
-
-    return layout.result(&ctx);
-}
-
-fn renderContextNode(imev: *ImEvent, width: f64, node: generic.PostContext) VLayoutManager.Child {
-    var ctx = imev.render();
-
-    var layout = VLayoutManager.fromWidth(width);
-    layout.inset(10);
-
-    for (node.parents) |post| {
-        layout.place(&ctx, .{ .gap = 8 }, renderPost(imev, layout.top_rect.w, post));
-    }
-
-    return layout.result(&ctx);
-}
-
-fn renderApp(imev: *ImEvent, wh: WH) RenderResult {
-    const page = generic.sample;
-    var ctx = imev.render();
-
-    ctx.place(primitives.rect(imev, wh, .{ .bg = .gray100 }), Point{ .x = 0, .y = 0 });
-
-    const sidebar_width = 300;
-    const cutoff = 1000;
-    const mobile_cutoff = 600;
-
-    var layout = VLayoutManager.fromWidth(wh.w);
-    if (wh.w > mobile_cutoff) layout.inset(20) //
-    else layout.insetY(20);
-
-    switch (page.display_mode) {
-        .fullscreen => {},
-        .centered => {
-            layout.maxWidth(1200, .center);
-        },
-    }
-
-    if (wh.w > 1000) {
-        var sidebar = layout.cutRight(.{ .w = sidebar_width, .gap = 20 });
-
-        for (page.sidebar) |sidebar_node| {
-            const sidebar_widget = renderSidebarWidget(imev, sidebar.top_rect.w, sidebar_node);
-
-            const placement_rect = sidebar.take(.{ .h = sidebar_widget.h, .gap = 10 });
-            ctx.place(primitives.rect(imev, placement_rect.wh(), .{ .rounded = .md, .bg = .gray200 }), placement_rect.ul());
-            ctx.place(sidebar_widget.node, placement_rect.ul());
-        }
-
-        for ([_]f64{ 244, 66, 172, 332, 128, 356 }) |height| {
-            const placement_rect = sidebar.take(.{ .h = height, .gap = 10 });
-            ctx.place(primitives.rect(imev, placement_rect.wh(), .{ .rounded = .md, .bg = .gray200 }), placement_rect.ul());
-        }
-    }
-
-    const rounding: RoundedStyle = if (wh.w > mobile_cutoff) .md else .none;
-    for (page.content) |context_node| {
-        const box = imev.render();
-        const context_widget = renderContextNode(imev, layout.top_rect.w, context_node);
-
-        const placement_rect = layout.take(.{ .h = context_widget.h, .gap = 10 });
-        ctx.place(primitives.rect(imev, placement_rect.wh(), .{ .rounded = rounding, .bg = .gray200 }), placement_rect.ul());
-        ctx.place(context_widget.node, placement_rect.ul());
-    }
-    for (range(20)) |_| {
-        const placement_rect = layout.take(.{ .h = 92, .gap = 10 });
-        ctx.place(primitives.rect(imev, placement_rect.wh(), .{ .rounded = .md, .bg = .gray200 }), placement_rect.ul());
-    }
-
-    return ctx.result();
-}
-
 var content: generic.Page = undefined;
 var global_imevent: ImEvent = undefined;
 pub fn renderFrame(cr: cairo.Context) void {
@@ -645,12 +545,12 @@ pub fn renderFrame(cr: cairo.Context) void {
 
     while (true) {
         imev.startFrame(cr, false) catch @panic("Start frame error");
-        _ = renderApp(imev, imev.screen_size);
+        _ = app.renderApp(imev, imev.screen_size);
         if (imev.endFrame()) break;
     }
 
     imev.startFrame(cr, true) catch @panic("Start frame error");
-    imev.endFrameRender(renderApp(imev, imev.screen_size));
+    imev.endFrameRender(app.renderApp(imev, imev.screen_size));
 }
 pub fn pushEvent(ev: cairo.RawEvent) void {
     const imev = &global_imevent;
