@@ -130,7 +130,7 @@ pub const Context = struct {
         }
     }
     const TextLayoutOpts = struct {
-        width: c_int,
+        width: c_int, // pango scaled
     };
     pub fn layoutText(ctx: Context, font: [*:0]const u8, text: []const u8, opts: TextLayoutOpts) TextLayout {
         const cr = ctx.cr;
@@ -144,7 +144,7 @@ pub const Context = struct {
         }
         pango_layout_set_text(layout, text.ptr, @intCast(gint, text.len));
 
-        pango_layout_set_width(layout, opts.width * PANGO_SCALE);
+        pango_layout_set_width(layout, opts.width);
         pango_layout_set_wrap(layout, .PANGO_WRAP_WORD_CHAR);
 
         return TextLayout{ .layout = layout };
@@ -156,6 +156,10 @@ pub const Context = struct {
         //     cairo_restore(cr);
     }
 };
+
+pub fn pangoScale(float: f64) c_int {
+    return @floatToInt(gint, float * @intToFloat(f64, PANGO_SCALE));
+}
 
 pub fn start() !void {
     if (start_gtk(0, undefined) != 0) return error.Failure;

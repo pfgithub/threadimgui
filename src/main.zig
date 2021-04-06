@@ -112,6 +112,22 @@ const AllFontOpts = struct {
     }
 };
 
+const TextHashKey = struct {
+    font_opts: AllFontOpts,
+    width: c_int,
+    text: []const u8, // a duplicate is made using the persistent allocator before storing in the hm across frames
+    pub fn eql(a: TextHashKey, b: TextHashKey) bool {
+        return std.meta.eql(a.font_opts, b.font_opts) or a.width == b.width or std.mem.eql(u8, a.text, b.text);
+    }
+    pub fn hash(key: TextHashKey) u64 {
+        var hasher = std.hash.Wyhash.init(0);
+        std.hash.autoHash(&hasher, key.font_opts);
+        std.hash.autoHash(&hasher, key.width);
+        hasher.update(key.text);
+        return hasher.final();
+    }
+};
+
 const FutureRender = struct {
     event: *ImEvent,
     index: ?usize, // if null, no actual rendering is happening so who cares
@@ -149,9 +165,9 @@ const FutureRender = struct {
         // instead, use cairo_set_source_rgb before pango_cairo_show_layout
 
         const all_font_opts = AllFontOpts{ .size = opts.size, .family = opts.family, .weight = opts.weight };
-        const font_str = std.fmt.allocPrint0(fr.event.arena(), "{}", .{all_font_opts}) catch "oom";
-        const layout = fr.event.cr.layoutText(font_str.ptr, text_val, .{ .width = @floatToInt(c_int, top_rect.w) });
-        // TODO cache and free unused layouts
+        const w_int = cairo.pangoScale(top_rect.w);
+        const hash_key = TextHashKey{ .font_opts = all_font_opts, .width = w_int, .text = text_val };
+        const layout = fr.event.layoutText(hash_key);
 
         const size = layout.getSize();
 
@@ -222,6 +238,17 @@ pub const WH = struct {
     h: f64,
     // should this be float or int?
 };
+const TextCacheValue = struct {
+    layout: cairo.TextLayout,
+    used_in_this_render_frame: bool,
+};
+const TextCacheHM = std.HashMap(
+    TextHashKey,
+    TextCacheValue,
+    TextHashKey.hash,
+    TextHashKey.eql,
+    std.hash_map.default_max_load_percentage,
+);
 const ImEvent = struct { // pinned?
     unprocessed_events: Queue(cairo.RawEvent),
     render_nodes: std.ArrayList(RenderNode),
@@ -230,6 +257,7 @@ const ImEvent = struct { // pinned?
     should_continue: bool,
     real_allocator: *std.mem.Allocator,
     arena_allocator: std.heap.ArenaAllocator,
+    text_cache: TextCacheHM,
 
     screen_size: Rect,
 
@@ -252,10 +280,18 @@ const ImEvent = struct { // pinned?
             .cr = undefined,
             .screen_size = .{ .x = 0, .y = 0, .w = 0, .h = 0 },
             .should_continue = undefined,
+            .text_cache = TextCacheHM.init(alloc),
         };
     }
     pub fn deinit(imev: *ImEvent) void {
         while (imev.unprocessed_events.pop(imev.real_allocator)) |_| {}
+
+        var iter = imev.text_cache.iterator();
+        while (iter.next()) |entry| {
+            entry.value.layout.deinit();
+            imev.real_allocator.free(entry.key.text);
+        }
+        imev.text_cache.deinit();
     }
     pub fn addEvent(imev: *ImEvent, event: cairo.RawEvent) !void {
         // could use an arena allocator, unfortunately arena allocators are created at frame start
@@ -278,8 +314,15 @@ const ImEvent = struct { // pinned?
             .should_continue = event != null,
 
             .screen_size = imev.screen_size,
+            .text_cache = imev.text_cache,
             // .real_allocator =
         };
+        if (event == null) {
+            var iter = imev.text_cache.iterator();
+            while (iter.next()) |entry| {
+                entry.value.used_in_this_render_frame = false;
+            }
+        }
         if (event) |ev| switch (ev) {
             .resize => |rsz| {
                 imev.screen_size = .{
@@ -297,6 +340,19 @@ const ImEvent = struct { // pinned?
         if (imev.should_render) {
             for (imev.render_nodes.items) |render_node| {
                 imev.cr.renderNode(render_node);
+            }
+            var keys_to_remove = Queue(TextHashKey){};
+            var iter = imev.text_cache.iterator();
+            while (iter.next()) |entry| {
+                if (!entry.value.used_in_this_render_frame) {
+                    keys_to_remove.push(imev.arena(), entry.key) catch @panic("oom");
+                }
+            }
+            while (keys_to_remove.pop(imev.arena())) |key| {
+                if (imev.text_cache.remove(key)) |v| {
+                    v.value.layout.deinit();
+                    imev.real_allocator.free(v.key.text);
+                } else unreachable;
             }
         }
 
@@ -317,6 +373,28 @@ const ImEvent = struct { // pinned?
         const index = imev.render_nodes.items.len;
         try imev.render_nodes.append(.{ .value = .unfilled });
         return FutureRender{ .event = imev, .index = index };
+    }
+    pub fn layoutText(imev: *ImEvent, key: TextHashKey) cairo.TextLayout {
+        if (imev.text_cache.getEntry(key)) |cached_value| {
+            cached_value.value.used_in_this_render_frame = true;
+            return cached_value.value.layout;
+        } else {
+            const text_dupe = imev.real_allocator.dupe(u8, key.text) catch @panic("oom");
+            const font_str = std.fmt.allocPrint0(imev.arena(), "{}", .{key.font_opts}) catch @panic("oom");
+            const layout = imev.cr.layoutText(font_str.ptr, text_dupe, .{ .width = key.width });
+
+            const cache_value: TextCacheValue = .{
+                .layout = layout,
+                .used_in_this_render_frame = false,
+            };
+            const entry_key: TextHashKey = .{
+                .font_opts = key.font_opts,
+                .width = key.width,
+                .text = text_dupe,
+            };
+            imev.text_cache.putNoClobber(entry_key, cache_value) catch @panic("oom");
+            return layout;
+        }
     }
 };
 
