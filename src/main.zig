@@ -470,10 +470,12 @@ const VLayoutManager = struct {
     }
     /// supports negatives I guess
     pub fn inset(lm: *VLayoutManager, dist: f64) void {
-        // don't commit the gap? idk
         lm.top_rect.x += dist;
-        lm.top_rect.y += dist;
         lm.top_rect.w -= 2 * dist;
+        lm.insetY(dist);
+    }
+    pub fn insetY(lm: *VLayoutManager, dist: f64) void {
+        lm.top_rect.y += dist;
         lm.bottom_offset += dist;
     }
     pub fn height(lm: VLayoutManager) f64 {
@@ -545,9 +547,11 @@ fn renderApp(imev: *ImEvent, area: Rect) void {
 
     const sidebar_width = 300;
     const cutoff = 1000;
+    const mobile_cutoff = 600;
 
     var layout = VLayoutManager.fromRect(area);
-    layout.inset(20);
+    if (area.w > mobile_cutoff) layout.inset(20) //
+    else layout.insetY(20);
 
     switch (page.display_mode) {
         .fullscreen => {},
@@ -574,13 +578,14 @@ fn renderApp(imev: *ImEvent, area: Rect) void {
         imev.render().rect(.{ .rounded = .md, .bg = .gray200 }, sidebar.take(.{ .h = 356, .gap = 10 }));
     }
 
+    const rounding: RoundedStyle = if (area.w > mobile_cutoff) .md else .none;
     for (page.content) |context_node| {
         const box = imev.render();
         const res_height = renderContextNode(imev, layout.topRect(), context_node);
-        box.rect(.{ .rounded = .md, .bg = .gray200 }, layout.take(.{ .h = res_height, .gap = 10 }));
+        box.rect(.{ .rounded = rounding, .bg = .gray200 }, layout.take(.{ .h = res_height, .gap = 10 }));
     }
     for (range(20)) |_| {
-        imev.render().rect(.{ .rounded = .md, .bg = .gray200 }, layout.take(.{ .h = 92, .gap = 10 }));
+        imev.render().rect(.{ .rounded = rounding, .bg = .gray200 }, layout.take(.{ .h = 92, .gap = 10 }));
     }
 }
 
