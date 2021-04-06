@@ -29,6 +29,11 @@ pub const RenderNode = struct { value: union(enum) {
         radius: f64,
         bg_color: Color,
     },
+    text: struct {
+        layout: cairo.TextLayout,
+        position: Point,
+        color: Color,
+    },
 } };
 
 pub const RoundedStyle = enum {
@@ -65,25 +70,46 @@ pub const FontWeight = enum {
     normal, // 400 ("normal")
     bold, // 700 ("bold")
     black, // 900 ("heavy")
+    pub fn getString(weight: FontWeight) []const u8 {
+        return switch (weight) {
+            .normal => "normal", // 400
+            .bold => "bold", // 700
+            .black => "heavy", // 900
+        };
+    }
 };
 pub const FontFamily = enum {
     sans_serif,
     monospace,
+    pub fn getString(ffamily: FontFamily) []const u8 {
+        return switch (ffamily) {
+            // TODO ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+            // "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
+            // "Segoe UI Symbol", "Noto Color Emoji"
+            .sans_serif => "sans",
+            // TODO ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+            // "Courier New", monospace
+            .monospace => "monospace",
+        };
+    }
 };
 pub const FontSize = enum {
     sm, // 0.875rem ≈ 10.541pt
     base, // 1rem ≈ 12.0468pt
-    pub fn get(fsize: FontSize) []const u8 {
+    pub fn getString(fsize: FontSize) []const u8 {
         return switch (fsize) {
             .sm => "10.541",
             .base => "12.0468",
         };
     }
 };
-const AllFontOpts = enum {
+const AllFontOpts = struct {
     size: FontSize,
     family: FontFamily,
     weight: FontWeight,
+    pub fn format(value: AllFontOpts, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        try writer.print("{s} {s} {s}", .{ value.family.getString(), value.weight.getString(), value.size.getString() });
+    }
 };
 
 const FutureRender = struct {
@@ -110,6 +136,8 @@ const FutureRender = struct {
         weight: FontWeight = .normal,
         size: FontSize,
         color: ThemeColor,
+        // ideally there's a text_id so the whole text doesn't have to be hashed each
+        // tick…
     };
     pub fn text(fr: FutureRender, top_rect: TopRect, opts: FontOpts, text_val: []const u8) f64 {
         // create and cache a layout using these opts
@@ -120,9 +148,21 @@ const FutureRender = struct {
         // note the color is not included in the layout
         // instead, use cairo_set_source_rgb before pango_cairo_show_layout
 
-        const h: f64 = 25;
-        fr.rect(.{ .bg = opts.color }, .{ .x = top_rect.x, .y = top_rect.y, .w = top_rect.w, .h = h });
-        return h;
+        const all_font_opts = AllFontOpts{ .size = opts.size, .family = opts.family, .weight = opts.weight };
+        const font_str = std.fmt.allocPrint0(fr.event.arena(), "{}", .{all_font_opts}) catch "oom";
+        const layout = fr.event.cr.layoutText(font_str.ptr, text_val, .{ .width = @floatToInt(c_int, top_rect.w) });
+        // TODO cache and free unused layouts
+
+        const size = layout.getSize();
+
+        // top_rect.ul()
+        fr.setRenderNode(RenderNode{ .value = .{ .text = .{
+            .layout = layout,
+            .color = opts.color.getColor(),
+            .position = .{ .x = top_rect.x, .y = top_rect.y },
+        } } });
+
+        return size.h;
     }
 };
 fn Queue(comptime T: type) type {
@@ -159,7 +199,11 @@ fn Queue(comptime T: type) type {
         }
     };
 }
-const Rect = struct {
+pub const Point = struct {
+    x: f64,
+    y: f64,
+};
+pub const Rect = struct {
     x: f64,
     y: f64,
     w: f64,
@@ -173,7 +217,7 @@ const Rect = struct {
         };
     }
 };
-const WH = struct {
+pub const WH = struct {
     w: f64,
     h: f64,
     // should this be float or int?
@@ -367,7 +411,7 @@ fn renderSidebarWidget(imev: *ImEvent, container_area: TopRect, node: generic.Si
             layout.inset(10);
 
             layout.use(.{ .gap = 8, .h = imev.render().text(layout.topRect(), .{ .weight = .bold, .color = .gray500, .size = .base }, sample.title) });
-            layout.use(.{ .gap = 8, .h = imev.render().text(layout.topRect(), .{ .weight = .bold, .color = .white, .size = .base }, sample.body) });
+            layout.use(.{ .gap = 8, .h = imev.render().text(layout.topRect(), .{ .color = .white, .size = .sm }, sample.body) });
 
             return layout.height();
         },

@@ -92,18 +92,68 @@ fn roundedRectangle(cr: *cairo_t, x: f64, y: f64, w: f64, h: f64, corner_radius:
     cairo_close_path(cr);
 }
 
+pub const TextLayout = struct {
+    layout: *PangoLayout,
+    pub fn deinit(layout: TextLayout) void {
+        g_object_unref(layout.layout);
+    }
+    pub fn getSize(layout: TextLayout) main.WH {
+        var w: c_int = 0;
+        var h: c_int = 0;
+        pango_layout_get_size(layout.layout, &w, &h);
+        return .{ .w = @intToFloat(f64, w) / @intToFloat(f64, PANGO_SCALE), .h = @intToFloat(f64, h) / @intToFloat(f64, PANGO_SCALE) };
+    }
+};
+
 pub const Context = struct {
     cr: *cairo_t,
+    fn setRgba(ctx: Context, color: main.Color) void {
+        const cr = ctx.cr;
+        cairo_set_source_rgba(cr, color.r, color.g, color.b, color.a);
+    }
     pub fn renderNode(ctx: Context, node: main.RenderNode) void {
         const cr = ctx.cr;
         switch (node.value) {
             .unfilled => unreachable, // unfilled node exists. TODO additional debug info here.
             .rectangle => |rect| {
                 roundedRectangle(cr, rect.rect.x, rect.rect.y, rect.rect.w, rect.rect.h, rect.radius);
-                cairo_set_source_rgba(cr, rect.bg_color.r, rect.bg_color.g, rect.bg_color.b, rect.bg_color.a);
+                ctx.setRgba(rect.bg_color);
                 cairo_fill(cr);
             },
+            .text => |text| {
+                ctx.setRgba(text.color);
+                cairo_save(cr);
+                cairo_move_to(cr, text.position.x, text.position.y);
+                pango_cairo_show_layout(cr, text.layout.layout);
+                cairo_restore(cr);
+            },
         }
+    }
+    const TextLayoutOpts = struct {
+        width: c_int,
+    };
+    pub fn layoutText(ctx: Context, font: [*:0]const u8, text: []const u8, opts: TextLayoutOpts) TextLayout {
+        const cr = ctx.cr;
+        // if (layout == null) {
+        const layout = pango_cairo_create_layout(cr) orelse @panic("no layout"); // ?*PangoLayout, g_object_unref(layout)
+
+        {
+            const description = pango_font_description_from_string(font);
+            defer pango_font_description_free(description);
+            pango_layout_set_font_description(layout, description);
+        }
+        pango_layout_set_text(layout, text.ptr, @intCast(gint, text.len));
+
+        pango_layout_set_width(layout, opts.width * PANGO_SCALE);
+        pango_layout_set_wrap(layout, .PANGO_WRAP_WORD_CHAR);
+
+        return TextLayout{ .layout = layout };
+        // }
+
+        //     cairo_save(cr);
+        //     cairo_move_to(cr, 50, 150);
+        //     pango_cairo_show_layout(cr, layout);
+        //     cairo_restore(cr);
     }
 };
 
