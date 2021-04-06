@@ -130,22 +130,22 @@ const TextHashKey = struct {
     }
 };
 
-const RenderNodeFrame = struct {
+const RenderCtx = struct {
     imev: *ImEvent,
     nodes: Queue(RenderNode),
-    pub fn init(imev: *ImEvent) RenderNodeFrame {
-        return RenderNodeFrame{
+    pub fn init(imev: *ImEvent) RenderCtx {
+        return RenderCtx{
             .imev = imev,
             .nodes = Queue(RenderNode){},
         };
     }
-    pub fn putRenderNode(nf: *RenderNodeFrame, node: RenderNode) void {
-        nf.nodes.push(nf.imev.arena(), node) catch @panic("oom");
+    pub fn putRenderNode(ctx: *RenderCtx, node: RenderNode) void {
+        ctx.nodes.push(ctx.imev.arena(), node) catch @panic("oom");
     }
-    pub fn result(nf: *RenderNodeFrame) RenderResult {
-        return nf.nodes.start;
+    pub fn result(ctx: *RenderCtx) RenderResult {
+        return ctx.nodes.start;
     }
-    pub fn place(ctx: *RenderNodeFrame, node: RenderResult, point: Point) void {
+    pub fn place(ctx: *RenderCtx, node: RenderResult, point: Point) void {
         ctx.putRenderNode(.{ .value = .{ .place = .{
             .node = node,
             .offset = point,
@@ -156,7 +156,7 @@ const RenderNodeFrame = struct {
 // or get rid of this entirely
 // that's an option : get rid of this, items that want to be placed with a vertical layout manager can
 // return the vertical layout manager result encapsulation struct thing or something
-// then place would be a function of renderNodeFrame rather than of RenderResult
+// then place would be a function of RenderCtx rather than of RenderResult
 const RenderResult = ?*Queue(RenderNode).Node;
 
 const primitives = struct {
@@ -179,7 +179,7 @@ const primitives = struct {
         size: FontSize,
         color: ThemeColor,
     };
-    pub fn text(imev: *ImEvent, width: f64, opts: FontOpts, text_val: []const u8) VLayoutManager.Child {
+    pub fn textV(imev: *ImEvent, width: f64, opts: FontOpts, text_val: []const u8) VLayoutManager.Child {
         var ctx = imev.render();
 
         const all_font_opts = AllFontOpts{ .size = opts.size, .family = opts.family, .weight = opts.weight };
@@ -419,8 +419,8 @@ const ImEvent = struct { // pinned?
         return !imev.should_continue; // rendering is over, do not execute more frames this frame
     }
 
-    pub fn render(imev: *ImEvent) RenderNodeFrame {
-        return RenderNodeFrame.init(imev);
+    pub fn render(imev: *ImEvent) RenderCtx {
+        return RenderCtx.init(imev);
     }
 
     pub fn layoutText(imev: *ImEvent, key: TextHashKey) cairo.TextLayout {
@@ -461,7 +461,7 @@ pub const VLayoutManager = struct {
         node: RenderResult,
         h: f64,
     };
-    pub fn result(lm: *VLayoutManager, ctx: *RenderNodeFrame) Child {
+    pub fn result(lm: *VLayoutManager, ctx: *RenderCtx) Child {
         return Child{
             .h = lm.height(),
             .node = ctx.result(),
@@ -536,7 +536,7 @@ pub const VLayoutManager = struct {
         lm.top_rect.x = lm.top_rect.x + @divFloor(lm.top_rect.w, 2) - @divFloor(res_w, 2);
         lm.top_rect.w = res_w;
     }
-    pub fn place(lm: *VLayoutManager, ctx: *RenderNodeFrame, opts: struct { gap: f64 }, node: Child) void {
+    pub fn place(lm: *VLayoutManager, ctx: *RenderCtx, opts: struct { gap: f64 }, node: Child) void {
         const rect = lm.take(.{ .gap = opts.gap, .h = node.h });
         ctx.place(node.node, .{ .x = rect.x, .y = rect.y });
     }
@@ -550,8 +550,8 @@ fn renderSidebarWidget(imev: *ImEvent, width: f64, node: generic.SidebarNode) VL
             var layout = VLayoutManager.fromWidth(width);
             layout.inset(10);
 
-            layout.place(&ctx, .{ .gap = 8 }, primitives.text(imev, layout.top_rect.w, .{ .weight = .bold, .color = .gray500, .size = .base }, sample.title));
-            layout.place(&ctx, .{ .gap = 8 }, primitives.text(imev, layout.top_rect.w, .{ .color = .white, .size = .sm }, sample.body));
+            layout.place(&ctx, .{ .gap = 8 }, primitives.textV(imev, layout.top_rect.w, .{ .weight = .bold, .color = .gray500, .size = .base }, sample.title));
+            layout.place(&ctx, .{ .gap = 8 }, primitives.textV(imev, layout.top_rect.w, .{ .color = .white, .size = .sm }, sample.body));
 
             return layout.result(&ctx);
         },
@@ -563,7 +563,7 @@ fn renderPost(imev: *ImEvent, width: f64, node: generic.Post) VLayoutManager.Chi
 
     var layout = VLayoutManager.fromWidth(width);
 
-    layout.place(&ctx, .{ .gap = 0 }, primitives.text(imev, layout.top_rect.w, .{ .color = .white, .size = .base }, node.title));
+    layout.place(&ctx, .{ .gap = 0 }, primitives.textV(imev, layout.top_rect.w, .{ .color = .white, .size = .base }, node.title));
     // now need a horizontal layout manager for this info bar
     // then another for action buttons
 
