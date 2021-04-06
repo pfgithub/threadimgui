@@ -510,6 +510,21 @@ fn renderPost(imev: *ImEvent, container_area: TopRect, node: generic.Post) f64 {
     // now need a horizontal layout manager for this info bar
     // then another for action buttons
 
+    // measureAction
+    // renderAction
+
+    // unfortunate, don't want to do that
+
+    // here's a possability : render and then move after the fact
+    // why can't that be done?
+    // like eg you'd imev.startthing(); render(); imev.translate(); / imev.drop() if you don't want it anymore
+    // :: so the difficulty there is obv with events
+    // but like who cares we can translate those too right? they already need a frame delay
+    // huh
+    // ok that would actually be really neat and useful if it can be done though
+
+    // so the idea is ima write this elsewhere
+
     return layout.height();
 }
 
