@@ -118,23 +118,19 @@ pub const Context = struct {
         const cr = ctx.cr;
         cairo_set_source_rgba(cr, color.r, color.g, color.b, color.a);
     }
-    pub fn renderNode(ctx: Context, node: main.RenderNode) void {
+    pub fn renderRectangle(ctx: Context, color: main.Color, rect: main.Rect, radius: f64) void {
         const cr = ctx.cr;
-        switch (node.value) {
-            .unfilled => unreachable, // unfilled node exists. TODO additional debug info here.
-            .rectangle => |rect| {
-                roundedRectangle(cr, rect.rect.x, rect.rect.y, rect.rect.w, rect.rect.h, rect.radius);
-                ctx.setRgba(rect.bg_color);
-                cairo_fill(cr);
-            },
-            .text => |text| {
-                ctx.setRgba(text.color);
-                cairo_save(cr);
-                cairo_move_to(cr, text.position.x, text.position.y);
-                pango_cairo_show_layout(cr, text.layout.layout);
-                cairo_restore(cr);
-            },
-        }
+        roundedRectangle(cr, rect.x, rect.y, rect.w, rect.h, radius);
+        ctx.setRgba(color);
+        cairo_fill(cr);
+    }
+    pub fn renderText(ctx: Context, point: main.Point, text: TextLayout, color: main.Color) void {
+        const cr = ctx.cr;
+        ctx.setRgba(color);
+        cairo_save(cr);
+        cairo_move_to(cr, point.x, point.y);
+        pango_cairo_show_layout(cr, text.layout);
+        cairo_restore(cr);
     }
     const TextLayoutOpts = struct {
         width: c_int, // pango scaled

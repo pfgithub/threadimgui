@@ -107,3 +107,71 @@ actually it can even be mixed in with the render array
 and then at the end of the frame, loop over that and determine what the event should be passed to
 
 ok wait that's 100% doable ok nice
+
+ok so basically
+
+currently it's like this
+
+```
+imev.render().rect()
+```
+
+ok so a sample here I want to render some text at 10,10
+
+```
+imev.render().text("hi!").place(10, 10);
+```
+
+`.text()` returns its size
+
+then it can be placed
+
+so now rendering sidebar widgets is like this
+
+```
+const widget = renderSidebarWidget(… width, top …);
+const loc = layout.take(widget height);
+renderBackground(loc)
+widget.place(loc.topLeft())
+```
+
+and since events go through this same array
+
+ok this is really nice
+
+ok wait how will primative rendering look
+
+ideally
+
+```
+imev.rect(w, h).place(x, y);
+imev.text("hello").place(x, y);
+```
+
+ok that's how
+
+what does rect do
+
+```
+fn rect(wh: WH) RenderResult {
+    const offset = addOffsetNode();
+    addRenderNode(wh);
+    return RenderNode.from(wh, offset);
+}
+```
+
+then that would mean renderWidget would
+
+```
+const offset = addOffsetNode();
+renderStuff…
+return renderNode.from(…, offset);
+```
+
+alternatively we can have it make a little container thing
+
+```
+var node = newNode();
+node.rect();
+return node;
+```

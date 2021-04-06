@@ -23,16 +23,18 @@ pub const Color = struct {
     }
 };
 pub const RenderNode = struct { value: union(enum) {
-    unfilled: void, // TODO store some debug info here
     rectangle: struct {
-        rect: Rect,
+        wh: WH,
         radius: f64,
         bg_color: Color,
     },
     text: struct {
         layout: cairo.TextLayout,
-        position: Point,
         color: Color,
+    },
+    place: struct {
+        node: ?*Queue(RenderNode).Node,
+        offset: Point,
     },
 } };
 
@@ -128,59 +130,81 @@ const TextHashKey = struct {
     }
 };
 
-const FutureRender = struct {
-    event: *ImEvent,
-    index: ?usize, // if null, no actual rendering is happening so who cares
-    pub fn setRenderNode(fr: FutureRender, render_node: RenderNode) void {
-        const index = fr.index orelse return;
-        if (fr.event.render_nodes.items[index].value != .unfilled) unreachable; // render node cannot be set twice
-        fr.event.render_nodes.items[index] = render_node;
+const RenderNodeFrame = struct {
+    imev: *ImEvent,
+    nodes: Queue(RenderNode),
+    pub fn init(imev: *ImEvent) RenderNodeFrame {
+        return RenderNodeFrame{
+            .imev = imev,
+            .nodes = Queue(RenderNode){},
+        };
     }
+    pub fn putRenderNode(nf: *RenderNodeFrame, node: RenderNode) void {
+        nf.nodes.push(nf.imev.arena(), node) catch @panic("oom");
+    }
+    pub fn result(nf: *RenderNodeFrame, size: WH) RenderResult {
+        return RenderResult{
+            .wh = size,
+            .nodes = nf.nodes.start,
+        };
+    }
+};
+// TODO maybe RenderResult(WH)? not sure
+// or just get rid of this entirely
+const RenderResult = struct {
+    wh: WH,
+    nodes: ?*Queue(RenderNode).Node,
+    pub fn place(rres: RenderResult, frame: *RenderNodeFrame, point: Point) void {
+        // TODO prevent placing an item twice ; events won't work properly
+        frame.putRenderNode(.{ .value = .{ .place = .{
+            .node = rres.nodes,
+            .offset = point,
+        } } });
+    }
+    pub fn drop(rres: RenderResult) void {
+        // discards the rendered stuff
+        // this kinda does nothing is there a point to this function existing?
+    }
+};
+const primitives = struct {
     const RectOpts = struct {
         rounded: RoundedStyle = .none,
         bg: ThemeColor,
     };
-    pub fn rect(fr: FutureRender, opts: RectOpts, area: Rect) void {
-        fr.setRenderNode(RenderNode{ .value = .{ .rectangle = .{
-            .rect = area,
+    pub fn rect(imev: *ImEvent, size: WH, opts: RectOpts) RenderResult {
+        var ctx = imev.render();
+        ctx.putRenderNode(RenderNode{ .value = .{ .rectangle = .{
+            .wh = size,
             .radius = opts.rounded.getPx(),
             .bg_color = opts.bg.getColor(),
         } } });
+        return ctx.result(size);
     }
     const FontOpts = struct {
         family: FontFamily = .sans_serif,
         weight: FontWeight = .normal,
         size: FontSize,
         color: ThemeColor,
-        // ideally there's a text_id so the whole text doesn't have to be hashed each
-        // tick…
     };
-    pub fn text(fr: FutureRender, top_rect: TopRect, opts: FontOpts, text_val: []const u8) f64 {
-        // create and cache a layout using these opts
-        // render that layout
-        // make sure to use PANGO_WRAP_WORD_CHAR
-        // https://gist.github.com/bert/262331/9dcb6a35460f2eb84571164bf84cbb2a6fc8d367
-
-        // note the color is not included in the layout
-        // instead, use cairo_set_source_rgb before pango_cairo_show_layout
+    pub fn text(imev: *ImEvent, width: f64, opts: FontOpts, text_val: []const u8) RenderResult {
+        var ctx = imev.render();
 
         const all_font_opts = AllFontOpts{ .size = opts.size, .family = opts.family, .weight = opts.weight };
-        const w_int = cairo.pangoScale(top_rect.w);
+        const w_int = cairo.pangoScale(width);
         const hash_key = TextHashKey{ .font_opts = all_font_opts, .width = w_int, .text = text_val };
-        const layout = fr.event.layoutText(hash_key);
+        const layout = imev.layoutText(hash_key);
 
         const size = layout.getSize();
 
-        // top_rect.ul()
-        fr.setRenderNode(RenderNode{ .value = .{ .text = .{
+        ctx.putRenderNode(RenderNode{ .value = .{ .text = .{
             .layout = layout,
             .color = opts.color.getColor(),
-            .position = .{ .x = top_rect.x, .y = top_rect.y },
         } } });
 
-        return size.h;
+        return ctx.result(size);
     }
 };
+
 fn Queue(comptime T: type) type {
     return struct {
         const Node = struct {
@@ -251,15 +275,14 @@ const TextCacheHM = std.HashMap(
 );
 const ImEvent = struct { // pinned?
     unprocessed_events: Queue(cairo.RawEvent),
-    render_nodes: std.ArrayList(RenderNode),
-    pass: bool,
     should_render: bool,
     should_continue: bool,
     real_allocator: *std.mem.Allocator,
     arena_allocator: std.heap.ArenaAllocator,
     text_cache: TextCacheHM,
 
-    screen_size: Rect,
+    screen_size: WH,
+    internal_screen_offset: Point,
 
     cr: cairo.Context,
     // maybe split this out into values which are retained across frames and values which are not
@@ -272,13 +295,12 @@ const ImEvent = struct { // pinned?
     pub fn init(alloc: *std.mem.Allocator) ImEvent {
         return .{
             .unprocessed_events = Queue(cairo.RawEvent){},
-            .render_nodes = undefined,
-            .pass = undefined,
             .should_render = undefined,
             .real_allocator = alloc,
             .arena_allocator = undefined,
             .cr = undefined,
-            .screen_size = .{ .x = 0, .y = 0, .w = 0, .h = 0 },
+            .screen_size = .{ .w = 0, .h = 0 },
+            .internal_screen_offset = .{ .x = 0, .y = 0 },
             .should_continue = undefined,
             .text_cache = TextCacheHM.init(alloc),
         };
@@ -304,8 +326,6 @@ const ImEvent = struct { // pinned?
         imev.arena_allocator = std.heap.ArenaAllocator.init(imev.real_allocator);
         imev.* = .{
             .unprocessed_events = imev.unprocessed_events,
-            .render_nodes = std.ArrayList(RenderNode).init(imev.arena()),
-            .pass = true,
             .should_render = should_render,
 
             .real_allocator = imev.real_allocator,
@@ -314,6 +334,7 @@ const ImEvent = struct { // pinned?
             .should_continue = event != null,
 
             .screen_size = imev.screen_size,
+            .internal_screen_offset = imev.internal_screen_offset,
             .text_cache = imev.text_cache,
             // .real_allocator =
         };
@@ -325,9 +346,11 @@ const ImEvent = struct { // pinned?
         }
         if (event) |ev| switch (ev) {
             .resize => |rsz| {
-                imev.screen_size = .{
+                imev.internal_screen_offset = .{
                     .x = @intToFloat(f64, rsz.x),
                     .y = @intToFloat(f64, rsz.y),
+                };
+                imev.screen_size = .{
                     .w = @intToFloat(f64, rsz.w),
                     .h = @intToFloat(f64, rsz.h),
                 };
@@ -335,45 +358,60 @@ const ImEvent = struct { // pinned?
             else => {},
         };
     }
-    pub fn endFrame(imev: *ImEvent) bool {
-        if (!imev.pass) @panic("OOM while rendering");
-        if (imev.should_render) {
-            for (imev.render_nodes.items) |render_node| {
-                imev.cr.renderNode(render_node);
+    pub fn internalRender(imev: *ImEvent, nodes: ?*Queue(RenderNode).Node, offset: Point) void {
+        var nodeiter = nodes;
+        while (nodeiter) |node| {
+            const rnode: RenderNode = node.value;
+            switch (rnode.value) {
+                .rectangle => |rect| {
+                    imev.cr.renderRectangle(rect.bg_color, .{ .x = offset.x, .y = offset.y, .w = rect.wh.w, .h = rect.wh.h }, rect.radius);
+                },
+                .text => |text| {
+                    imev.cr.renderText(offset, text.layout, text.color);
+                },
+                .place => |place| {
+                    imev.internalRender(place.node, .{ .x = offset.x + place.offset.x, .y = offset.y + place.offset.y });
+                },
             }
-            var keys_to_remove = Queue(TextHashKey){};
-            var iter = imev.text_cache.iterator();
-            while (iter.next()) |entry| {
-                if (!entry.value.used_in_this_render_frame) {
-                    keys_to_remove.push(imev.arena(), entry.key) catch @panic("oom");
-                }
-            }
-            while (keys_to_remove.pop(imev.arena())) |key| {
-                if (imev.text_cache.remove(key)) |v| {
-                    v.value.layout.deinit();
-                    imev.real_allocator.free(v.key.text);
-                } else unreachable;
+            nodeiter = node.next;
+        }
+    }
+    pub fn endFrameRender(imev: *ImEvent, render_v: RenderResult) void {
+        if (!imev.should_render) unreachable;
+
+        imev.internalRender(render_v.nodes, imev.internal_screen_offset);
+
+        var keys_to_remove = Queue(TextHashKey){};
+        var iter = imev.text_cache.iterator();
+        while (iter.next()) |entry| {
+            if (!entry.value.used_in_this_render_frame) {
+                keys_to_remove.push(imev.arena(), entry.key) catch @panic("oom");
             }
         }
+        while (keys_to_remove.pop(imev.arena())) |key| {
+            if (imev.text_cache.remove(key)) |v| {
+                v.value.layout.deinit();
+                imev.real_allocator.free(v.key.text);
+            } else unreachable;
+        }
 
+        if (!imev.internalEndFrame()) unreachable; // a render frame indicated that there was more to do this tick; this is invalid
+    }
+    pub fn endFrame(imev: *ImEvent) bool {
+        if (imev.should_render) unreachable;
+
+        return imev.internalEndFrame();
+    }
+    pub fn internalEndFrame(imev: *ImEvent) bool {
         imev.arena_allocator.deinit();
 
         return !imev.should_continue; // rendering is over, do not execute more frames this frame
     }
 
-    pub fn render(imev: *ImEvent) FutureRender {
-        if (!imev.should_render) return .{ .event = imev, .index = null };
-        return renderMayError(imev) catch |e| {
-            imev.pass = false;
-            imev.should_render = false;
-            return .{ .event = imev, .index = null };
-        }; // this is where that one zig proposal would be useful
+    pub fn render(imev: *ImEvent) RenderNodeFrame {
+        return RenderNodeFrame.init(imev);
     }
-    pub fn renderMayError(imev: *ImEvent) !FutureRender {
-        const index = imev.render_nodes.items.len;
-        try imev.render_nodes.append(.{ .value = .unfilled });
-        return FutureRender{ .event = imev, .index = index };
-    }
+
     pub fn layoutText(imev: *ImEvent, key: TextHashKey) cairo.TextLayout {
         if (imev.text_cache.getEntry(key)) |cached_value| {
             cached_value.value.used_in_this_render_frame = true;
@@ -486,60 +524,54 @@ const VLayoutManager = struct {
         lm.top_rect.x = lm.top_rect.x + @divFloor(lm.top_rect.w, 2) - @divFloor(res_w, 2);
         lm.top_rect.w = res_w;
     }
+    pub fn place(lm: *VLayoutManager, ctx: *RenderNodeFrame, opts: struct { gap: f64 }, node: RenderResult) void {
+        const rect = lm.take(.{ .gap = opts.gap, .h = node.wh.h });
+        node.place(ctx, .{ .x = rect.x, .y = rect.y });
+    }
 };
 
-fn renderSidebarWidget(imev: *ImEvent, container_area: TopRect, node: generic.SidebarNode) f64 {
-    //
+fn renderSidebarWidget(imev: *ImEvent, width: f64, node: generic.SidebarNode) RenderResult {
+    var ctx = imev.render();
+
     switch (node) {
         .sample => |sample| {
-            var layout = VLayoutManager.fromTopRect(container_area);
+            var layout = VLayoutManager.fromTopRect(.{ .x = 0, .y = 0, .w = width });
             layout.inset(10);
 
-            layout.use(.{ .gap = 8, .h = imev.render().text(layout.topRect(), .{ .weight = .bold, .color = .gray500, .size = .base }, sample.title) });
-            layout.use(.{ .gap = 8, .h = imev.render().text(layout.topRect(), .{ .color = .white, .size = .sm }, sample.body) });
+            layout.place(&ctx, .{ .gap = 8 }, primitives.text(imev, layout.top_rect.w, .{ .weight = .bold, .color = .gray500, .size = .base }, sample.title));
+            layout.place(&ctx, .{ .gap = 8 }, primitives.text(imev, layout.top_rect.w, .{ .color = .white, .size = .sm }, sample.body));
 
-            return layout.height();
+            return ctx.result(.{ .w = width, .h = layout.height() });
         },
     }
 }
 
-fn renderPost(imev: *ImEvent, container_area: TopRect, node: generic.Post) f64 {
-    var layout = VLayoutManager.fromTopRect(container_area);
+fn renderPost(imev: *ImEvent, width: f64, node: generic.Post) RenderResult {
+    var ctx = imev.render();
 
-    layout.use(.{ .gap = 0, .h = imev.render().text(layout.topRect(), .{ .color = .white, .size = .base }, node.title) });
+    var layout = VLayoutManager.fromTopRect(.{ .x = 0, .y = 0, .w = width });
+
+    layout.place(&ctx, .{ .gap = 0 }, primitives.text(imev, layout.top_rect.w, .{ .color = .white, .size = .base }, node.title));
     // now need a horizontal layout manager for this info bar
     // then another for action buttons
 
-    // measureAction
-    // renderAction
-
-    // unfortunate, don't want to do that
-
-    // here's a possability : render and then move after the fact
-    // why can't that be done?
-    // like eg you'd imev.startthing(); render(); imev.translate(); / imev.drop() if you don't want it anymore
-    // :: so the difficulty there is obv with events
-    // but like who cares we can translate those too right? they already need a frame delay
-    // huh
-    // ok that would actually be really neat and useful if it can be done though
-
-    // so the idea is ima write this elsewhere
-
-    return layout.height();
+    return ctx.result(.{ .w = width, .h = layout.height() });
 }
 
-fn renderContextNode(imev: *ImEvent, container_area: TopRect, node: generic.PostContext) f64 {
-    var layout = VLayoutManager.fromTopRect(container_area);
+fn renderContextNode(imev: *ImEvent, width: f64, node: generic.PostContext) RenderResult {
+    var ctx = imev.render();
+
+    var layout = VLayoutManager.fromTopRect(.{ .x = 0, .y = 0, .w = width });
     layout.inset(10);
 
     for (node.parents) |post| {
-        layout.use(.{ .gap = 8, .h = renderPost(imev, layout.topRect(), post) });
+        layout.place(&ctx, .{ .gap = 8 }, renderPost(imev, layout.top_rect.w, post));
     }
 
-    return layout.height();
+    return ctx.result(.{ .w = width, .h = layout.height() });
 }
 
-fn renderApp(imev: *ImEvent, area: Rect) void {
+fn renderApp(imev: *ImEvent, wh: WH) RenderResult {
     // next step is figuring out:
     // how consistent ids will work
     // +
@@ -557,15 +589,16 @@ fn renderApp(imev: *ImEvent, area: Rect) void {
     // and that allows for automatic dark/light modes and stuff
 
     const page = generic.sample;
+    var ctx = imev.render();
 
-    imev.render().rect(.{ .bg = .gray100 }, area);
+    primitives.rect(imev, wh, .{ .bg = .gray100 }).place(&ctx, Point{ .x = 0, .y = 0 });
 
     const sidebar_width = 300;
     const cutoff = 1000;
     const mobile_cutoff = 600;
 
-    var layout = VLayoutManager.fromRect(area);
-    if (area.w > mobile_cutoff) layout.inset(20) //
+    var layout = VLayoutManager.fromRect(.{ .x = 0, .y = 0, .w = wh.w, .h = wh.h });
+    if (wh.w > mobile_cutoff) layout.inset(20) //
     else layout.insetY(20);
 
     switch (page.display_mode) {
@@ -575,33 +608,47 @@ fn renderApp(imev: *ImEvent, area: Rect) void {
         },
     }
 
-    if (area.w > 1000) {
+    if (wh.w > 1000) {
         var sidebar = layout.cutRight(.{ .w = sidebar_width, .gap = 20 });
 
         for (page.sidebar) |sidebar_node| {
             //
-            const box = imev.render();
-            const res_height = renderSidebarWidget(imev, sidebar.topRect(), sidebar_node);
-            box.rect(.{ .rounded = .md, .bg = .gray200 }, sidebar.take(.{ .h = res_height, .gap = 10 }));
+            // const box = imev.render();
+            const sidebar_widget = renderSidebarWidget(imev, sidebar.top_rect.w, sidebar_node);
+            const placement_rect = sidebar.take(.{ .h = sidebar_widget.wh.h, .gap = 10 });
+            primitives.rect(imev, .{ .w = placement_rect.w, .h = placement_rect.h }, .{ .rounded = .md, .bg = .gray200 })
+                .place(&ctx, .{ .x = placement_rect.x, .y = placement_rect.y }) //
+            ;
+            sidebar_widget.place(&ctx, .{ .x = placement_rect.x, .y = placement_rect.y });
         }
 
-        imev.render().rect(.{ .rounded = .md, .bg = .gray200 }, sidebar.take(.{ .h = 244, .gap = 10 }));
-        imev.render().rect(.{ .rounded = .md, .bg = .gray200 }, sidebar.take(.{ .h = 66, .gap = 10 }));
-        imev.render().rect(.{ .rounded = .md, .bg = .gray200 }, sidebar.take(.{ .h = 172, .gap = 10 }));
-        imev.render().rect(.{ .rounded = .md, .bg = .gray200 }, sidebar.take(.{ .h = 332, .gap = 10 }));
-        imev.render().rect(.{ .rounded = .md, .bg = .gray200 }, sidebar.take(.{ .h = 128, .gap = 10 }));
-        imev.render().rect(.{ .rounded = .md, .bg = .gray200 }, sidebar.take(.{ .h = 356, .gap = 10 }));
+        for ([_]f64{ 244, 66, 172, 332, 128, 356 }) |height| {
+            const placement_rect = sidebar.take(.{ .h = height, .gap = 10 });
+            primitives.rect(imev, .{ .w = placement_rect.w, .h = placement_rect.h }, .{ .rounded = .md, .bg = .gray200 })
+                .place(&ctx, .{ .x = placement_rect.x, .y = placement_rect.y }) //
+            ;
+        }
     }
 
-    const rounding: RoundedStyle = if (area.w > mobile_cutoff) .md else .none;
+    const rounding: RoundedStyle = if (wh.w > mobile_cutoff) .md else .none;
     for (page.content) |context_node| {
         const box = imev.render();
-        const res_height = renderContextNode(imev, layout.topRect(), context_node);
-        box.rect(.{ .rounded = rounding, .bg = .gray200 }, layout.take(.{ .h = res_height, .gap = 10 }));
+        const context_widget = renderContextNode(imev, layout.top_rect.w, context_node);
+
+        const placement_rect = layout.take(.{ .h = context_widget.wh.h, .gap = 10 });
+        primitives.rect(imev, .{ .w = placement_rect.w, .h = placement_rect.h }, .{ .rounded = rounding, .bg = .gray200 })
+            .place(&ctx, .{ .x = placement_rect.x, .y = placement_rect.y }) //
+        ;
+        context_widget.place(&ctx, .{ .x = placement_rect.x, .y = placement_rect.y });
     }
     for (range(20)) |_| {
-        imev.render().rect(.{ .rounded = rounding, .bg = .gray200 }, layout.take(.{ .h = 92, .gap = 10 }));
+        const placement_rect = layout.take(.{ .h = 92, .gap = 10 });
+        primitives.rect(imev, .{ .w = placement_rect.w, .h = placement_rect.h }, .{ .rounded = .md, .bg = .gray200 })
+            .place(&ctx, .{ .x = placement_rect.x, .y = placement_rect.y }) //
+        ;
     }
+
+    return ctx.result(wh);
 }
 
 var content: generic.Page = undefined;
@@ -611,13 +658,12 @@ pub fn renderFrame(cr: cairo.Context) void {
 
     while (true) {
         imev.startFrame(cr, false) catch @panic("Start frame error");
-        renderApp(imev, imev.screen_size);
+        renderApp(imev, imev.screen_size).drop();
         if (imev.endFrame()) break;
     }
 
     imev.startFrame(cr, true) catch @panic("Start frame error");
-    renderApp(imev, imev.screen_size);
-    if (!imev.endFrame()) unreachable; // a render that was just complete is now incomplete. error.
+    imev.endFrameRender(renderApp(imev, imev.screen_size));
 }
 pub fn pushEvent(ev: cairo.RawEvent) void {
     const imev = &global_imevent;
