@@ -117,10 +117,10 @@ const AllFontOpts = struct {
 
 const TextHashKey = struct {
     font_opts: AllFontOpts,
-    width: c_int,
+    width: ?c_int,
     text: []const u8, // a duplicate is made using the persistent allocator before storing in the hm across frames
     pub fn eql(a: TextHashKey, b: TextHashKey) bool {
-        return std.meta.eql(a.font_opts, b.font_opts) or a.width == b.width or std.mem.eql(u8, a.text, b.text);
+        return std.meta.eql(a.font_opts, b.font_opts) or std.meta.eql(a.width, b.width) or std.mem.eql(u8, a.text, b.text);
     }
     pub fn hash(key: TextHashKey) u64 {
         var hasher = std.hash.Wyhash.init(0);
@@ -155,6 +155,11 @@ pub const RenderCtx = struct {
 };
 pub const RenderResult = ?*Queue(RenderNode).Node;
 
+pub const Widget = struct {
+    wh: WH,
+    node: RenderResult,
+};
+
 pub const primitives = struct {
     const RectOpts = struct {
         rounded: RoundedStyle = .none,
@@ -174,14 +179,16 @@ pub const primitives = struct {
         weight: FontWeight = .normal,
         size: FontSize,
         color: ThemeColor,
+        pub fn all(opts: FontOpts) AllFontOpts {
+            return AllFontOpts{ .size = opts.size, .family = opts.family, .weight = opts.weight };
+        }
     };
     pub fn textV(imev: *ImEvent, width: f64, opts: FontOpts, text_val: []const u8) VLayoutManager.Child {
         var ctx = imev.render();
 
-        const all_font_opts = AllFontOpts{ .size = opts.size, .family = opts.family, .weight = opts.weight };
+        const all_font_opts = opts.all();
         const w_int = cairo.pangoScale(width);
-        const hash_key = TextHashKey{ .font_opts = all_font_opts, .width = w_int, .text = text_val };
-        const layout = imev.layoutText(hash_key);
+        const layout = imev.layoutText(.{ .font_opts = all_font_opts, .width = w_int, .text = text_val });
 
         const size = layout.getSize();
 
@@ -192,6 +199,24 @@ pub const primitives = struct {
 
         return VLayoutManager.Child{
             .h = size.h,
+            .node = ctx.result(),
+        };
+    }
+    pub fn text(imev: *ImEvent, opts: FontOpts, text_val: []const u8) Widget {
+        var ctx = imev.render();
+
+        const all_font_opts = opts.all();
+        const layout = imev.layoutText(.{ .font_opts = all_font_opts, .width = null, .text = text_val });
+
+        const size = layout.getSize();
+
+        ctx.putRenderNode(RenderNode{ .value = .{ .text = .{
+            .layout = layout,
+            .color = opts.color.getColor(),
+        } } });
+
+        return Widget{
+            .wh = .{ .w = size.w, .h = size.h },
             .node = ctx.result(),
         };
     }

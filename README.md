@@ -39,32 +39,6 @@ for a web build (html5 canvas rather than cairo as the rendering backend | some 
 
 fixed-positioned iframes will be used I guess
 
-# notes
+MAYBE:
 
-how to have nice, clean size negotiation?
-
-so : 1 is these functions will return "Widget"s. widgets may be rendered once each (you cannot render the same widget multiple times, must call the widget fn again).
-
-modes of widget size negotiation:
-
-fn(width) → widget(height) | fn(height) → widget(width) | fn(width, height) → widget() | fn() → widget(width, height)
-
-so the current layout looks like this:
-
-```
-<rect bg-gray100 [
-  <if display_mode == .centered : <hcenter-1200px .shrink #> : [
-    <inset-20px [
-      <if w-gt-1000 : <hcols 1fr 300px # [<v gap-10px [
-        // sidebar
-        …sidebar_nodes.map(sn => <SidebarNode sn>)
-      ]>]> : [<v gap-10px [
-        // main content
-        …content_nodes.map(cn => <ContentNode cn>)
-      ]>]>
-    ]>
-  ]>
-]>
-```
-
-not sure if that makes sense
+change `RenderResult` → `Widget` and add back the width/height properties

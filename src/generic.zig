@@ -45,11 +45,15 @@ pub const sample = Page{
                 .in = .{ .link = "/r/Zig", .name = "r/Zig" },
             },
             .actions = &[_]Action{
+                .{ .text = "Reply" },
                 .{ .text = "5 comments" },
+                .{ .text = "self.Zig" },
                 .{ .text = "Delete" },
                 .{ .text = "Save" },
                 .{ .text = "Duplicates" },
                 .{ .text = "Report" },
+                .{ .text = "Extra" },
+                .{ .text = "More" },
             },
         }} },
         .{ .children = &[_]Post{}, .parents = &[_]Post{.{

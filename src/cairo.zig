@@ -133,7 +133,7 @@ pub const Context = struct {
         cairo_restore(cr);
     }
     const TextLayoutOpts = struct {
-        width: c_int, // pango scaled
+        width: ?c_int, // pango scaled
     };
     pub fn layoutText(ctx: Context, font: [*:0]const u8, text: []const u8, opts: TextLayoutOpts) TextLayout {
         const cr = ctx.cr;
@@ -147,7 +147,7 @@ pub const Context = struct {
         }
         pango_layout_set_text(layout, text.ptr, @intCast(gint, text.len));
 
-        pango_layout_set_width(layout, opts.width);
+        if (opts.width) |w| pango_layout_set_width(layout, w);
         pango_layout_set_wrap(layout, .PANGO_WRAP_WORD_CHAR);
 
         return TextLayout{ .layout = layout };

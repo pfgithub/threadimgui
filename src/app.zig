@@ -7,6 +7,7 @@ const primitives = ui.primitives;
 const RenderResult = ui.RenderResult;
 const VLayoutManager = ui.VLayoutManager;
 const RoundedStyle = ui.RoundedStyle;
+const Widget = ui.Widget;
 const range = ui.range;
 const generic = @import("generic.zig");
 
@@ -30,6 +31,28 @@ fn renderSidebarWidget(imev: *ImEvent, width: f64, node: generic.SidebarNode) VL
     }
 }
 
+fn inset(imev: *ImEvent, inset_v: f64, widget: Widget) Widget {
+    var ctx = imev.render();
+    ctx.place(widget.node, .{ .x = inset_v, .y = inset_v });
+    return .{
+        .wh = .{ .w = inset_v * 2 + widget.wh.w, .h = inset_v * 2 + widget.wh.h },
+        .node = ctx.result(),
+    };
+}
+fn renderAction(imev: *ImEvent, action: generic.Action) Widget {
+    var ctx = imev.render();
+    // <Inset 1rem [
+    //    <Text sm [action.text]>
+    // ]>
+    const text = primitives.text(imev, .{ .size = .sm, .color = .white }, action.text);
+    return inset(imev, 4, text);
+}
+fn renderExtraActionsMenu(imev: *ImEvent, actions: []const generic.Action) Widget {
+    var ctx = imev.render();
+    const text = primitives.text(imev, .{ .size = .sm, .color = .white }, "…");
+    return inset(imev, 4, text);
+}
+
 fn renderPost(imev: *ImEvent, width: f64, node: generic.Post) VLayoutManager.Child {
     var ctx = imev.render();
 
@@ -38,6 +61,34 @@ fn renderPost(imev: *ImEvent, width: f64, node: generic.Post) VLayoutManager.Chi
     layout.place(&ctx, .{ .gap = 0 }, primitives.textV(imev, layout.top_rect.w, .{ .color = .white, .size = .base }, node.title));
     // now need a horizontal layout manager for this info bar
     // then another for action buttons
+    {
+        var toprect = layout.topRect();
+        var btn_x = toprect.x;
+        var btn_y = toprect.y;
+        var max_h: f64 = 0;
+
+        // render "…" button, likely to be discarded
+        // render all buttons
+        // if button is too wide, end rendering
+
+        const extra_actions_menu = renderExtraActionsMenu(imev, node.actions);
+
+        for (node.actions) |action| {
+            const rendered = renderAction(imev, action);
+
+            if (btn_x + rendered.wh.w > toprect.w - extra_actions_menu.wh.w) {
+                ctx.place(extra_actions_menu.node, .{ .x = btn_x, .y = btn_y });
+                if (extra_actions_menu.wh.h > max_h) max_h = rendered.wh.h;
+                break;
+            }
+
+            ctx.place(rendered.node, .{ .x = btn_x, .y = btn_y });
+            if (rendered.wh.h > max_h) max_h = rendered.wh.h;
+            btn_x += rendered.wh.w;
+            btn_x += 8;
+        }
+        layout.use(.{ .gap = 0, .h = max_h });
+    }
 
     return layout.result(&ctx);
 }
