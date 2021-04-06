@@ -496,6 +496,27 @@ fn renderSidebarWidget(imev: *ImEvent, container_area: TopRect, node: generic.Si
     }
 }
 
+fn renderPost(imev: *ImEvent, container_area: TopRect, node: generic.Post) f64 {
+    var layout = VLayoutManager.fromTopRect(container_area);
+
+    layout.use(.{ .gap = 0, .h = imev.render().text(layout.topRect(), .{ .color = .white, .size = .base }, node.title) });
+    // now need a horizontal layout manager for this info bar
+    // then another for action buttons
+
+    return layout.height();
+}
+
+fn renderContextNode(imev: *ImEvent, container_area: TopRect, node: generic.PostContext) f64 {
+    var layout = VLayoutManager.fromTopRect(container_area);
+    layout.inset(10);
+
+    for (node.parents) |post| {
+        layout.use(.{ .gap = 8, .h = renderPost(imev, layout.topRect(), post) });
+    }
+
+    return layout.height();
+}
+
 fn renderApp(imev: *ImEvent, area: Rect) void {
     // next step is figuring out:
     // how consistent ids will work
@@ -542,6 +563,11 @@ fn renderApp(imev: *ImEvent, area: Rect) void {
         imev.render().rect(.{ .rounded = .md, .bg = .gray200 }, sidebar.take(.{ .h = 356, .gap = 10 }));
     }
 
+    for (page.content) |context_node| {
+        const box = imev.render();
+        const res_height = renderContextNode(imev, layout.topRect(), context_node);
+        box.rect(.{ .rounded = .md, .bg = .gray200 }, layout.take(.{ .h = res_height, .gap = 10 }));
+    }
     for (range(20)) |_| {
         imev.render().rect(.{ .rounded = .md, .bg = .gray200 }, layout.take(.{ .h = 92, .gap = 10 }));
     }
