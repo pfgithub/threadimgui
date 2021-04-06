@@ -479,6 +479,11 @@ const VLayoutManager = struct {
     pub fn height(lm: VLayoutManager) f64 {
         return lm.top_rect.y - lm.start_y + lm.bottom_offset;
     }
+    pub fn maxWidth(lm: *VLayoutManager, max_w: f64, mode: enum { center }) void {
+        const res_w = std.math.min(max_w, lm.top_rect.w);
+        lm.top_rect.x = lm.top_rect.x + @divFloor(lm.top_rect.w, 2) - @divFloor(res_w, 2);
+        lm.top_rect.w = res_w;
+    }
 };
 
 fn renderSidebarWidget(imev: *ImEvent, container_area: TopRect, node: generic.SidebarNode) f64 {
@@ -538,12 +543,18 @@ fn renderApp(imev: *ImEvent, area: Rect) void {
 
     imev.render().rect(.{ .bg = .gray100 }, area);
 
-    const fullscreen = area.inset(20);
-
     const sidebar_width = 300;
     const cutoff = 1000;
 
-    var layout = VLayoutManager.fromRect(fullscreen);
+    var layout = VLayoutManager.fromRect(area);
+    layout.inset(20);
+
+    switch (page.display_mode) {
+        .fullscreen => {},
+        .centered => {
+            layout.maxWidth(1200, .center);
+        },
+    }
 
     if (area.w > 1000) {
         var sidebar = layout.cutRight(.{ .w = sidebar_width, .gap = 20 });

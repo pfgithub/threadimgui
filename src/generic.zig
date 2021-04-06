@@ -1,7 +1,9 @@
 pub const Page = struct {
     content: []const PostContext,
     sidebar: []const SidebarNode,
+    display_mode: DisplayMode,
 };
+pub const DisplayMode = enum { fullscreen, centered };
 pub const PostContext = struct {
     parents: []const Post,
     children: []const Post,
@@ -33,6 +35,7 @@ pub const SidebarNode = union(enum) {
 };
 
 pub const sample = Page{
+    .display_mode = .centered,
     .content = &[_]PostContext{
         .{ .children = &[_]Post{}, .parents = &[_]Post{.{
             .title = "Community-run Zig forum!",
