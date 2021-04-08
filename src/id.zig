@@ -1,4 +1,5 @@
 const std = @import("std");
+const main = @import("main.zig");
 
 pub const ID = struct {
     const DebugSafety = struct {
@@ -158,12 +159,12 @@ test "id" {
     {
         var id = ID.init(alloc);
         defer id.deinit();
-        for (range(2)) |_, i| {
+        for (main.range(2)) |_, i| {
             const v = id.pushIndex(@src(), i);
             defer v.pop();
             std.log.emerg("id_loop (keyed): {}", .{id.forSrc(@src())});
         }
-        for (range(2)) |_| {
+        for (main.range(2)) |_| {
             std.log.emerg("id_loop (unkeyed): {}", .{id.forSrc(@src())}); // this should panic the second time
         }
     }
