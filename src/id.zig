@@ -73,7 +73,7 @@ pub const ID = struct {
             id.debug_safety.destroy();
         }
     }
-    const PopID = struct {
+    pub const PopID = struct {
         id: *ID,
         seed: u64,
         // TODO track and make sure all of these are popped
@@ -90,9 +90,10 @@ pub const ID = struct {
     pub fn pushIndex(id: *ID, src: std.builtin.SourceLocation, index: usize) PopID {
         return id.pushSrc(src, std.mem.asBytes(&index));
     }
+    pub fn pushFunction(id: *ID, src: std.builtin.SourceLocation) PopID {
+        return id.pushSrc(src, "");
+    }
     fn pushSrc(id: *ID, src: std.builtin.SourceLocation, slice: []const u8) PopID {
-        if (safety_enabled) id.debug_safety.push_count += 1;
-
         const seed_start = id.seed;
 
         var hasher = std.hash.Wyhash.init(id.seed);
@@ -102,6 +103,13 @@ pub const ID = struct {
         hasher.update("#");
         hasher.update(slice);
         id.seed = hasher.final();
+        if (safety_enabled) {
+            id.debug_safety.push_count += 1;
+            id.debug_safety.seenID(id.seed) catch |e| @panic(
+                \\The same ID was generated twice for the same source location and scope.
+                \\Make sure to use id.push in loops and at the start and end of functions.
+            );
+        }
 
         return PopID{ .id = id, .seed = seed_start };
     }

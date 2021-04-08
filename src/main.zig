@@ -135,11 +135,21 @@ const TextHashKey = struct {
 pub const RenderCtx = struct {
     imev: *ImEvent,
     nodes: Queue(RenderNode),
-    pub fn init(imev: *ImEvent) RenderCtx {
+    pop_id: ?ID.PopID,
+    pub fn init(imev: *ImEvent, pop_id: ?ID.PopID) RenderCtx {
         return RenderCtx{
             .imev = imev,
             .nodes = Queue(RenderNode){},
+            .pop_id = pop_id,
         };
+    }
+    // maybe .result() can do this instead?
+    // then make sure that result is called on all renderctxs, only once.
+    // uh oh renderctx is only for rendering fixed positioned things
+    // if you return inset(…)
+    // this needs a bit of a redo
+    pub fn pop(ctx: *RenderCtx) void {
+        if (ctx.pop_id) |pid| pid.pop();
     }
     pub fn putRenderNode(ctx: *RenderCtx, node: RenderNode) void {
         ctx.nodes.push(ctx.imev.arena(), node) catch @panic("oom");
@@ -167,7 +177,8 @@ pub const primitives = struct {
         bg: ThemeColor,
     };
     pub fn rect(imev: *ImEvent, size: WH, opts: RectOpts) RenderResult {
-        var ctx = imev.render();
+        var ctx = imev.renderNoSrc();
+
         ctx.putRenderNode(RenderNode{ .value = .{ .rectangle = .{
             .wh = size,
             .radius = opts.rounded.getPx(),
@@ -185,7 +196,7 @@ pub const primitives = struct {
         }
     };
     pub fn textV(imev: *ImEvent, width: f64, opts: FontOpts, text_val: []const u8) VLayoutManager.Child {
-        var ctx = imev.render();
+        var ctx = imev.renderNoSrc();
 
         const all_font_opts = opts.all();
         const w_int = cairo.pangoScale(width);
@@ -204,7 +215,7 @@ pub const primitives = struct {
         };
     }
     pub fn text(imev: *ImEvent, opts: FontOpts, text_val: []const u8) Widget {
-        var ctx = imev.render();
+        var ctx = imev.renderNoSrc();
 
         const all_font_opts = opts.all();
         const layout = imev.layoutText(.{ .font_opts = all_font_opts, .width = null, .text = text_val });
@@ -450,8 +461,11 @@ pub const ImEvent = struct { // pinned?
     // TODO const ctx = imev.render(@src())
     // defer ctx.pop();
     // then it adds the source location to the hash thing automatically
-    pub fn render(imev: *ImEvent) RenderCtx {
-        return RenderCtx.init(imev);
+    pub fn render(imev: *ImEvent, src: std.builtin.SourceLocation) RenderCtx {
+        return RenderCtx.init(imev, imev.id.pushFunction(src));
+    }
+    pub fn renderNoSrc(imev: *ImEvent) RenderCtx {
+        return RenderCtx.init(imev, null);
     }
 
     pub fn layoutText(imev: *ImEvent, key: TextHashKey) cairo.TextLayout {
