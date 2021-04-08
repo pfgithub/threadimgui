@@ -176,8 +176,9 @@ pub const primitives = struct {
         rounded: RoundedStyle = .none,
         bg: ThemeColor,
     };
-    pub fn rect(imev: *ImEvent, size: WH, opts: RectOpts) RenderResult {
-        var ctx = imev.renderNoSrc();
+    pub fn rect(src: Src, imev: *ImEvent, size: WH, opts: RectOpts) RenderResult {
+        var ctx = imev.render(src);
+        defer ctx.pop();
 
         ctx.putRenderNode(RenderNode{ .value = .{ .rectangle = .{
             .wh = size,
@@ -195,8 +196,9 @@ pub const primitives = struct {
             return AllFontOpts{ .size = opts.size, .family = opts.family, .weight = opts.weight };
         }
     };
-    pub fn textV(imev: *ImEvent, width: f64, opts: FontOpts, text_val: []const u8) VLayoutManager.Child {
-        var ctx = imev.renderNoSrc();
+    pub fn textV(src: Src, imev: *ImEvent, width: f64, opts: FontOpts, text_val: []const u8) VLayoutManager.Child {
+        var ctx = imev.render(src);
+        defer ctx.pop();
 
         const all_font_opts = opts.all();
         const w_int = cairo.pangoScale(width);
@@ -214,8 +216,9 @@ pub const primitives = struct {
             .node = ctx.result(),
         };
     }
-    pub fn text(imev: *ImEvent, opts: FontOpts, text_val: []const u8) Widget {
-        var ctx = imev.renderNoSrc();
+    pub fn text(src: Src, imev: *ImEvent, opts: FontOpts, text_val: []const u8) Widget {
+        var ctx = imev.render(src);
+        defer ctx.pop();
 
         const all_font_opts = opts.all();
         const layout = imev.layoutText(.{ .font_opts = all_font_opts, .width = null, .text = text_val });
@@ -461,7 +464,7 @@ pub const ImEvent = struct { // pinned?
     // TODO const ctx = imev.render(@src())
     // defer ctx.pop();
     // then it adds the source location to the hash thing automatically
-    pub fn render(imev: *ImEvent, src: std.builtin.SourceLocation) RenderCtx {
+    pub fn render(imev: *ImEvent, src: Src) RenderCtx {
         return RenderCtx.init(imev, imev.id.pushFunction(src));
     }
     pub fn renderNoSrc(imev: *ImEvent) RenderCtx {
@@ -491,6 +494,7 @@ pub const ImEvent = struct { // pinned?
         }
     }
 };
+pub const Src = ID.Src;
 
 pub const TopRect = struct {
     x: f64,
@@ -592,14 +596,16 @@ var global_imevent: ImEvent = undefined;
 pub fn renderFrame(cr: cairo.Context) void {
     const imev = &global_imevent;
 
+    const root_src = @src();
+
     while (true) {
         imev.startFrame(cr, false) catch @panic("Start frame error");
-        _ = app.renderApp(imev, imev.screen_size);
+        _ = app.renderApp(root_src, imev, imev.screen_size);
         if (imev.endFrame()) break;
     }
 
     imev.startFrame(cr, true) catch @panic("Start frame error");
-    imev.endFrameRender(app.renderApp(imev, imev.screen_size));
+    imev.endFrameRender(app.renderApp(root_src, imev, imev.screen_size));
 }
 pub fn pushEvent(ev: cairo.RawEvent) void {
     const imev = &global_imevent;

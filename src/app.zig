@@ -10,14 +10,15 @@ const RoundedStyle = ui.RoundedStyle;
 const Widget = ui.Widget;
 const RenderCtx = ui.RenderCtx;
 const range = ui.range;
+const Src = ui.Src;
 const generic = @import("generic.zig");
 
 // RenderResult : when both W and H are specified to the function you're calling
 // VLayoutManager.Child : when only W is specified to the function you're calling
 // HLayoutManager.Child : when only H is specified to the function you're calling
 
-fn renderSidebarWidget(imev: *ImEvent, width: f64, node: generic.SidebarNode) VLayoutManager.Child {
-    var ctx = imev.render(@src());
+fn renderSidebarWidget(src: Src, imev: *ImEvent, width: f64, node: generic.SidebarNode) VLayoutManager.Child {
+    var ctx = imev.render(src);
     defer ctx.pop();
 
     switch (node) {
@@ -25,16 +26,16 @@ fn renderSidebarWidget(imev: *ImEvent, width: f64, node: generic.SidebarNode) VL
             var layout = VLayoutManager.fromWidth(width);
             layout.inset(10);
 
-            layout.place(&ctx, .{ .gap = 8 }, primitives.textV(imev, layout.top_rect.w, .{ .weight = .bold, .color = .gray500, .size = .base }, sample.title));
-            layout.place(&ctx, .{ .gap = 8 }, primitives.textV(imev, layout.top_rect.w, .{ .color = .white, .size = .sm }, sample.body));
+            layout.place(&ctx, .{ .gap = 8 }, primitives.textV(@src(), imev, layout.top_rect.w, .{ .weight = .bold, .color = .gray500, .size = .base }, sample.title));
+            layout.place(&ctx, .{ .gap = 8 }, primitives.textV(@src(), imev, layout.top_rect.w, .{ .color = .white, .size = .sm }, sample.body));
 
             return layout.result(&ctx);
         },
     }
 }
 
-fn inset(imev: *ImEvent, inset_v: f64, widget: Widget) Widget {
-    var ctx = imev.render(@src());
+fn inset(src: Src, imev: *ImEvent, inset_v: f64, widget: Widget) Widget {
+    var ctx = imev.render(src);
     defer ctx.pop();
 
     ctx.place(widget.node, .{ .x = inset_v, .y = inset_v });
@@ -43,23 +44,23 @@ fn inset(imev: *ImEvent, inset_v: f64, widget: Widget) Widget {
         .node = ctx.result(),
     };
 }
-fn renderAction(imev: *ImEvent, action: generic.Action) Widget {
-    var ctx = imev.render(@src());
+fn renderAction(src: Src, imev: *ImEvent, action: generic.Action) Widget {
+    var ctx = imev.render(src);
     defer ctx.pop();
 
     // <Inset 1rem [
     //    <Text sm [action.text]>
     // ]>
-    const text = primitives.text(imev, .{ .size = .sm, .color = .white }, action.text);
+    const text = primitives.text(@src(), imev, .{ .size = .sm, .color = .white }, action.text);
     const id = imev.id.forSrc(@src());
-    return inset(imev, 4, text);
+    return inset(@src(), imev, 4, text);
 }
-fn renderExtraActionsMenu(imev: *ImEvent, actions: []const generic.Action) Widget {
-    var ctx = imev.render(@src());
+fn renderExtraActionsMenu(src: Src, imev: *ImEvent, actions: []const generic.Action) Widget {
+    var ctx = imev.render(src);
     defer ctx.pop();
 
-    const text = primitives.text(imev, .{ .size = .sm, .color = .white }, "…");
-    return inset(imev, 4, text);
+    const text = primitives.text(@src(), imev, .{ .size = .sm, .color = .white }, "…");
+    return inset(@src(), imev, 4, text);
 }
 
 const HLayoutManager = struct {
@@ -114,20 +115,20 @@ const HLayoutManager = struct {
     }
 };
 
-fn renderPost(imev: *ImEvent, width: f64, node: generic.Post) VLayoutManager.Child {
-    var ctx = imev.render(@src());
+fn renderPost(src: Src, imev: *ImEvent, width: f64, node: generic.Post) VLayoutManager.Child {
+    var ctx = imev.render(src);
     defer ctx.pop();
 
     var layout = VLayoutManager.fromWidth(width);
 
-    layout.place(&ctx, .{ .gap = 0 }, primitives.textV(imev, layout.top_rect.w, .{ .color = .white, .size = .base }, node.title));
+    layout.place(&ctx, .{ .gap = 0 }, primitives.textV(@src(), imev, layout.top_rect.w, .{ .color = .white, .size = .base }, node.title));
     {
         var actions_lm = HLayoutManager.init(imev, .{ .max_w = layout.top_rect.w, .gap_x = 8, .gap_y = 0 });
-        actions_lm.overflow(renderExtraActionsMenu(imev, node.actions));
+        actions_lm.overflow(renderExtraActionsMenu(@src(), imev, node.actions));
         for (node.actions) |action, i| {
             const k = imev.id.pushIndex(@src(), i);
             defer k.pop();
-            actions_lm.put(renderAction(imev, action)) orelse break;
+            actions_lm.put(renderAction(@src(), imev, action)) orelse break;
         }
         layout.place(&ctx, .{ .gap = 0 }, actions_lm.build());
     }
@@ -135,30 +136,30 @@ fn renderPost(imev: *ImEvent, width: f64, node: generic.Post) VLayoutManager.Chi
     return layout.result(&ctx);
 }
 
-fn renderContextNode(imev: *ImEvent, width: f64, node: generic.PostContext) VLayoutManager.Child {
-    var ctx = imev.render(@src());
+fn renderContextNode(src: Src, imev: *ImEvent, width: f64, node: generic.PostContext) VLayoutManager.Child {
+    var ctx = imev.render(src);
     defer ctx.pop();
 
     var layout = VLayoutManager.fromWidth(width);
     layout.inset(10);
 
     for (node.parents) |post| {
-        layout.place(&ctx, .{ .gap = 8 }, renderPost(imev, layout.top_rect.w, post));
+        layout.place(&ctx, .{ .gap = 8 }, renderPost(@src(), imev, layout.top_rect.w, post));
     }
 
     return layout.result(&ctx);
 }
 
-pub fn topLevelContainer(imev: *ImEvent, width: f64, child: VLayoutManager.Child, opts: struct { rounded: bool }) VLayoutManager.Child {
+pub fn topLevelContainer(src: Src, imev: *ImEvent, width: f64, child: VLayoutManager.Child, opts: struct { rounded: bool }) VLayoutManager.Child {
     // return rectEncapsulating(rounding, .bg = .gray200,
     //    child
     // )
-    var ctx = imev.render(@src());
+    var ctx = imev.render(src);
     defer ctx.pop();
 
     const rounding: RoundedStyle = if (opts.rounded) .md else .none;
 
-    ctx.place(primitives.rect(imev, .{ .w = width, .h = child.h }, .{ .rounded = rounding, .bg = .gray200 }), Point.origin);
+    ctx.place(primitives.rect(@src(), imev, .{ .w = width, .h = child.h }, .{ .rounded = rounding, .bg = .gray200 }), Point.origin);
     ctx.place(child.node, Point.origin);
 
     return VLayoutManager.Child{
@@ -167,12 +168,12 @@ pub fn topLevelContainer(imev: *ImEvent, width: f64, child: VLayoutManager.Child
     };
 }
 
-pub fn renderApp(imev: *ImEvent, wh: WH) RenderResult {
+pub fn renderApp(src: Src, imev: *ImEvent, wh: WH) RenderResult {
     const page = generic.sample;
-    var ctx = imev.render(@src());
+    var ctx = imev.render(src);
     defer ctx.pop();
 
-    ctx.place(primitives.rect(imev, wh, .{ .bg = .gray100 }), Point.origin);
+    ctx.place(primitives.rect(@src(), imev, wh, .{ .bg = .gray100 }), Point.origin);
 
     const sidebar_width = 300;
     const cutoff = 1000;
@@ -196,16 +197,16 @@ pub fn renderApp(imev: *ImEvent, wh: WH) RenderResult {
             const v = imev.id.pushIndex(@src(), i); // TODO once virtual scrolling is added this will have to no longer be pushIndex
             defer v.pop();
 
-            const sidebar_widget = renderSidebarWidget(imev, sidebar.top_rect.w, sidebar_node);
+            const sidebar_widget = renderSidebarWidget(@src(), imev, sidebar.top_rect.w, sidebar_node);
 
-            sidebar.place(&ctx, .{ .gap = 10 }, topLevelContainer(imev, sidebar.top_rect.w, sidebar_widget, .{ .rounded = true }));
+            sidebar.place(&ctx, .{ .gap = 10 }, topLevelContainer(@src(), imev, sidebar.top_rect.w, sidebar_widget, .{ .rounded = true }));
         }
 
         for ([_]f64{ 244, 66, 172, 332, 128, 356 }) |height, i| {
             const v = imev.id.pushIndex(@src(), i);
             defer v.pop();
 
-            sidebar.place(&ctx, .{ .gap = 10 }, topLevelContainer(imev, sidebar.top_rect.w, VLayoutManager.Child{ .h = height, .node = null }, .{ .rounded = true }));
+            sidebar.place(&ctx, .{ .gap = 10 }, topLevelContainer(@src(), imev, sidebar.top_rect.w, VLayoutManager.Child{ .h = height, .node = null }, .{ .rounded = true }));
         }
     }
 
@@ -214,15 +215,15 @@ pub fn renderApp(imev: *ImEvent, wh: WH) RenderResult {
         const v = imev.id.pushIndex(@src(), i); // TODO once virtual scrolling is added this will have to no longer be pushIndex
         defer v.pop();
 
-        const context_widget = renderContextNode(imev, layout.top_rect.w, context_node);
+        const context_widget = renderContextNode(@src(), imev, layout.top_rect.w, context_node);
 
-        layout.place(&ctx, .{ .gap = 10 }, topLevelContainer(imev, layout.top_rect.w, context_widget, .{ .rounded = rounded }));
+        layout.place(&ctx, .{ .gap = 10 }, topLevelContainer(@src(), imev, layout.top_rect.w, context_widget, .{ .rounded = rounded }));
     }
     for (range(20)) |_, i| {
         const v = imev.id.pushIndex(@src(), i);
         defer v.pop();
 
-        layout.place(&ctx, .{ .gap = 10 }, topLevelContainer(imev, layout.top_rect.w, VLayoutManager.Child{ .h = 92, .node = null }, .{ .rounded = rounded }));
+        layout.place(&ctx, .{ .gap = 10 }, topLevelContainer(@src(), imev, layout.top_rect.w, VLayoutManager.Child{ .h = 92, .node = null }, .{ .rounded = rounded }));
     }
 
     return ctx.result();

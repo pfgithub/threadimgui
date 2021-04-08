@@ -2,6 +2,7 @@ const std = @import("std");
 const main = @import("main.zig");
 
 pub const ID = struct {
+    pub const Src = std.builtin.SourceLocation;
     const DebugSafety = struct {
         alloc: *std.mem.Allocator,
         seen: std.AutoHashMap(u64, void),
