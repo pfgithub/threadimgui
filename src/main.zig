@@ -2,6 +2,7 @@ const std = @import("std");
 const app = @import("app.zig");
 const cairo = @import("cairo.zig");
 const generic = @import("generic.zig"); // temporary
+const ID = @import("id.zig").ID;
 
 pub fn range(max: usize) []const void {
     return @as([]const void, &[_]void{}).ptr[0..max];
@@ -313,6 +314,7 @@ pub const ImEvent = struct { // pinned?
     real_allocator: *std.mem.Allocator,
     arena_allocator: std.heap.ArenaAllocator,
     text_cache: TextCacheHM,
+    id: ID,
 
     screen_size: WH,
     internal_screen_offset: Point,
@@ -336,6 +338,7 @@ pub const ImEvent = struct { // pinned?
             .internal_screen_offset = .{ .x = 0, .y = 0 },
             .should_continue = undefined,
             .text_cache = TextCacheHM.init(alloc),
+            .id = undefined,
         };
     }
     pub fn deinit(imev: *ImEvent) void {
@@ -369,6 +372,7 @@ pub const ImEvent = struct { // pinned?
             .screen_size = imev.screen_size,
             .internal_screen_offset = imev.internal_screen_offset,
             .text_cache = imev.text_cache,
+            .id = ID.init(imev.real_allocator),
             // .real_allocator =
         };
         if (event == null) {
@@ -437,10 +441,15 @@ pub const ImEvent = struct { // pinned?
     }
     pub fn internalEndFrame(imev: *ImEvent) bool {
         imev.arena_allocator.deinit();
+        imev.id.deinit();
+        imev.id = undefined;
 
         return !imev.should_continue; // rendering is over, do not execute more frames this frame
     }
 
+    // TODO const ctx = imev.render(@src())
+    // defer ctx.pop();
+    // then it adds the source location to the hash thing automatically
     pub fn render(imev: *ImEvent) RenderCtx {
         return RenderCtx.init(imev);
     }
