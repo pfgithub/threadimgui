@@ -593,24 +593,30 @@ pub const VLayoutManager = struct {
 
 var content: generic.Page = undefined;
 var global_imevent: ImEvent = undefined;
-pub fn renderFrame(cr: cairo.Context) void {
+pub fn renderFrame(cr: cairo.Context, rr: cairo.RerenderRequest) void {
+    const timer = std.time.Timer.start() catch @panic("bad timer");
     const imev = &global_imevent;
 
     const root_src = @src();
 
+    var render_count: usize = 0;
     while (true) {
+        render_count += 1;
         imev.startFrame(cr, false) catch @panic("Start frame error");
         _ = app.renderApp(root_src, imev, imev.screen_size);
         if (imev.endFrame()) break;
     }
 
+    render_count += 1;
     imev.startFrame(cr, true) catch @panic("Start frame error");
     imev.endFrameRender(app.renderApp(root_src, imev, imev.screen_size));
+    std.log.info("rerender×{} in {}ns", .{ render_count, timer.read() }); // max allowed time is 4ms
 }
-pub fn pushEvent(ev: cairo.RawEvent) void {
+pub fn pushEvent(ev: cairo.RawEvent, rr: cairo.RerenderRequest) void {
     const imev = &global_imevent;
 
     imev.addEvent(ev) catch @panic("oom");
+    rr.queueDraw();
 }
 
 pub fn main() !void {

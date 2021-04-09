@@ -48,36 +48,65 @@ pub const RawEvent = union(enum) {
     keyrelease: *GdkEventKey_f,
     textcommit: []const u8,
     resize: struct { x: c_int, y: c_int, w: c_int, h: c_int },
+    mouse_click: struct { button: c_uint, x: f64, y: f64, down: bool },
+    mouse_move: struct { x: f64, y: f64 },
 };
 
 // oh I can have user data I should use that
 // pass it through the start fn
-export fn zig_on_draw_event(cr: *cairo_t) callconv(.C) void {
-    main.renderFrame(Context{ .cr = cr });
+export fn zig_on_draw_event(widget: *GtkWidget, cr: *cairo_t, user_data: gpointer) callconv(.C) gboolean {
+    main.renderFrame(Context{ .cr = cr }, rrFrom(widget));
+    return 0;
 }
-export fn zig_on_keypress_event(evk: *GdkEventKey_f, im_context: *GtkIMContext) callconv(.C) gboolean {
-    main.pushEvent(.{ .keypress = evk });
-    return gtk_im_context_filter_keypress(im_context, evk.c()); // don't do this for modifier keys obv
-}
-export fn zig_on_keyrelease_event(evk: *GdkEventKey_f) callconv(.C) void {
-    main.pushEvent(.{ .keyrelease = evk });
-}
-export fn zig_on_commit_event(context: *GtkIMContext, str: [*:0]gchar, user_data: gpointer) callconv(.C) void {
-    main.pushEvent(.{ .textcommit = std.mem.span(str) });
-}
-export fn zig_on_delete_surrounding_event(context: *GtkIMContext, offset: gint, n_chars: gint, user_data: gpointer) callconv(.C) gboolean {
-    @panic("TODO implement IME support");
-}
-export fn zig_on_preedit_changed_event(context: *GtkIMContext, user_data: gpointer) callconv(.C) void {
-    @panic("TODO implement IME support");
-}
-export fn zig_on_retrieve_surrounding_event(context: *GtkIMContext, user_data: gpointer) callconv(.C) gboolean {
-    @panic("TODO implement IME support");
-}
+// export fn zig_on_keypress_event(evk: *GdkEventKey_f, im_context: *GtkIMContext) callconv(.C) gboolean {
+//     main.pushEvent(.{ .keypress = evk });
+//     return gtk_im_context_filter_keypress(im_context, evk.c()); // don't do this for modifier keys obv
+// }
+// export fn zig_on_keyrelease_event(evk: *GdkEventKey_f) callconv(.C) void {
+//     main.pushEvent(.{ .keyrelease = evk });
+// }
+// export fn zig_on_commit_event(context: *GtkIMContext, str: [*:0]gchar, user_data: gpointer) callconv(.C) void {
+//     main.pushEvent(.{ .textcommit = std.mem.span(str) });
+// }
+// export fn zig_on_delete_surrounding_event(context: *GtkIMContext, offset: gint, n_chars: gint, user_data: gpointer) callconv(.C) gboolean {
+//     @panic("TODO implement IME support");
+// }
+// export fn zig_on_preedit_changed_event(context: *GtkIMContext, user_data: gpointer) callconv(.C) void {
+//     @panic("TODO implement IME support");
+// }
+// export fn zig_on_retrieve_surrounding_event(context: *GtkIMContext, user_data: gpointer) callconv(.C) gboolean {
+//     @panic("TODO implement IME support");
+// }
 export fn zig_on_resize_event(widget: *GtkWidget, rect: *GdkRectangle, user_data: gpointer) callconv(.C) gboolean {
-    main.pushEvent(.{ .resize = .{ .x = rect.x, .y = rect.y, .w = rect.width, .h = rect.height } });
+    main.pushEvent(.{ .resize = .{ .x = rect.x, .y = rect.y, .w = rect.width, .h = rect.height } }, rrFrom(widget));
     return 1;
 }
+export fn zig_button_press_event(widget: *GtkWidget, event: *GdkEventButton, data: gpointer) callconv(.C) gboolean {
+    // std.log.info("Button ↓{} at ({}, {})", .{ event.button, event.x, event.y });
+    main.pushEvent(.{ .mouse_click = .{ .down = true, .x = event.x, .y = event.y, .button = event.button } }, rrFrom(widget));
+    return 1;
+}
+export fn zig_button_release_event(widget: *GtkWidget, event: *GdkEventButton, data: gpointer) callconv(.C) gboolean {
+    // std.log.info("Button ↑{} at ({}, {})", .{ event.button, event.x, event.y });
+    main.pushEvent(.{ .mouse_click = .{ .down = false, .x = event.x, .y = event.y, .button = event.button } }, rrFrom(widget));
+    return 1;
+}
+export fn zig_motion_notify_event(widget: *GtkWidget, event: *GdkEventMotion, data: gpointer) callconv(.C) gboolean {
+    // std.log.info("Mouse to ({}, {})", .{ event.x, event.y });
+    main.pushEvent(.{ .mouse_move = .{ .x = event.x, .y = event.y } }, rrFrom(widget));
+    return 1;
+}
+
+fn rrFrom(widget: *GtkWidget) RerenderRequest {
+    return .{ .widget = widget };
+}
+pub const RerenderRequest = struct {
+    widget: *GtkWidget,
+
+    pub fn queueDraw(rr: RerenderRequest) void {
+        gtk_widget_queue_draw(rr.widget);
+    }
+};
 
 fn roundedRectangle(cr: *cairo_t, x: f64, y: f64, w: f64, h: f64, corner_radius_raw: f64) void {
     // TODO if radius == 0 skip this
