@@ -284,6 +284,9 @@ pub const Point = struct {
     x: f64,
     y: f64,
     pub const origin = Point{ .x = 0, .y = 0 };
+    pub fn toRectBR(pt: Point, wh: WH) Rect {
+        return .{ .x = pt.x, .y = pt.y, .w = wh.w, .h = wh.h };
+    }
 };
 pub const Rect = struct {
     x: f64,
@@ -313,6 +316,11 @@ pub const Rect = struct {
     pub fn br(rect: Rect) Point {
         return .{ .x = rect.x + rect.w, .y = rect.y + rect.h };
     }
+    pub fn containsPoint(rect: Rect, point: Point) bool {
+        return point.x >= rect.x and point.x < rect.x + rect.w and
+            point.y >= rect.y and point.y < rect.y + rect.h //
+        ;
+    }
 };
 pub const WH = struct {
     w: f64,
@@ -331,12 +339,16 @@ const TextCacheHM = std.HashMap(
     std.hash_map.default_max_load_percentage,
 );
 pub const ImEvent = struct { // pinned?
-    // structures that are created at init
+    // structures that are created at init.
     unprocessed_events: Queue(cairo.RawEvent),
     real_allocator: *std.mem.Allocator,
     text_cache: TextCacheHM,
     screen_size: WH,
     internal_screen_offset: Point,
+
+    mouse_position: Point,
+    mouse_held: bool,
+    mouse_focused: ?MouseFocused,
 
     /// structures that are only defined during a frame
     frame: struct {
@@ -345,7 +357,15 @@ pub const ImEvent = struct { // pinned?
         arena_allocator: std.heap.ArenaAllocator,
         id: ID,
         cr: cairo.Context,
+
+        mouse_down: bool,
+        mouse_up: bool,
     },
+
+    const MouseFocused = struct {
+        id: u64,
+        hover: bool,
+    };
 
     pub fn arena(imev: *ImEvent) *std.mem.Allocator {
         return &imev.frame.arena_allocator.allocator;
@@ -358,6 +378,11 @@ pub const ImEvent = struct { // pinned?
             .text_cache = TextCacheHM.init(alloc),
             .screen_size = .{ .w = 0, .h = 0 },
             .internal_screen_offset = .{ .x = 0, .y = 0 },
+
+            .mouse_position = .{ .x = -1, .y = -1 },
+            .mouse_held = false,
+            .mouse_focused = null,
+
             .frame = undefined,
         };
     }
@@ -374,6 +399,7 @@ pub const ImEvent = struct { // pinned?
     pub fn addEvent(imev: *ImEvent, event: cairo.RawEvent) !void {
         // could use an arena allocator, unfortunately arena allocators are created at frame start
         // rather than on init 🙲 frame end.
+        // TODO consolidate similar events
         try imev.unprocessed_events.push(imev.real_allocator, event);
     }
     pub fn startFrame(imev: *ImEvent, cr: cairo.Context, should_render: bool) !void {
@@ -385,6 +411,9 @@ pub const ImEvent = struct { // pinned?
             .arena_allocator = std.heap.ArenaAllocator.init(imev.real_allocator),
             .id = ID.init(imev.real_allocator),
             .cr = cr,
+
+            .mouse_down = false,
+            .mouse_up = false,
         };
         if (event == null) {
             var iter = imev.text_cache.iterator();
@@ -403,26 +432,48 @@ pub const ImEvent = struct { // pinned?
                     .h = @intToFloat(f64, rsz.h),
                 };
             },
+            .mouse_click => |mclick| {
+                imev.mouse_position = .{ .x = mclick.x, .y = mclick.y };
+                if (mclick.button == 1) {
+                    if (mclick.down) {
+                        imev.frame.mouse_down = true;
+                        imev.mouse_held = true;
+                    } else {
+                        imev.frame.mouse_up = true;
+                        imev.mouse_held = false;
+                    }
+                }
+            },
+            .mouse_move => |mmove| {
+                imev.mouse_position = .{ .x = mmove.x, .y = mmove.y };
+            },
             else => {},
         };
     }
-    pub fn internalRender(imev: *ImEvent, nodes: RenderResult, offset: Point) void {
+    pub fn internalRender(imev: *ImEvent, nodes: RenderResult, offset: Point, should_render: bool) void {
         var nodeiter = nodes;
         const cr = imev.frame.cr;
         while (nodeiter) |node| {
             const rnode: RenderNode = node.value;
             switch (rnode.value) {
-                .rectangle => |rect| {
+                .rectangle => |rect| if (should_render) {
                     cr.renderRectangle(rect.bg_color, .{ .x = offset.x, .y = offset.y, .w = rect.wh.w, .h = rect.wh.h }, rect.radius);
                 },
-                .text => |text| {
+                .text => |text| if (should_render) {
                     cr.renderText(offset, text.layout, text.color);
                 },
                 .place => |place| {
-                    imev.internalRender(place.node, .{ .x = offset.x + place.offset.x, .y = offset.y + place.offset.y });
+                    imev.internalRender(place.node, .{ .x = offset.x + place.offset.x, .y = offset.y + place.offset.y }, should_render);
                 },
                 .clickable => |cable| {
-                    // update some state
+                    const contains_point = offset.toRectBR(cable.wh).containsPoint(imev.mouse_position);
+                    const active_is_this = if (imev.mouse_focused) |mfx| mfx.id == cable.id else contains_point;
+                    if (active_is_this) {
+                        imev.mouse_focused = MouseFocused{
+                            .id = cable.id,
+                            .hover = contains_point,
+                        };
+                    }
                 },
             }
             nodeiter = node.next;
@@ -430,8 +481,6 @@ pub const ImEvent = struct { // pinned?
     }
     pub fn endFrameRender(imev: *ImEvent, render_v: RenderResult) void {
         if (!imev.frame.should_render) unreachable;
-
-        imev.internalRender(render_v, imev.internal_screen_offset);
 
         var keys_to_remove = Queue(TextHashKey){};
         var iter = imev.text_cache.iterator();
@@ -447,14 +496,19 @@ pub const ImEvent = struct { // pinned?
             } else unreachable;
         }
 
-        if (!imev.internalEndFrame()) unreachable; // a render frame indicated that there was more to do this tick; this is invalid
+        if (!imev.internalEndFrame(render_v)) unreachable; // a render frame indicated that there was more to do this tick; this is invalid
     }
-    pub fn endFrame(imev: *ImEvent) bool {
+    pub fn endFrame(imev: *ImEvent, render_v: RenderResult) bool {
         if (imev.frame.should_render) unreachable;
 
-        return imev.internalEndFrame();
+        return imev.internalEndFrame(render_v);
     }
-    pub fn internalEndFrame(imev: *ImEvent) bool {
+    pub fn internalEndFrame(imev: *ImEvent, render_v: RenderResult) bool {
+        if (!imev.mouse_held) {
+            imev.mouse_focused = null;
+        }
+        imev.internalRender(render_v, imev.internal_screen_offset, imev.frame.should_render);
+
         imev.frame.arena_allocator.deinit();
         imev.frame.id.deinit();
         imev.frame.id = undefined;
@@ -497,7 +551,7 @@ pub const ImEvent = struct { // pinned?
 
     pub fn clickable(imev: *ImEvent, src: Src) ClickableState {
         const id = imev.frame.id.forSrc(src);
-        return ClickableState{ .id = id, .imev = imev, .hover = false };
+        return ClickableState{ .id = id, .imev = imev, .hover = if (imev.mouse_focused) |mfx| if (mfx.id == id) mfx.hover else false else false };
     }
 };
 pub const Src = ID.Src;
@@ -626,8 +680,7 @@ pub fn renderFrame(cr: cairo.Context, rr: cairo.RerenderRequest) void {
     while (true) {
         render_count += 1;
         imev.startFrame(cr, false) catch @panic("Start frame error");
-        _ = app.renderApp(root_src, imev, imev.screen_size);
-        if (imev.endFrame()) break;
+        if (imev.endFrame(app.renderApp(root_src, imev, imev.screen_size))) break;
     }
 
     render_count += 1;
