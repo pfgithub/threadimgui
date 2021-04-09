@@ -701,12 +701,12 @@ pub fn renderFrame(cr: cairo.Context, rr: cairo.RerenderRequest) void {
     while (true) {
         render_count += 1;
         imev.startFrame(cr, false) catch @panic("Start frame error");
-        if (imev.endFrame(app.renderApp(root_src, imev, imev.persistent.screen_size))) break;
+        if (imev.endFrame(app.renderApp(root_src, imev, imev.persistent.screen_size, content))) break;
     }
 
     render_count += 1;
     imev.startFrame(cr, true) catch @panic("Start frame error");
-    imev.endFrameRender(app.renderApp(root_src, imev, imev.persistent.screen_size));
+    imev.endFrameRender(app.renderApp(root_src, imev, imev.persistent.screen_size, content));
     // std.log.info("rerender×{} in {}ns", .{ render_count, timer.read() }); // max allowed time is 4ms
 }
 pub fn pushEvent(ev: cairo.RawEvent, rr: cairo.RerenderRequest) void {
@@ -721,7 +721,11 @@ pub fn main() !void {
     defer std.testing.expect(!gpa.deinit());
     const alloc = &gpa.allocator;
 
-    content = generic.sample;
+    var sample_arena = std.heap.ArenaAllocator.init(alloc);
+    defer sample_arena.deinit();
+
+    content = generic.initSample(&sample_arena.allocator);
+
     global_imevent = ImEvent.init(alloc);
     defer global_imevent.deinit();
 

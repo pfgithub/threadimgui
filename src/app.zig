@@ -192,8 +192,7 @@ pub fn topLevelContainer(src: Src, imev: *ImEvent, width: f64, child: VLayoutMan
     };
 }
 
-pub fn renderApp(src: Src, imev: *ImEvent, wh: WH) RenderResult {
-    const page = generic.sample;
+pub fn renderApp(src: Src, imev: *ImEvent, wh: WH, page: generic.Page) RenderResult {
     var ctx = imev.render(src);
     defer ctx.pop();
 
