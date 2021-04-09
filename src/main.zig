@@ -45,6 +45,10 @@ pub const RenderNode = struct { value: union(enum) {
         id: u64,
         wh: WH,
     },
+    scrollable: struct {
+        id: u64,
+        wh: WH,
+    },
 } };
 
 pub const RoundedStyle = enum {
@@ -351,6 +355,9 @@ pub const ImEvent = struct { // pinned?
         mouse_position: Point,
         mouse_held: bool,
         mouse_focused: ?MouseFocused,
+
+        scroll_focused: ?ScrollFocused,
+        // last_scroll_time: u64, // to prevent switching scroll focuses until «»ms of time without scrolling or similar
     },
 
     /// structures that are only defined during a frame
@@ -364,8 +371,14 @@ pub const ImEvent = struct { // pinned?
 
         mouse_down: bool,
         mouse_up: bool,
+
+        scroll_delta: Point,
     },
 
+    const ScrollFocused = struct {
+        id: u64,
+        delta: Point,
+    };
     const MouseFocused = struct {
         id: u64,
         hover: bool,
@@ -388,6 +401,8 @@ pub const ImEvent = struct { // pinned?
                 .mouse_position = .{ .x = -1, .y = -1 },
                 .mouse_held = false,
                 .mouse_focused = null,
+
+                .scroll_focused = null,
             },
             .frame = undefined,
         };
@@ -409,7 +424,7 @@ pub const ImEvent = struct { // pinned?
         try imev.persistent.unprocessed_events.push(imev.persistent.real_allocator, event);
     }
     pub fn startFrame(imev: *ImEvent, cr: cairo.Context, should_render: bool) !void {
-        const event = imev.persistent.unprocessed_events.pop(imev.persistent.real_allocator);
+        const event: ?cairo.RawEvent = imev.persistent.unprocessed_events.pop(imev.persistent.real_allocator);
 
         imev.frame = .{
             .should_render = should_render,
@@ -421,6 +436,8 @@ pub const ImEvent = struct { // pinned?
 
             .mouse_down = false,
             .mouse_up = false,
+
+            .scroll_delta = Point.origin,
         };
         if (event == null) {
             var iter = imev.persistent.text_cache.iterator();
@@ -454,6 +471,10 @@ pub const ImEvent = struct { // pinned?
             .mouse_move => |mmove| {
                 imev.persistent.mouse_position = .{ .x = mmove.x, .y = mmove.y };
             },
+            .scroll => |sev| {
+                // imev.persistent.mouse_position = .{ .x = sev.mouse_x, .y = sev.mouse_y };
+                imev.frame.scroll_delta = .{ .x = sev.scroll_x, .y = sev.scroll_y };
+            },
             else => {},
         };
     }
@@ -479,6 +500,15 @@ pub const ImEvent = struct { // pinned?
                         imev.persistent.mouse_focused = MouseFocused{
                             .id = cable.id,
                             .hover = contains_point,
+                        };
+                    }
+                },
+                .scrollable => |sable| {
+                    const contains_point = offset.toRectBR(sable.wh).containsPoint(imev.persistent.mouse_position);
+                    if (contains_point and !(imev.frame.scroll_delta.x == 0 and imev.frame.scroll_delta.y == 0)) {
+                        imev.persistent.scroll_focused = ScrollFocused{
+                            .id = sable.id,
+                            .delta = imev.frame.scroll_delta,
                         };
                     }
                 },
@@ -519,6 +549,7 @@ pub const ImEvent = struct { // pinned?
         if (!imev.persistent.mouse_held) {
             imev.persistent.mouse_focused = null;
         }
+        imev.persistent.scroll_focused = null;
         imev.internalRender(render_v, imev.persistent.internal_screen_offset, imev.frame.should_render);
 
         imev.frame.arena_allocator.deinit();
@@ -567,6 +598,13 @@ pub const ImEvent = struct { // pinned?
             .hover = mfx.hover,
         } else null else null };
     }
+
+    pub fn scrollable(imev: *ImEvent, src: Src) ScrollableState {
+        const id = imev.frame.id.forSrc(src);
+        return ScrollableState{ .id = id, .imev = imev, .scrolling = if (imev.persistent.scroll_focused) |scr| if (scr.id == id) ScrollableState.Scrolling{
+            .delta = scr.delta,
+        } else null else null };
+    }
 };
 pub const Src = ID.Src;
 
@@ -590,6 +628,22 @@ const ClickableState = struct {
     pub fn node(fc: ClickableState, wh: WH) RenderResult {
         var ctx = fc.imev.renderNoSrc();
         ctx.putRenderNode(.{ .value = .{ .clickable = .{ .id = fc.id, .wh = wh } } });
+        return ctx.result();
+    }
+};
+
+const ScrollableState = struct {
+    const Scrolling = struct {
+        delta: Point,
+    };
+    id: u64,
+    imev: *ImEvent,
+
+    scrolling: ?Scrolling,
+
+    pub fn node(fc: ScrollableState, wh: WH) RenderResult {
+        var ctx = fc.imev.renderNoSrc();
+        ctx.putRenderNode(.{ .value = .{ .scrollable = .{ .id = fc.id, .wh = wh } } });
         return ctx.result();
     }
 };
@@ -691,6 +745,7 @@ pub const VLayoutManager = struct {
 
 var content: generic.Page = undefined;
 var global_imevent: ImEvent = undefined;
+var app_state: app.AppState = undefined;
 pub fn renderFrame(cr: cairo.Context, rr: cairo.RerenderRequest) void {
     const timer = std.time.Timer.start() catch @panic("bad timer");
     const imev = &global_imevent;
@@ -701,12 +756,12 @@ pub fn renderFrame(cr: cairo.Context, rr: cairo.RerenderRequest) void {
     while (true) {
         render_count += 1;
         imev.startFrame(cr, false) catch @panic("Start frame error");
-        if (imev.endFrame(app.renderApp(root_src, imev, imev.persistent.screen_size, content))) break;
+        if (imev.endFrame(app.renderApp(root_src, imev, imev.persistent.screen_size, content, &app_state))) break;
     }
 
     render_count += 1;
     imev.startFrame(cr, true) catch @panic("Start frame error");
-    imev.endFrameRender(app.renderApp(root_src, imev, imev.persistent.screen_size, content));
+    imev.endFrameRender(app.renderApp(root_src, imev, imev.persistent.screen_size, content, &app_state));
     // std.log.info("rerender×{} in {}ns", .{ render_count, timer.read() }); // max allowed time is 4ms
 }
 pub fn pushEvent(ev: cairo.RawEvent, rr: cairo.RerenderRequest) void {
@@ -725,6 +780,8 @@ pub fn main() !void {
     defer sample_arena.deinit();
 
     content = generic.initSample(&sample_arena.allocator);
+
+    app_state = app.AppState.init();
 
     global_imevent = ImEvent.init(alloc);
     defer global_imevent.deinit();

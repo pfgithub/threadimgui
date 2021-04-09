@@ -50,6 +50,7 @@ pub const RawEvent = union(enum) {
     resize: struct { x: c_int, y: c_int, w: c_int, h: c_int },
     mouse_click: struct { button: c_uint, x: f64, y: f64, down: bool },
     mouse_move: struct { x: f64, y: f64 },
+    scroll: struct { scroll_x: f64, scroll_y: f64 },
 };
 
 // oh I can have user data I should use that
@@ -94,6 +95,19 @@ export fn zig_button_release_event(widget: *GtkWidget, event: *GdkEventButton, d
 export fn zig_motion_notify_event(widget: *GtkWidget, event: *GdkEventMotion, data: gpointer) callconv(.C) gboolean {
     // std.log.info("Mouse to ({}, {})", .{ event.x, event.y });
     main.pushEvent(.{ .mouse_move = .{ .x = event.x, .y = event.y } }, rrFrom(widget));
+    return 1;
+}
+const SCROLL_SPEED = 55;
+// gtk does not appear to tell you the scroll speed + there does not appear to be a standard scroll speed
+// setting on linux
+export fn zig_scroll_event(widget: *GtkWidget, event: *GdkEventScroll, data: gpointer) callconv(.C) gboolean {
+    // https://bugzilla.gnome.org/show_bug.cgi?id=675959
+    var delta_x: gdouble = undefined;
+    var delta_y: gdouble = undefined;
+    if (get_scroll_delta(event, &delta_x, &delta_y) == 0) unreachable;
+    // TODO if shift key pressed && delta_x == 0, delta_x = delta_y, delta_y = 0;
+    main.pushEvent(.{ .scroll = .{ .scroll_x = delta_x * SCROLL_SPEED, .scroll_y = delta_y * SCROLL_SPEED } }, rrFrom(widget));
+    // this passes a mouse position event, I'm just going to hope that mouse motion handles that for me though
     return 1;
 }
 

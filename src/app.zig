@@ -192,7 +192,14 @@ pub fn topLevelContainer(src: Src, imev: *ImEvent, width: f64, child: VLayoutMan
     };
 }
 
-pub fn renderApp(src: Src, imev: *ImEvent, wh: WH, page: generic.Page) RenderResult {
+pub const AppState = struct {
+    scroll: f64, // TODO this will store the current top node (body and sidebar) and the scroll offset of that node
+    pub fn init() AppState {
+        return AppState{ .scroll = 0 };
+    }
+};
+
+pub fn renderApp(src: Src, imev: *ImEvent, wh: WH, page: generic.Page, state: *AppState) RenderResult {
     var ctx = imev.render(src);
     defer ctx.pop();
 
@@ -202,9 +209,18 @@ pub fn renderApp(src: Src, imev: *ImEvent, wh: WH, page: generic.Page) RenderRes
     const cutoff = 1000;
     const mobile_cutoff = 600;
 
+    const scrollable = imev.scrollable(@src());
+    ctx.place(scrollable.node(wh), Point.origin);
+
+    if (scrollable.scrolling) |scrolling| {
+        state.scroll += scrolling.delta.y;
+    }
+
     var layout = VLayoutManager.fromWidth(wh.w);
     if (wh.w > mobile_cutoff) layout.inset(20) //
     else layout.insetY(20);
+
+    layout.top_rect.y -= state.scroll;
 
     switch (page.display_mode) {
         .fullscreen => {},

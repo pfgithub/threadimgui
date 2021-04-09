@@ -10,6 +10,8 @@
 	#define IMPLONLY(body)
 #endif
 
+typedef struct StructZigOpaque ZigOpaque;
+
 IMPLONLY(
 
 gboolean zig_on_draw_event(GtkWidget *widget, cairo_t *cr, gpointer user_data);
@@ -18,6 +20,8 @@ gboolean zig_on_resize_event(GtkWidget *widget, GdkRectangle *allocation, gpoint
 gboolean zig_button_press_event(GtkWidget *widget, GdkEventButton *event, gpointer data);
 gboolean zig_button_release_event(GtkWidget *widget, GdkEventButton *event, gpointer data);
 gboolean zig_motion_notify_event(GtkWidget *widget, GdkEventMotion *event, gpointer data);
+
+gboolean zig_scroll_event(GtkWidget *widget, GdkEventScroll *event, gpointer data);
 
 static void destroy(GtkWidget *widget, gpointer data) {
     gtk_main_quit ();
@@ -31,6 +35,33 @@ void zig_on_preedit_changed_event(GtkIMContext *context, gpointer user_data);
 gboolean zig_on_retrieve_surrounding_event(GtkIMContext *context, gpointer user_data);
 
 )
+
+gboolean get_scroll_delta(GdkEventScroll *event, gdouble *out_x, gdouble *out_y) IMPL({
+	if(event->direction == GDK_SCROLL_UP) {
+		*out_x = 0;
+		*out_y = -1;
+		return TRUE;
+	}else if(event->direction == GDK_SCROLL_DOWN) {
+		*out_x = 0;
+		*out_y = 1;
+		return TRUE;
+	}else if(event->direction == GDK_SCROLL_LEFT) {
+		*out_x = -1;
+		*out_y = 0;
+		return TRUE;
+	}else if(event->direction == GDK_SCROLL_RIGHT) {
+		*out_x = 1;
+		*out_y = 0;
+		return TRUE;
+	}else if(event->direction == GDK_SCROLL_SMOOTH) {
+		// if(!gdk_event_get_scroll_deltas((GdkEvent*)event, out_x, out_y)) return FALSE;
+		*out_x = event->delta_x;
+		*out_y = event->delta_y;
+		return TRUE;
+	}else{
+		return FALSE;
+	}
+})
 
 // maybe switch to gdk instead? give up on gtk?
 
@@ -57,12 +88,14 @@ IMPL({
 	g_signal_connect(G_OBJECT(darea), "button_press_event", G_CALLBACK(zig_button_press_event), NULL);
 	g_signal_connect(G_OBJECT(darea), "button_release_event", G_CALLBACK(zig_button_release_event), NULL);
 	g_signal_connect(G_OBJECT(darea), "motion_notify_event", G_CALLBACK(zig_motion_notify_event), NULL);
+	g_signal_connect(G_OBJECT(darea), "scroll_event", G_CALLBACK(zig_scroll_event), NULL);
 	gtk_widget_set_events (darea, 0
 		| GDK_LEAVE_NOTIFY_MASK
 		| GDK_BUTTON_PRESS_MASK
 		| GDK_BUTTON_RELEASE_MASK
 		| GDK_POINTER_MOTION_MASK
-		// | GDK_POINTER_MOTION_HINT_MASK
+		| GDK_SCROLL_MASK
+		| GDK_SMOOTH_SCROLL_MASK
 	);
 
 	// g_signal_connect(G_OBJECT(window), "key_press_event", G_CALLBACK(on_keypress_event), im_context);
@@ -76,7 +109,7 @@ IMPL({
 	gtk_window_set_default_size(GTK_WINDOW(window), 400, 90); 
 	gtk_window_set_title(GTK_WINDOW(window), "GTK window");
 
-	gtk_widget_show_all(window);
+	gtk_widget_show_all(window); 
 	gtk_im_context_focus_in(im_context);
 
 	gtk_main();
