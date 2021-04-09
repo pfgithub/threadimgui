@@ -351,6 +351,7 @@ pub const ImEvent = struct { // pinned?
         screen_size: WH,
         internal_screen_offset: Point,
         current_cursor: cairo.CursorEnum,
+        allow_event_introspection: bool, // to set this a helper fn needs to be made. this must be set and then used next frame, not this frame.
 
         mouse_position: Point,
         mouse_held: bool,
@@ -358,6 +359,7 @@ pub const ImEvent = struct { // pinned?
 
         scroll_focused: ?ScrollFocused,
         // last_scroll_time: u64, // to prevent switching scroll focuses until «»ms of time without scrolling or similar
+
     },
 
     /// structures that are only defined during a frame
@@ -397,6 +399,7 @@ pub const ImEvent = struct { // pinned?
                 .screen_size = .{ .w = 0, .h = 0 },
                 .internal_screen_offset = .{ .x = 0, .y = 0 },
                 .current_cursor = .default,
+                .allow_event_introspection = false,
 
                 .mouse_position = .{ .x = -1, .y = -1 },
                 .mouse_held = false,
@@ -567,6 +570,10 @@ pub const ImEvent = struct { // pinned?
     }
     pub fn renderNoSrc(imev: *ImEvent) RenderCtx {
         return RenderCtx.init(imev, null);
+    }
+
+    pub fn isRenderFrame(imev: *ImEvent) bool {
+        return if (imev.persistent.allow_event_introspection) true else imev.frame.should_render;
     }
 
     pub fn layoutText(imev: *ImEvent, key: TextHashKey) cairo.TextLayout {
