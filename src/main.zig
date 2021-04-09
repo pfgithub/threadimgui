@@ -13,15 +13,18 @@ pub const Color = struct {
     g: f64,
     b: f64,
     a: f64 = 1,
-    pub fn hex(v: u24) Color {
-        const r = (v & 0xFF0000) >> 16;
-        const g = (v & 0x00FF00) >> 8;
-        const b = (v & 0x0000FF) >> 0;
+    pub fn rgb(r: u8, g: u8, b: u8) Color {
         return Color{
             .r = @intToFloat(f64, r) / 0xFF,
             .g = @intToFloat(f64, g) / 0xFF,
             .b = @intToFloat(f64, b) / 0xFF,
         };
+    }
+    pub fn hex(v: u24) Color {
+        const r = @intCast(u8, (v & 0xFF0000) >> 16);
+        const g = @intCast(u8, (v & 0x00FF00) >> 8);
+        const b = @intCast(u8, (v & 0x0000FF) >> 0);
+        return Color.rgb(r, g, b);
     }
 };
 pub const RenderNode = struct { value: union(enum) {
@@ -37,6 +40,10 @@ pub const RenderNode = struct { value: union(enum) {
     place: struct {
         node: ?*Queue(RenderNode).Node,
         offset: Point,
+    },
+    clickable: struct {
+        id: u64,
+        wh: WH,
     },
 } };
 
@@ -59,6 +66,7 @@ pub const ThemeColor = enum {
     gray100, // #131516
     gray200, // #181a1b
     gray500, // #9ca3af
+    gray700, // 55, 65, 81
     white, // #fff
     pub fn getColor(col: ThemeColor) Color {
         return switch (col) {
@@ -66,6 +74,7 @@ pub const ThemeColor = enum {
             .gray100 => Color.hex(0x131516),
             .gray200 => Color.hex(0x181a1b),
             .gray500 => Color.hex(0x9ca3af),
+            .gray700 => Color.rgb(55, 65, 81),
             .white => Color.hex(0xFFFFFF),
         };
     }
@@ -412,6 +421,9 @@ pub const ImEvent = struct { // pinned?
                 .place => |place| {
                     imev.internalRender(place.node, .{ .x = offset.x + place.offset.x, .y = offset.y + place.offset.y });
                 },
+                .clickable => |cable| {
+                    // update some state
+                },
             }
             nodeiter = node.next;
         }
@@ -482,8 +494,30 @@ pub const ImEvent = struct { // pinned?
             return layout;
         }
     }
+
+    pub fn clickable(imev: *ImEvent, src: Src) ClickableState {
+        const id = imev.frame.id.forSrc(src);
+        return ClickableState{ .id = id, .imev = imev, .hover = false };
+    }
 };
 pub const Src = ID.Src;
+
+const ClickableState = struct {
+    id: u64,
+    imev: *ImEvent,
+
+    hover: bool,
+    // other stuff
+    // clicking: bool
+    // click: bool
+    // mpos: ?Point, // while clicking, this can go negative. coords are relative to where the node was placed.
+
+    pub fn node(fc: ClickableState, wh: WH) RenderResult {
+        var ctx = fc.imev.renderNoSrc();
+        ctx.putRenderNode(.{ .value = .{ .clickable = .{ .id = fc.id, .wh = wh } } });
+        return ctx.result();
+    }
+};
 
 pub const TopRect = struct {
     x: f64,
@@ -599,7 +633,7 @@ pub fn renderFrame(cr: cairo.Context, rr: cairo.RerenderRequest) void {
     render_count += 1;
     imev.startFrame(cr, true) catch @panic("Start frame error");
     imev.endFrameRender(app.renderApp(root_src, imev, imev.screen_size));
-    std.log.info("rerender×{} in {}ns", .{ render_count, timer.read() }); // max allowed time is 4ms
+    // std.log.info("rerender×{} in {}ns", .{ render_count, timer.read() }); // max allowed time is 4ms
 }
 pub fn pushEvent(ev: cairo.RawEvent, rr: cairo.RerenderRequest) void {
     const imev = &global_imevent;

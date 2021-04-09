@@ -48,12 +48,33 @@ fn renderAction(src: Src, imev: *ImEvent, action: generic.Action) Widget {
     var ctx = imev.render(src);
     defer ctx.pop();
 
-    // <Inset 1rem [
-    //    <Text sm [action.text]>
+    // gray-700: rgba(55, 65, 81)
+
+    // bind click_state;
+    // <Stacked [
+    //     <if click_state : [
+    //         <Rect rounded=.sm color=.gray-700 []>
+    //     ]>
+    //     <Inset 1rem <Stacked [
+    //         <Text sm [action.text]>
+    //     ]>
+    //     <Clickable [&click_state]>
     // ]>
     const text = primitives.text(@src(), imev, .{ .size = .sm, .color = .white }, action.text);
-    const id = imev.frame.id.forSrc(@src());
-    return inset(@src(), imev, 4, text);
+
+    const insetv = inset(@src(), imev, 4, text);
+    const clickable = imev.clickable(@src());
+
+    if (clickable.hover) {
+        ctx.place(primitives.rect(@src(), imev, insetv.wh, .{ .bg = .gray700, .rounded = .sm }), Point.origin);
+    }
+    ctx.place(insetv.node, Point.origin);
+    ctx.place(clickable.node(insetv.wh), Point.origin);
+
+    return .{
+        .wh = insetv.wh,
+        .node = ctx.result(),
+    };
 }
 fn renderExtraActionsMenu(src: Src, imev: *ImEvent, actions: []const generic.Action) Widget {
     var ctx = imev.render(src);
