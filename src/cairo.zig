@@ -55,7 +55,7 @@ pub const RawEvent = union(enum) {
 // oh I can have user data I should use that
 // pass it through the start fn
 export fn zig_on_draw_event(widget: *GtkWidget, cr: *cairo_t, user_data: gpointer) callconv(.C) gboolean {
-    main.renderFrame(Context{ .cr = cr }, rrFrom(widget));
+    main.renderFrame(Context{ .cr = cr, .widget = widget }, rrFrom(widget));
     return 0;
 }
 // export fn zig_on_keypress_event(evk: *GdkEventKey_f, im_context: *GtkIMContext) callconv(.C) gboolean {
@@ -141,11 +141,60 @@ pub const TextLayout = struct {
     }
 };
 
+pub const CursorEnum = enum {
+    // https://developer.gnome.org/gdk3/stable/gdk3-Cursors.html#gdk-cursor-new-from-name
+    none,
+    default,
+    pointer,
+    @"context-menu",
+    progress,
+    wait,
+    cell,
+    crosshair,
+    text,
+    @"vertical-text",
+    alias,
+    copy,
+    @"no-drop",
+    move,
+    @"not-allowed",
+    grab,
+    grabbing,
+    @"all-scroll",
+    @"col-resize",
+    @"row-resize",
+    @"n-resize",
+    @"e-resize",
+    @"s-resize",
+    @"w-resize",
+    @"ne-resize",
+    @"nw-resize",
+    @"sw-resize",
+    @"se-resize",
+    @"ew-resize",
+    @"ns-resize",
+    @"nesw-resize",
+    @"nwse-resize",
+    @"zoom-in",
+    @"zoom-out",
+    help,
+};
+
 pub const Context = struct {
     cr: *cairo_t,
+    widget: *GtkWidget,
     fn setRgba(ctx: Context, color: main.Color) void {
         const cr = ctx.cr;
         cairo_set_source_rgba(cr, color.r, color.g, color.b, color.a);
+    }
+    pub fn setCursor(ctx: Context, cursor_tag: CursorEnum) void {
+        const display = gtk_widget_get_display(ctx.widget);
+        const window = gtk_widget_get_window(ctx.widget);
+        const cursor_tag_str0 = std.heap.c_allocator.dupeZ(u8, @tagName(cursor_tag)) catch @panic("oom");
+        const cursor = gdk_cursor_new_from_name(display, cursor_tag_str0);
+        // uuh TODO free this also maybe don't create duplicate cursors like
+        // store a hashmap(CursorEnum, *GdkCursor) and then free them all at the end
+        gdk_window_set_cursor(window, cursor);
     }
     pub fn renderRectangle(ctx: Context, color: main.Color, rect: main.Rect, radius: f64) void {
         const cr = ctx.cr;

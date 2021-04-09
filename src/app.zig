@@ -65,8 +65,11 @@ fn renderAction(src: Src, imev: *ImEvent, action: generic.Action) Widget {
     const insetv = inset(@src(), imev, 4, text);
     const clickable = imev.clickable(@src());
 
-    if (clickable.hover) {
-        ctx.place(primitives.rect(@src(), imev, insetv.wh, .{ .bg = .gray700, .rounded = .sm }), Point.origin);
+    if (clickable.focused) |mstate| {
+        if (mstate.hover) {
+            ctx.place(primitives.rect(@src(), imev, insetv.wh, .{ .bg = .gray700, .rounded = .sm }), Point.origin);
+            mstate.setCursor(imev, .pointer);
+        }
     }
     ctx.place(insetv.node, Point.origin);
     ctx.place(clickable.node(insetv.wh), Point.origin);

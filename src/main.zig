@@ -346,6 +346,7 @@ pub const ImEvent = struct { // pinned?
         text_cache: TextCacheHM,
         screen_size: WH,
         internal_screen_offset: Point,
+        current_cursor: cairo.CursorEnum,
 
         mouse_position: Point,
         mouse_held: bool,
@@ -359,6 +360,7 @@ pub const ImEvent = struct { // pinned?
         arena_allocator: std.heap.ArenaAllocator,
         id: ID,
         cr: cairo.Context,
+        cursor: cairo.CursorEnum,
 
         mouse_down: bool,
         mouse_up: bool,
@@ -381,6 +383,7 @@ pub const ImEvent = struct { // pinned?
                 .text_cache = TextCacheHM.init(alloc),
                 .screen_size = .{ .w = 0, .h = 0 },
                 .internal_screen_offset = .{ .x = 0, .y = 0 },
+                .current_cursor = .default,
 
                 .mouse_position = .{ .x = -1, .y = -1 },
                 .mouse_held = false,
@@ -414,6 +417,7 @@ pub const ImEvent = struct { // pinned?
             .arena_allocator = std.heap.ArenaAllocator.init(imev.persistent.real_allocator),
             .id = ID.init(imev.persistent.real_allocator),
             .cr = cr,
+            .cursor = .default,
 
             .mouse_down = false,
             .mouse_up = false,
@@ -499,6 +503,11 @@ pub const ImEvent = struct { // pinned?
             } else unreachable;
         }
 
+        if (imev.frame.cursor != imev.persistent.current_cursor) {
+            imev.persistent.current_cursor = imev.frame.cursor;
+            imev.frame.cr.setCursor(imev.frame.cursor);
+        }
+
         if (!imev.internalEndFrame(render_v)) unreachable; // a render frame indicated that there was more to do this tick; this is invalid
     }
     pub fn endFrame(imev: *ImEvent, render_v: RenderResult) bool {
@@ -554,20 +563,29 @@ pub const ImEvent = struct { // pinned?
 
     pub fn clickable(imev: *ImEvent, src: Src) ClickableState {
         const id = imev.frame.id.forSrc(src);
-        return ClickableState{ .id = id, .imev = imev, .hover = if (imev.persistent.mouse_focused) |mfx| if (mfx.id == id) mfx.hover else false else false };
+        return ClickableState{ .id = id, .imev = imev, .focused = if (imev.persistent.mouse_focused) |mfx| if (mfx.id == id) ClickableState.Focused{
+            .hover = mfx.hover,
+        } else null else null };
     }
 };
 pub const Src = ID.Src;
 
 const ClickableState = struct {
+    const Focused = struct {
+        hover: bool,
+        // other stuff
+        // clicking: bool
+        // click: bool
+        // mpos: ?Point, // while clicking, this can go negative. coords are relative to where the node was placed.
+        pub fn setCursor(fcsd: Focused, imev: *ImEvent, cursor: cairo.CursorEnum) void {
+            // alternatively: make this struct pinned and use fieldparentptr
+            imev.frame.cursor = cursor;
+        }
+    };
     id: u64,
     imev: *ImEvent,
 
-    hover: bool,
-    // other stuff
-    // clicking: bool
-    // click: bool
-    // mpos: ?Point, // while clicking, this can go negative. coords are relative to where the node was placed.
+    focused: ?Focused,
 
     pub fn node(fc: ClickableState, wh: WH) RenderResult {
         var ctx = fc.imev.renderNoSrc();
