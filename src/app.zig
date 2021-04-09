@@ -145,7 +145,7 @@ fn renderPost(src: Src, imev: *ImEvent, width: f64, node: generic.Post) VLayoutM
 
     var layout = VLayoutManager.fromWidth(width);
 
-    layout.place(&ctx, .{ .gap = 0 }, primitives.textV(@src(), imev, layout.top_rect.w, .{ .color = .white, .size = .base }, node.title));
+    if (node.title) |title| layout.place(&ctx, .{ .gap = 0 }, primitives.textV(@src(), imev, layout.top_rect.w, .{ .color = .white, .size = .base }, title));
     {
         var actions_lm = HLayoutManager.init(imev, .{ .max_w = layout.top_rect.w, .gap_x = 8, .gap_y = 0 });
         actions_lm.overflow(renderExtraActionsMenu(@src(), imev, node.actions));
@@ -225,29 +225,33 @@ pub fn renderApp(src: Src, imev: *ImEvent, wh: WH, page: generic.Page) RenderRes
             sidebar.place(&ctx, .{ .gap = 10 }, topLevelContainer(@src(), imev, sidebar.top_rect.w, sidebar_widget, .{ .rounded = true }));
         }
 
-        for ([_]f64{ 244, 66, 172, 332, 128, 356 }) |height, i| {
-            const v = imev.frame.id.pushIndex(@src(), i);
-            defer v.pop();
+        // for ([_]f64{ 244, 66, 172, 332, 128, 356 }) |height, i| {
+        //     const v = imev.frame.id.pushIndex(@src(), i);
+        //     defer v.pop();
 
-            sidebar.place(&ctx, .{ .gap = 10 }, topLevelContainer(@src(), imev, sidebar.top_rect.w, VLayoutManager.Child{ .h = height, .node = null }, .{ .rounded = true }));
-        }
+        //     sidebar.place(&ctx, .{ .gap = 10 }, topLevelContainer(@src(), imev, sidebar.top_rect.w, VLayoutManager.Child{ .h = height, .node = null }, .{ .rounded = true }));
+        // }
     }
 
     const rounded = wh.w > mobile_cutoff;
-    for (page.content) |context_node, i| {
-        const v = imev.frame.id.pushIndex(@src(), i); // TODO once virtual scrolling is added this will have to no longer be pushIndex
-        defer v.pop();
+    switch (page.body) {
+        .listing => |listing| {
+            for (listing.items) |context_node, i| {
+                const v = imev.frame.id.pushIndex(@src(), i); // TODO once virtual scrolling is added this will have to no longer be pushIndex
+                defer v.pop();
 
-        const context_widget = renderContextNode(@src(), imev, layout.top_rect.w, context_node);
+                const context_widget = renderContextNode(@src(), imev, layout.top_rect.w, context_node);
 
-        layout.place(&ctx, .{ .gap = 10 }, topLevelContainer(@src(), imev, layout.top_rect.w, context_widget, .{ .rounded = rounded }));
+                layout.place(&ctx, .{ .gap = 10 }, topLevelContainer(@src(), imev, layout.top_rect.w, context_widget, .{ .rounded = rounded }));
+            }
+        },
     }
-    for (range(20)) |_, i| {
-        const v = imev.frame.id.pushIndex(@src(), i);
-        defer v.pop();
+    // for (range(20)) |_, i| {
+    //     const v = imev.frame.id.pushIndex(@src(), i);
+    //     defer v.pop();
 
-        layout.place(&ctx, .{ .gap = 10 }, topLevelContainer(@src(), imev, layout.top_rect.w, VLayoutManager.Child{ .h = 92, .node = null }, .{ .rounded = rounded }));
-    }
+    //     layout.place(&ctx, .{ .gap = 10 }, topLevelContainer(@src(), imev, layout.top_rect.w, VLayoutManager.Child{ .h = 92, .node = null }, .{ .rounded = rounded }));
+    // }
 
     return ctx.result();
 }

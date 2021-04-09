@@ -12,12 +12,15 @@ const JsonHelper = struct {
             else => jh.subvalue(null),
         };
     }
-    pub fn asString(jh: JsonHelper) ![]const u8 {
-        const value = jh.value orelse return error.BadJSON;
+    pub fn asOptString(jh: JsonHelper) !?[]const u8 {
+        const value = jh.value orelse return null;
         return switch (value) {
             .String => |str| return str,
             else => return error.BadJSON,
         };
+    }
+    pub fn asString(jh: JsonHelper) ![]const u8 {
+        return (try jh.asOptString()) orelse return error.BadJSON;
     }
     pub fn asEnum(jh: JsonHelper, comptime Enum: type) !Enum {
         return std.meta.stringToEnum(Enum, try jh.asString()) orelse return error.BadJSON;
@@ -39,14 +42,14 @@ const JsonHelper = struct {
 
 pub const Page = struct {
     title: []const u8,
-    content: []const PostContext,
+    body: PageBody,
     sidebar: []const SidebarNode,
     display_mode: DisplayMode,
 
     pub fn fromJSON(jh: JsonHelper) !Page {
         return Page{
             .title = try jh.get("title").asString(),
-            .content = &[_]PostContext{},
+            .body = try PageBody.fromJSON(jh.get("body")),
             .sidebar = try jh.get("sidebar").asArray(SidebarNode.fromJSON),
             .display_mode = switch (try jh.get("display_style").asEnum(enum { @"fullscreen-view", @"comments-view" })) {
                 .@"fullscreen-view" => .fullscreen,
@@ -55,30 +58,70 @@ pub const Page = struct {
         };
     }
 };
+pub const PageBody = union(enum) {
+    listing: struct {
+        items: []PostContext,
+    },
+    pub fn fromJSON(jh: JsonHelper) !PageBody {
+        return switch (try jh.get("kind").asEnum(std.meta.TagType(PageBody))) {
+            .listing => PageBody{ .listing = .{
+                .items = try jh.get("items").asArray(PostContext.fromJSON),
+            } },
+        };
+    }
+};
 
 pub const DisplayMode = enum { fullscreen, centered };
 pub const PostContext = struct {
     parents: []const Post,
     children: []const Post,
+    pub fn fromJSON(jh: JsonHelper) !PostContext {
+        return PostContext{
+            .parents = try jh.get("parents").asArray(Post.fromJSON),
+            .children = try jh.get("replies").asArray(Post.fromJSON),
+        };
+    }
 };
 pub const Post = struct {
-    title: []const u8,
-    info: struct {
-        time: u64,
-        author: struct {
-            username: []const u8,
-            color_hash: []const u8,
-            link: []const u8,
-        },
-        in: struct {
-            link: []const u8,
-            name: []const u8,
-        },
-    },
+    title: ?[]const u8,
+    // info: struct {
+    //     time: u64,
+    //     author: struct {
+    //         username: []const u8,
+    //         color_hash: []const u8,
+    //         link: []const u8,
+    //     },
+    //     in: struct {
+    //         link: []const u8,
+    //         name: []const u8,
+    //     },
+    // },
     actions: []const Action,
+
+    pub fn fromJSON(jh: JsonHelper) !Post {
+        return switch (try jh.get("kind").asEnum(enum { thread })) {
+            .thread => Post{
+                .title = try jh.get("title").get("text").asOptString(),
+                .actions = try jh.get("actions").asArray(Action.fromJSON),
+            },
+        };
+    }
 };
 pub const Action = struct {
     text: []const u8,
+    pub fn fromJSON(jh: JsonHelper) !Action {
+        return switch (try jh.get("kind").asEnum(enum { link, reply, counter, delete, report, login, act, flair, code })) {
+            .link => Action{ .text = try jh.get("text").asString() },
+            .reply => Action{ .text = try jh.get("text").asString() },
+            .counter => Action{ .text = "TODO counter" },
+            .delete => Action{ .text = "Delete" },
+            .report => Action{ .text = "Report" },
+            .login => Action{ .text = "Log In" },
+            .act => Action{ .text = try jh.get("text").asString() },
+            .flair => Action{ .text = "Flair" },
+            .code => Action{ .text = "Code" },
+        };
+    }
 };
 pub const SidebarNode = union(enum) {
     sample: struct {
@@ -87,8 +130,11 @@ pub const SidebarNode = union(enum) {
     },
     pub fn fromJSON(jh: JsonHelper) !SidebarNode {
         return switch (try jh.get("kind").asEnum(enum { widget, thread })) {
-            .widget => return SidebarNode{ .sample = .{ .title = "sample", .body = "sample" } },
-            .thread => return SidebarNode{ .sample = .{ .title = "sample", .body = "sample" } },
+            .widget => return SidebarNode{ .sample = .{
+                .title = try jh.get("title").asString(),
+                .body = "TODO",
+            } },
+            .thread => return SidebarNode{ .sample = .{ .title = "TODO", .body = "unsupported `thread` sidebar node" } },
         };
     }
 };
