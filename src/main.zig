@@ -66,12 +66,13 @@ pub const RoundedStyle = enum {
     }
 };
 pub const ThemeColor = enum {
-    black, // #000
-    gray100, // #131516
-    gray200, // #181a1b
-    gray500, // #9ca3af
-    gray700, // 55, 65, 81
-    white, // #fff
+    black,
+    gray100,
+    gray200,
+    gray500,
+    gray700,
+    white,
+    red,
     pub fn getColor(col: ThemeColor) Color {
         return switch (col) {
             .black => Color.hex(0x000000),
@@ -80,6 +81,7 @@ pub const ThemeColor = enum {
             .gray500 => Color.hex(0x9ca3af),
             .gray700 => Color.rgb(55, 65, 81),
             .white => Color.hex(0xFFFFFF),
+            .red => Color.hex(0xFF3333),
         };
     }
 };
@@ -686,6 +688,7 @@ pub const ImEvent = struct { // pinned?
         const id = imev.frame.id.forSrc(src);
         return ClickableState{ .id = id, .imev = imev, .focused = if (imev.persistent.mouse_focused) |mfx| if (mfx.id == id) ClickableState.Focused{
             .hover = mfx.hover,
+            .click = imev.frame.mouse_up and mfx.hover,
         } else null else null };
     }
 
@@ -701,6 +704,7 @@ pub const Src = ID.Src;
 const ClickableState = struct {
     const Focused = struct {
         hover: bool,
+        click: bool,
         // other stuff
         // clicking: bool
         // click: bool

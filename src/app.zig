@@ -45,6 +45,16 @@ fn inset(src: Src, imev: *ImEvent, inset_v: f64, widget: Widget) Widget {
         .node = ctx.result(),
     };
 }
+fn vinset(src: Src, imev: *ImEvent, inset_v: f64, widget: VLayoutManager.Child) VLayoutManager.Child {
+    var ctx = imev.render(src);
+    defer ctx.pop();
+
+    ctx.place(widget.node, .{ .x = 0, .y = inset_v });
+    return .{
+        .h = inset_v * 2 + widget.h,
+        .node = ctx.result(),
+    };
+}
 fn renderAction(src: Src, imev: *ImEvent, isc: *IdStateCache, action: generic.Action) Widget {
     var ctx = imev.render(src);
     defer ctx.pop();
@@ -140,15 +150,76 @@ const HLayoutManager = struct {
     }
 };
 
+pub const ButtonRes = struct {
+    widget: Widget,
+    clicked: bool,
+};
+fn renderButton(src: Src, imev: *ImEvent, text: []const u8) ButtonRes {
+    var ctx = imev.render(src);
+    defer ctx.pop();
+
+    var clicked_state = imev.clickable(@src());
+
+    const btn_widget = inset(@src(), imev, 4, primitives.text(@src(), imev, .{ .size = .sm, .color = .white }, text));
+
+    if (clicked_state.focused) |fcsd| if (fcsd.hover) {
+        ctx.place(primitives.rect(@src(), imev, btn_widget.wh, .{ .bg = .gray700 }), Point.origin);
+    };
+    ctx.place(clicked_state.node(btn_widget.wh), Point.origin);
+    ctx.place(btn_widget.node, Point.origin);
+
+    return .{
+        .widget = .{ .node = ctx.result(), .wh = btn_widget.wh },
+        .clicked = if (clicked_state.focused) |fsc| fsc.click else false,
+    };
+}
+
+fn renderBody(src: Src, imev: *ImEvent, isc: *IdStateCache, body: generic.Body, width: f64) VLayoutManager.Child {
+    var ctx = imev.render(src);
+    defer ctx.pop();
+
+    var layout = VLayoutManager.fromWidth(width);
+
+    switch (body) {
+        .none => {},
+        .richtext => {
+            layout.place(&ctx, .{ .gap = 4 }, primitives.textV(@src(), imev, layout.top_rect.w, .{ .color = .red, .size = .sm }, "TODO richtext"));
+        },
+        .unsupported => |name| {
+            layout.place(&ctx, .{ .gap = 4 }, primitives.textV(@src(), imev, layout.top_rect.w, .{ .color = .red, .size = .sm }, name));
+        },
+    }
+
+    return layout.result(&ctx);
+}
+
+const PostState = struct {
+    display_body: bool,
+    pub fn init() PostState {
+        return .{
+            .display_body = false,
+        };
+    }
+};
+
 fn renderPost(src: Src, imev: *ImEvent, isc: *IdStateCache, width: f64, node: generic.Post) VLayoutManager.Child {
     var ctx = imev.render(src);
     defer ctx.pop();
+
+    const state = isc.state(@src(), imev, PostState, PostState.init); // |_| .{.display_body = node.default_open}
 
     var layout = VLayoutManager.fromWidth(width);
 
     if (node.title) |title| layout.place(&ctx, .{ .gap = 0 }, primitives.textV(@src(), imev, layout.top_rect.w, .{ .color = .white, .size = .base }, title));
     {
         var actions_lm = HLayoutManager.init(imev, .{ .max_w = layout.top_rect.w, .gap_x = 8, .gap_y = 0 });
+
+        const button = renderButton(@src(), imev, if (state.display_body) "Hide" else "Show");
+        actions_lm.put(button.widget) orelse unreachable;
+        if (button.clicked) {
+            state.display_body = !state.display_body;
+        }
+
         actions_lm.overflow(renderExtraActionsMenu(@src(), imev, isc, node.actions));
         for (node.actions) |action, i| {
             const k = imev.frame.id.pushIndex(@src(), i);
@@ -156,6 +227,10 @@ fn renderPost(src: Src, imev: *ImEvent, isc: *IdStateCache, width: f64, node: ge
             actions_lm.put(renderAction(@src(), imev, isc, action)) orelse break;
         }
         layout.place(&ctx, .{ .gap = 0 }, actions_lm.build());
+    }
+
+    if (state.display_body and node.body != .none) {
+        layout.place(&ctx, .{ .gap = 0 }, vinset(@src(), imev, 4, renderBody(@src(), imev, isc, node.body, layout.top_rect.w)));
     }
 
     return layout.result(&ctx);
@@ -203,6 +278,8 @@ pub fn topLevelContainer(src: Src, imev: *ImEvent, width: f64, child: VLayoutMan
 pub const AppState = struct {
     scroll: f64, // TODO this will store the current top node (body and sidebar) and the scroll offset of that node
     // once virtual scrolling is implemented, this will have to storee off-screen IdStateCaches
+    // also, eventually virtual scrolling will have to work on : comment trees and : context nodes
+    // so basically this will have to do all the context node rendering
     pub fn init() AppState {
         return AppState{ .scroll = 0 };
     }

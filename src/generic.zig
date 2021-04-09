@@ -42,6 +42,15 @@ const JsonHelper = struct {
             else => return error.BadJSON,
         };
     }
+    pub fn exists(jh: JsonHelper) bool {
+        return jh.value != null;
+    }
+    pub fn asBoolOpt(jh: JsonHelper) !?bool {
+        return switch (jh.value orelse return null) {
+            .Bool => |v| v,
+            else => return error.BadJSON,
+        };
+    }
 };
 
 pub const Page = struct {
@@ -86,6 +95,60 @@ pub const PostContext = struct {
         };
     }
 };
+pub const TextFormatOpts = packed struct {
+    bold: bool,
+    italic: bool,
+    strike: bool,
+    sup: bool,
+    code: bool,
+    err: bool, // TODO get rid of this and use RichtextSpan.Error instead
+
+    pub fn fromJSON(jh: JsonHelper) !TextFormatOpts {
+        return TextFormatOpts{
+            .bold = (try jh.get("strong").asBoolOpt()) orelse false,
+            .italic = (try jh.get("emphasis").asBoolOpt()) orelse false,
+            .strike = (try jh.get("strikethrough").asBoolOpt()) orelse false,
+            .sup = (try jh.get("superscript").asBoolOpt()) orelse false,
+            .code = (try jh.get("code").asBoolOpt()) orelse false,
+            .err = jh.get("error").exists(),
+        };
+    }
+};
+pub const RichtextSpan = union(enum) {
+    text: struct { str: []const u8, fmt: TextFormatOpts },
+    unsupported: []const u8,
+
+    pub fn fromJSON(jh: JsonHelper) !RichtextSpan {
+        return switch (try jh.get("kind").asEnumDefaulted(enum { text, unsupported }, .unsupported)) {
+            .text => RichtextSpan{ .text = .{ .str = try jh.get("text").asString(), .fmt = try TextFormatOpts.fromJSON(jh.get("styles")) } },
+            .unsupported => RichtextSpan{ .unsupported = try jh.get("kind").asString() },
+        };
+    }
+};
+pub const RichtextParagraph = union(enum) {
+    paragraph: []const RichtextSpan,
+    unsupported: []const u8,
+
+    pub fn fromJSON(jh: JsonHelper) !RichtextParagraph {
+        return switch (try jh.get("kind").asEnumDefaulted(enum { paragraph, unsupported }, .unsupported)) {
+            .paragraph => RichtextParagraph{ .paragraph = try jh.get("children").asArray(RichtextSpan.fromJSON) },
+            .unsupported => RichtextParagraph{ .unsupported = try jh.get("kind").asString() },
+        };
+    }
+};
+pub const Body = union(enum) {
+    none: void,
+    richtext: []const RichtextParagraph,
+    unsupported: []const u8,
+
+    pub fn fromJSON(jh: JsonHelper) !Body {
+        return switch (try jh.get("kind").asEnumDefaulted(enum { none, richtext, unsupported }, .unsupported)) {
+            .none => Body{ .none = {} },
+            .richtext => Body{ .richtext = try jh.get("content").asArray(RichtextParagraph.fromJSON) },
+            .unsupported => Body{ .unsupported = try jh.get("kind").asString() },
+        };
+    }
+};
 pub const Post = struct {
     title: ?[]const u8,
     // info: struct {
@@ -101,12 +164,14 @@ pub const Post = struct {
     //     },
     // },
     actions: []const Action,
+    body: Body,
 
     pub fn fromJSON(jh: JsonHelper) !Post {
         return switch (try jh.get("kind").asEnum(enum { thread })) {
             .thread => Post{
                 .title = try jh.get("title").get("text").asOptString(),
                 .actions = try jh.get("actions").asArray(Action.fromJSON),
+                .body = try Body.fromJSON(jh.get("body")),
             },
         };
     }
