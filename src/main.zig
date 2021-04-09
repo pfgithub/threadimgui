@@ -340,15 +340,17 @@ const TextCacheHM = std.HashMap(
 );
 pub const ImEvent = struct { // pinned?
     // structures that are created at init.
-    unprocessed_events: Queue(cairo.RawEvent),
-    real_allocator: *std.mem.Allocator,
-    text_cache: TextCacheHM,
-    screen_size: WH,
-    internal_screen_offset: Point,
+    persistent: struct {
+        unprocessed_events: Queue(cairo.RawEvent),
+        real_allocator: *std.mem.Allocator,
+        text_cache: TextCacheHM,
+        screen_size: WH,
+        internal_screen_offset: Point,
 
-    mouse_position: Point,
-    mouse_held: bool,
-    mouse_focused: ?MouseFocused,
+        mouse_position: Point,
+        mouse_held: bool,
+        mouse_focused: ?MouseFocused,
+    },
 
     /// structures that are only defined during a frame
     frame: struct {
@@ -373,79 +375,80 @@ pub const ImEvent = struct { // pinned?
 
     pub fn init(alloc: *std.mem.Allocator) ImEvent {
         return .{
-            .unprocessed_events = Queue(cairo.RawEvent){},
-            .real_allocator = alloc,
-            .text_cache = TextCacheHM.init(alloc),
-            .screen_size = .{ .w = 0, .h = 0 },
-            .internal_screen_offset = .{ .x = 0, .y = 0 },
+            .persistent = .{
+                .unprocessed_events = Queue(cairo.RawEvent){},
+                .real_allocator = alloc,
+                .text_cache = TextCacheHM.init(alloc),
+                .screen_size = .{ .w = 0, .h = 0 },
+                .internal_screen_offset = .{ .x = 0, .y = 0 },
 
-            .mouse_position = .{ .x = -1, .y = -1 },
-            .mouse_held = false,
-            .mouse_focused = null,
-
+                .mouse_position = .{ .x = -1, .y = -1 },
+                .mouse_held = false,
+                .mouse_focused = null,
+            },
             .frame = undefined,
         };
     }
     pub fn deinit(imev: *ImEvent) void {
-        while (imev.unprocessed_events.pop(imev.real_allocator)) |_| {}
+        while (imev.persistent.unprocessed_events.pop(imev.persistent.real_allocator)) |_| {}
 
-        var iter = imev.text_cache.iterator();
+        var iter = imev.persistent.text_cache.iterator();
         while (iter.next()) |entry| {
             entry.value.layout.deinit();
-            imev.real_allocator.free(entry.key.text);
+            imev.persistent.real_allocator.free(entry.key.text);
         }
-        imev.text_cache.deinit();
+        imev.persistent.text_cache.deinit();
     }
     pub fn addEvent(imev: *ImEvent, event: cairo.RawEvent) !void {
         // could use an arena allocator, unfortunately arena allocators are created at frame start
         // rather than on init 🙲 frame end.
         // TODO consolidate similar events
-        try imev.unprocessed_events.push(imev.real_allocator, event);
+        try imev.persistent.unprocessed_events.push(imev.persistent.real_allocator, event);
     }
     pub fn startFrame(imev: *ImEvent, cr: cairo.Context, should_render: bool) !void {
-        const event = imev.unprocessed_events.pop(imev.real_allocator);
+        const event = imev.persistent.unprocessed_events.pop(imev.persistent.real_allocator);
 
         imev.frame = .{
             .should_render = should_render,
             .should_continue = event != null,
-            .arena_allocator = std.heap.ArenaAllocator.init(imev.real_allocator),
-            .id = ID.init(imev.real_allocator),
+            .arena_allocator = std.heap.ArenaAllocator.init(imev.persistent.real_allocator),
+            .id = ID.init(imev.persistent.real_allocator),
             .cr = cr,
 
             .mouse_down = false,
             .mouse_up = false,
         };
         if (event == null) {
-            var iter = imev.text_cache.iterator();
+            var iter = imev.persistent.text_cache.iterator();
             while (iter.next()) |entry| {
                 entry.value.used_in_this_render_frame = false;
             }
         }
         if (event) |ev| switch (ev) {
             .resize => |rsz| {
-                imev.internal_screen_offset = .{
+                imev.persistent.internal_screen_offset = .{
                     .x = @intToFloat(f64, rsz.x),
                     .y = @intToFloat(f64, rsz.y),
                 };
-                imev.screen_size = .{
+                imev.persistent.screen_size = .{
                     .w = @intToFloat(f64, rsz.w),
                     .h = @intToFloat(f64, rsz.h),
                 };
             },
             .mouse_click => |mclick| {
-                imev.mouse_position = .{ .x = mclick.x, .y = mclick.y };
+                imev.persistent.mouse_position = .{ .x = mclick.x, .y = mclick.y };
                 if (mclick.button == 1) {
                     if (mclick.down) {
                         imev.frame.mouse_down = true;
-                        imev.mouse_held = true;
+                        imev.persistent.mouse_held = true;
                     } else {
                         imev.frame.mouse_up = true;
-                        imev.mouse_held = false;
+                        imev.persistent.mouse_held = false;
                     }
                 }
             },
             .mouse_move => |mmove| {
-                imev.mouse_position = .{ .x = mmove.x, .y = mmove.y };
+                imev.persistent.mouse_position = .{ .x = mmove.x, .y = mmove.y };
             },
             else => {},
         };
@@ -466,10 +469,10 @@ pub const ImEvent = struct { // pinned?
                     imev.internalRender(place.node, .{ .x = offset.x + place.offset.x, .y = offset.y + place.offset.y }, should_render);
                 },
                 .clickable => |cable| {
-                    const contains_point = offset.toRectBR(cable.wh).containsPoint(imev.mouse_position);
-                    const active_is_this = if (imev.mouse_focused) |mfx| mfx.id == cable.id else contains_point;
+                    const contains_point = offset.toRectBR(cable.wh).containsPoint(imev.persistent.mouse_position);
+                    const active_is_this = if (imev.persistent.mouse_focused) |mfx| mfx.id == cable.id else contains_point;
                     if (active_is_this) {
-                        imev.mouse_focused = MouseFocused{
+                        imev.persistent.mouse_focused = MouseFocused{
                             .id = cable.id,
                             .hover = contains_point,
                         };
@@ -483,16 +486,16 @@ pub const ImEvent = struct { // pinned?
         if (!imev.frame.should_render) unreachable;
 
         var keys_to_remove = Queue(TextHashKey){};
-        var iter = imev.text_cache.iterator();
+        var iter = imev.persistent.text_cache.iterator();
         while (iter.next()) |entry| {
             if (!entry.value.used_in_this_render_frame) {
                 keys_to_remove.push(imev.arena(), entry.key) catch @panic("oom");
             }
         }
         while (keys_to_remove.pop(imev.arena())) |key| {
-            if (imev.text_cache.remove(key)) |v| {
+            if (imev.persistent.text_cache.remove(key)) |v| {
                 v.value.layout.deinit();
-                imev.real_allocator.free(v.key.text);
+                imev.persistent.real_allocator.free(v.key.text);
             } else unreachable;
         }
 
@@ -504,10 +507,10 @@ pub const ImEvent = struct { // pinned?
         return imev.internalEndFrame(render_v);
     }
     pub fn internalEndFrame(imev: *ImEvent, render_v: RenderResult) bool {
-        if (!imev.mouse_held) {
-            imev.mouse_focused = null;
+        if (!imev.persistent.mouse_held) {
+            imev.persistent.mouse_focused = null;
         }
-        imev.internalRender(render_v, imev.internal_screen_offset, imev.frame.should_render);
+        imev.internalRender(render_v, imev.persistent.internal_screen_offset, imev.frame.should_render);
 
         imev.frame.arena_allocator.deinit();
         imev.frame.id.deinit();
@@ -527,11 +530,11 @@ pub const ImEvent = struct { // pinned?
     }
 
     pub fn layoutText(imev: *ImEvent, key: TextHashKey) cairo.TextLayout {
-        if (imev.text_cache.getEntry(key)) |cached_value| {
+        if (imev.persistent.text_cache.getEntry(key)) |cached_value| {
             cached_value.value.used_in_this_render_frame = true;
             return cached_value.value.layout;
         } else {
-            const text_dupe = imev.real_allocator.dupe(u8, key.text) catch @panic("oom");
+            const text_dupe = imev.persistent.real_allocator.dupe(u8, key.text) catch @panic("oom");
             const font_str = std.fmt.allocPrint0(imev.arena(), "{}", .{key.font_opts}) catch @panic("oom");
             const layout = imev.frame.cr.layoutText(font_str.ptr, text_dupe, .{ .width = key.width });
 
@@ -544,14 +547,14 @@ pub const ImEvent = struct { // pinned?
                 .width = key.width,
                 .text = text_dupe,
             };
-            imev.text_cache.putNoClobber(entry_key, cache_value) catch @panic("oom");
+            imev.persistent.text_cache.putNoClobber(entry_key, cache_value) catch @panic("oom");
             return layout;
         }
     }
 
     pub fn clickable(imev: *ImEvent, src: Src) ClickableState {
         const id = imev.frame.id.forSrc(src);
-        return ClickableState{ .id = id, .imev = imev, .hover = if (imev.mouse_focused) |mfx| if (mfx.id == id) mfx.hover else false else false };
+        return ClickableState{ .id = id, .imev = imev, .hover = if (imev.persistent.mouse_focused) |mfx| if (mfx.id == id) mfx.hover else false else false };
     }
 };
 pub const Src = ID.Src;
@@ -680,12 +683,12 @@ pub fn renderFrame(cr: cairo.Context, rr: cairo.RerenderRequest) void {
     while (true) {
         render_count += 1;
         imev.startFrame(cr, false) catch @panic("Start frame error");
-        if (imev.endFrame(app.renderApp(root_src, imev, imev.screen_size))) break;
+        if (imev.endFrame(app.renderApp(root_src, imev, imev.persistent.screen_size))) break;
     }
 
     render_count += 1;
     imev.startFrame(cr, true) catch @panic("Start frame error");
-    imev.endFrameRender(app.renderApp(root_src, imev, imev.screen_size));
+    imev.endFrameRender(app.renderApp(root_src, imev, imev.persistent.screen_size));
     // std.log.info("rerender×{} in {}ns", .{ render_count, timer.read() }); // max allowed time is 4ms
 }
 pub fn pushEvent(ev: cairo.RawEvent, rr: cairo.RerenderRequest) void {
