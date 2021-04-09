@@ -25,6 +25,10 @@ const JsonHelper = struct {
     pub fn asEnum(jh: JsonHelper, comptime Enum: type) !Enum {
         return std.meta.stringToEnum(Enum, try jh.asString()) orelse return error.BadJSON;
     }
+    // I'd rather use non-exhaustive enums so this can be done in asEnum but unfortunately "non-exhaustive enum must specify size"
+    pub fn asEnumDefaulted(jh: JsonHelper, comptime Enum: type, default: Enum) !Enum {
+        return std.meta.stringToEnum(Enum, try jh.asString()) orelse return default;
+    }
     fn ReturnValueType(comptime fnc: anytype) type {
         return @typeInfo(@typeInfo(@TypeOf(fnc)).Fn.return_type orelse unreachable).ErrorUnion.payload;
     }
@@ -130,10 +134,18 @@ pub const SidebarNode = union(enum) {
     },
     pub fn fromJSON(jh: JsonHelper) !SidebarNode {
         return switch (try jh.get("kind").asEnum(enum { widget, thread })) {
-            .widget => return SidebarNode{ .sample = .{
-                .title = try jh.get("title").asString(),
-                .body = "TODO",
-            } },
+            .widget => {
+                const content = jh.get("widget_content");
+                return SidebarNode{
+                    .sample = .{
+                        .title = try jh.get("title").asString(),
+                        .body = switch (try content.get("kind").asEnumDefaulted(enum { @"community-details", unsupported }, .unsupported)) {
+                            .@"community-details" => try content.get("description").asString(),
+                            .unsupported => "TODO",
+                        },
+                    },
+                };
+            },
             .thread => return SidebarNode{ .sample = .{ .title = "TODO", .body = "unsupported `thread` sidebar node" } },
         };
     }
