@@ -846,12 +846,12 @@ pub fn renderFrame(cr: cairo.Context, rr: cairo.RerenderRequest) void {
     while (true) {
         render_count += 1;
         imev.startFrame(cr, false) catch @panic("Start frame error");
-        if (imev.endFrame(app.renderApp(root_src, imev, imev.persistent.screen_size, content, &root_state_cache))) break;
+        if (imev.endFrame(app.renderApp(root_src, imev, &root_state_cache, imev.persistent.screen_size, content))) break;
     }
 
     render_count += 1;
     imev.startFrame(cr, true) catch @panic("Start frame error");
-    imev.endFrameRender(app.renderApp(root_src, imev, imev.persistent.screen_size, content, &root_state_cache));
+    imev.endFrameRender(app.renderApp(root_src, imev, &root_state_cache, imev.persistent.screen_size, content));
     root_state_cache.cleanupUnused(imev);
 
     // std.log.info("rerender×{} in {}ns", .{ render_count, timer.read() }); // max allowed time is 4ms
