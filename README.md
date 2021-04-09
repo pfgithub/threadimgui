@@ -116,3 +116,18 @@ callbacks seem like a kind of bad solution though
 
 the idea with callbacks is the callback would update a bit of persistent data. but if you need persistent data you might as well just generate an id and store it persistently
 like why make a mess out of callbacks
+
+# sample data
+
+generated with
+
+```js
+copy(
+  JSON.stringify(temp0, (key, value) => {
+    if (key === "raw_value") return "TODO";
+    if (typeof value === "object" && value && "encoding_symbol" in value)
+      return "TODO";
+    return value;
+  })
+);
+```

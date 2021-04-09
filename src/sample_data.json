@@ -1,0 +1,3270 @@
+{
+  "title": "/r/zig",
+  "navbar": {
+    "actions": [{ "kind": "act", "action": "TODO", "text": "Log Out" }],
+    "inboxes": [
+      {
+        "id": "/messages",
+        "name": "Messages",
+        "active_color": "orange",
+        "hydrate": "TODO",
+        "url": "/message/inbox"
+      },
+      {
+        "id": "/modmail",
+        "name": "Modmail",
+        "active_color": "green",
+        "hydrate": "TODO",
+        "url": "/mod/mail/all"
+      }
+    ]
+  },
+  "body": {
+    "kind": "listing",
+    "menu": [
+      {
+        "selected": true,
+        "text": "Hot",
+        "action": { "kind": "link", "url": "/r/zig" }
+      },
+      {
+        "selected": false,
+        "text": "Best",
+        "action": { "kind": "link", "url": "/r/zig/best" }
+      },
+      {
+        "selected": false,
+        "text": "New",
+        "action": { "kind": "link", "url": "/r/zig/new" }
+      },
+      {
+        "selected": false,
+        "text": "Rising",
+        "action": { "kind": "link", "url": "/r/zig/rising" }
+      },
+      {
+        "selected": false,
+        "text": "Top",
+        "action": {
+          "kind": "menu",
+          "children": [
+            {
+              "text": "Hour",
+              "selected": false,
+              "action": { "kind": "link", "url": "/r/zig/top?t=hour" }
+            },
+            {
+              "text": "Day",
+              "selected": false,
+              "action": { "kind": "link", "url": "/r/zig/top?t=day" }
+            },
+            {
+              "text": "Week",
+              "selected": false,
+              "action": { "kind": "link", "url": "/r/zig/top?t=week" }
+            },
+            {
+              "text": "Month",
+              "selected": false,
+              "action": { "kind": "link", "url": "/r/zig/top?t=month" }
+            },
+            {
+              "text": "Year",
+              "selected": false,
+              "action": { "kind": "link", "url": "/r/zig/top?t=year" }
+            },
+            {
+              "text": "All Time",
+              "selected": false,
+              "action": { "kind": "link", "url": "/r/zig/top?t=all" }
+            }
+          ]
+        }
+      },
+      {
+        "selected": false,
+        "text": "Controversial",
+        "action": {
+          "kind": "menu",
+          "children": [
+            {
+              "text": "Hour",
+              "selected": false,
+              "action": { "kind": "link", "url": "/r/zig/controversial?t=hour" }
+            },
+            {
+              "text": "Day",
+              "selected": false,
+              "action": { "kind": "link", "url": "/r/zig/controversial?t=day" }
+            },
+            {
+              "text": "Week",
+              "selected": false,
+              "action": { "kind": "link", "url": "/r/zig/controversial?t=week" }
+            },
+            {
+              "text": "Month",
+              "selected": false,
+              "action": {
+                "kind": "link",
+                "url": "/r/zig/controversial?t=month"
+              }
+            },
+            {
+              "text": "Year",
+              "selected": false,
+              "action": { "kind": "link", "url": "/r/zig/controversial?t=year" }
+            },
+            {
+              "text": "All Time",
+              "selected": false,
+              "action": { "kind": "link", "url": "/r/zig/controversial?t=all" }
+            }
+          ]
+        }
+      }
+    ],
+    "header": {
+      "kind": "bio",
+      "banner": null,
+      "icon": {
+        "url": "https://styles.redditmedia.com/t5_3cf47/styles/communityIcon_o5exg8qp2o941.png?width=256&s=48fe1800359c637d8d2d53db25b442407a60c996"
+      },
+      "name": { "display": "Ziglang", "link_name": "r/Zig" },
+      "body": null,
+      "subscribe": {
+        "kind": "counter",
+        "unique_id": "/subscribe/zig/",
+        "time": 1617954125793,
+        "label": "Subscribe",
+        "incremented_label": "Subscribed",
+        "style": "pill-filled",
+        "incremented_style": "pill-empty",
+        "count_excl_you": 2855,
+        "you": "increment",
+        "actions": { "increment": "TODO", "reset": "TODO" }
+      },
+      "menu": null,
+      "raw_value": "TODO"
+    },
+    "items": [
+      {
+        "parents": [
+          {
+            "kind": "thread",
+            "title": { "text": "Community-run Zig forum!" },
+            "flair": [],
+            "body": {
+              "kind": "link",
+              "url": "https://zigforum.org/t/welcome-to-zigforum-org/7"
+            },
+            "display_mode": {
+              "body": "collapsed",
+              "body_default": "closed",
+              "comments": "collapsed"
+            },
+            "raw_value": "TODO",
+            "link": "/r/Zig/comments/m5wf4h/communityrun_zig_forum/",
+            "layout": "reddit-post",
+            "info": {
+              "time": 1615854551000,
+              "edited": false,
+              "author": {
+                "color_hash": "kristoff-it",
+                "name": "kristoff-it",
+                "link": "/u/kristoff-it",
+                "flair": []
+              },
+              "in": { "link": "/r/Zig", "name": "r/Zig" },
+              "pinned": true
+            },
+            "actions": [
+              {
+                "kind": "link",
+                "url": "/r/Zig/comments/m5wf4h/communityrun_zig_forum/",
+                "text": "5 comments"
+              },
+              {
+                "kind": "link",
+                "url": "/domain/zigforum.org",
+                "text": "zigforum.org"
+              },
+              { "kind": "delete", "data": "TODO" },
+              {
+                "kind": "counter",
+                "unique_id": "/save/t3_m5wf4h/",
+                "time": 1617954126014,
+                "label": "Save",
+                "incremented_label": "Unsave",
+                "style": "action-button",
+                "incremented_style": "save-button-saved",
+                "count_excl_you": "none",
+                "actions": { "increment": "TODO", "reset": "TODO" }
+              },
+              {
+                "kind": "counter",
+                "unique_id": "/vote/t3_m5wf4h/",
+                "time": 1617954126014,
+                "special": "reddit-points",
+                "label": "Vote",
+                "incremented_label": "Voted",
+                "decremented_label": "Voted",
+                "count_excl_you": 50,
+                "percent": 0.98,
+                "actions": {
+                  "increment": "TODO",
+                  "decrement": "TODO",
+                  "reset": "TODO"
+                }
+              },
+              {
+                "kind": "link",
+                "url": "/r/Zig/duplicates/m5wf4h/communityrun_zig_forum/",
+                "text": "Duplicates"
+              },
+              { "kind": "report", "data": "TODO" }
+            ],
+            "default_collapsed": false
+          }
+        ],
+        "replies": []
+      },
+      {
+        "parents": [
+          {
+            "kind": "thread",
+            "title": { "text": "Understanding Atomics and Memory Ordering" },
+            "flair": [],
+            "body": {
+              "kind": "link",
+              "url": "https://dev.to/kprotty/understanding-atomics-and-memory-ordering-2mom"
+            },
+            "display_mode": {
+              "body": "collapsed",
+              "body_default": "closed",
+              "comments": "collapsed"
+            },
+            "raw_value": "TODO",
+            "link": "/r/Zig/comments/mn5m9u/understanding_atomics_and_memory_ordering/",
+            "layout": "reddit-post",
+            "info": {
+              "time": 1617928544000,
+              "edited": false,
+              "author": {
+                "color_hash": "kprotty",
+                "name": "kprotty",
+                "link": "/u/kprotty",
+                "flair": []
+              },
+              "in": { "link": "/r/Zig", "name": "r/Zig" },
+              "pinned": false
+            },
+            "actions": [
+              {
+                "kind": "link",
+                "url": "/r/Zig/comments/mn5m9u/understanding_atomics_and_memory_ordering/",
+                "text": "0 comments"
+              },
+              { "kind": "link", "url": "/domain/dev.to", "text": "dev.to" },
+              { "kind": "delete", "data": "TODO" },
+              {
+                "kind": "counter",
+                "unique_id": "/save/t3_mn5m9u/",
+                "time": 1617954126014,
+                "label": "Save",
+                "incremented_label": "Unsave",
+                "style": "action-button",
+                "incremented_style": "save-button-saved",
+                "count_excl_you": "none",
+                "actions": { "increment": "TODO", "reset": "TODO" }
+              },
+              {
+                "kind": "counter",
+                "unique_id": "/vote/t3_mn5m9u/",
+                "time": 1617954126014,
+                "special": "reddit-points",
+                "label": "Vote",
+                "incremented_label": "Voted",
+                "decremented_label": "Voted",
+                "count_excl_you": 12,
+                "percent": 0.88,
+                "actions": {
+                  "increment": "TODO",
+                  "decrement": "TODO",
+                  "reset": "TODO"
+                }
+              },
+              {
+                "kind": "link",
+                "url": "/r/Zig/duplicates/mn5m9u/understanding_atomics_and_memory_ordering/",
+                "text": "Duplicates"
+              },
+              { "kind": "report", "data": "TODO" }
+            ],
+            "default_collapsed": false
+          }
+        ],
+        "replies": []
+      },
+      {
+        "parents": [
+          {
+            "kind": "thread",
+            "title": { "text": "Toying with AMD64 assembly in Zig" },
+            "flair": [],
+            "body": {
+              "kind": "array",
+              "body": [
+                {
+                  "kind": "richtext",
+                  "content": [
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "text",
+                          "text": "Hi all, what I'm looking to do is write arbitrary bytes into memory, then jump to them, and having the option of jumping back into Zig code. What's the most straightforward way of accomplishing this? I'm looking to write an assembler in the future, so if you have some tips on the topic of assembly, you are welcome to share them.",
+                          "styles": {}
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "text",
+                          "text": "This would basically be an assembler, with the program image already unpacked into memory, instead of being in ELF format on the disk. I think this would be much easier to accomplish, having to implement only the instructions and all that comes along with it, without figuring out the ELF format. Or I may be (most certainly am) missing something, so, looking for feedback",
+                          "styles": {}
+                        }
+                      ]
+                    }
+                  ]
+                },
+                null
+              ]
+            },
+            "display_mode": {
+              "body": "collapsed",
+              "body_default": "closed",
+              "comments": "collapsed"
+            },
+            "raw_value": "TODO",
+            "link": "/r/Zig/comments/mm1y9m/toying_with_amd64_assembly_in_zig/",
+            "layout": "reddit-post",
+            "info": {
+              "time": 1617801745000,
+              "edited": 1617803744000,
+              "author": {
+                "color_hash": "StalinTheMemeLord",
+                "name": "StalinTheMemeLord",
+                "link": "/u/StalinTheMemeLord",
+                "flair": []
+              },
+              "in": { "link": "/r/Zig", "name": "r/Zig" },
+              "pinned": false
+            },
+            "actions": [
+              {
+                "kind": "link",
+                "url": "/r/Zig/comments/mm1y9m/toying_with_amd64_assembly_in_zig/",
+                "text": "12 comments"
+              },
+              { "kind": "link", "url": "/domain/self.Zig", "text": "self.Zig" },
+              { "kind": "delete", "data": "TODO" },
+              {
+                "kind": "counter",
+                "unique_id": "/save/t3_mm1y9m/",
+                "time": 1617954126017,
+                "label": "Save",
+                "incremented_label": "Unsave",
+                "style": "action-button",
+                "incremented_style": "save-button-saved",
+                "count_excl_you": "none",
+                "actions": { "increment": "TODO", "reset": "TODO" }
+              },
+              {
+                "kind": "counter",
+                "unique_id": "/vote/t3_mm1y9m/",
+                "time": 1617954126017,
+                "special": "reddit-points",
+                "label": "Vote",
+                "incremented_label": "Voted",
+                "decremented_label": "Voted",
+                "count_excl_you": 17,
+                "percent": 1,
+                "actions": {
+                  "increment": "TODO",
+                  "decrement": "TODO",
+                  "reset": "TODO"
+                }
+              },
+              {
+                "kind": "link",
+                "url": "/r/Zig/duplicates/mm1y9m/toying_with_amd64_assembly_in_zig/",
+                "text": "Duplicates"
+              },
+              { "kind": "report", "data": "TODO" }
+            ],
+            "default_collapsed": false
+          }
+        ],
+        "replies": []
+      },
+      {
+        "parents": [
+          {
+            "kind": "thread",
+            "title": {
+              "text": "Is there a way to generalise this gist to get rid of the switch on len?"
+            },
+            "flair": [],
+            "body": {
+              "kind": "link",
+              "url": "https://gist.github.com/hazeycode/ec2a21d33706667d27a3bb9dd5d950a7"
+            },
+            "display_mode": {
+              "body": "collapsed",
+              "body_default": "closed",
+              "comments": "collapsed"
+            },
+            "raw_value": "TODO",
+            "link": "/r/Zig/comments/mljlbr/is_there_a_way_to_generalise_this_gist_to_get_rid/",
+            "layout": "reddit-post",
+            "info": {
+              "time": 1617737184000,
+              "edited": false,
+              "author": {
+                "color_hash": "hazeycode",
+                "name": "hazeycode",
+                "link": "/u/hazeycode",
+                "flair": []
+              },
+              "in": { "link": "/r/Zig", "name": "r/Zig" },
+              "pinned": false
+            },
+            "actions": [
+              {
+                "kind": "link",
+                "url": "/r/Zig/comments/mljlbr/is_there_a_way_to_generalise_this_gist_to_get_rid/",
+                "text": "7 comments"
+              },
+              {
+                "kind": "link",
+                "url": "/domain/gist.github.com",
+                "text": "gist.github.com"
+              },
+              { "kind": "delete", "data": "TODO" },
+              {
+                "kind": "counter",
+                "unique_id": "/save/t3_mljlbr/",
+                "time": 1617954126017,
+                "label": "Save",
+                "incremented_label": "Unsave",
+                "style": "action-button",
+                "incremented_style": "save-button-saved",
+                "count_excl_you": "none",
+                "actions": { "increment": "TODO", "reset": "TODO" }
+              },
+              {
+                "kind": "counter",
+                "unique_id": "/vote/t3_mljlbr/",
+                "time": 1617954126017,
+                "special": "reddit-points",
+                "label": "Vote",
+                "incremented_label": "Voted",
+                "decremented_label": "Voted",
+                "count_excl_you": 16,
+                "percent": 0.95,
+                "actions": {
+                  "increment": "TODO",
+                  "decrement": "TODO",
+                  "reset": "TODO"
+                }
+              },
+              {
+                "kind": "link",
+                "url": "/r/Zig/duplicates/mljlbr/is_there_a_way_to_generalise_this_gist_to_get_rid/",
+                "text": "Duplicates"
+              },
+              { "kind": "report", "data": "TODO" }
+            ],
+            "default_collapsed": false
+          }
+        ],
+        "replies": []
+      },
+      {
+        "parents": [
+          {
+            "kind": "thread",
+            "title": { "text": "Jakub Konka Hired Full Time" },
+            "flair": [],
+            "body": {
+              "kind": "link",
+              "url": "https://ziglang.org/news/jakub-konka-hired-full-time/"
+            },
+            "display_mode": {
+              "body": "collapsed",
+              "body_default": "closed",
+              "comments": "collapsed"
+            },
+            "raw_value": "TODO",
+            "link": "/r/Zig/comments/mkzhur/jakub_konka_hired_full_time/",
+            "layout": "reddit-post",
+            "info": {
+              "time": 1617670210000,
+              "edited": false,
+              "author": {
+                "color_hash": "kristoff-it",
+                "name": "kristoff-it",
+                "link": "/u/kristoff-it",
+                "flair": []
+              },
+              "in": { "link": "/r/Zig", "name": "r/Zig" },
+              "pinned": false
+            },
+            "actions": [
+              {
+                "kind": "link",
+                "url": "/r/Zig/comments/mkzhur/jakub_konka_hired_full_time/",
+                "text": "4 comments"
+              },
+              {
+                "kind": "link",
+                "url": "/domain/ziglang.org",
+                "text": "ziglang.org"
+              },
+              { "kind": "delete", "data": "TODO" },
+              {
+                "kind": "counter",
+                "unique_id": "/save/t3_mkzhur/",
+                "time": 1617954126017,
+                "label": "Save",
+                "incremented_label": "Unsave",
+                "style": "action-button",
+                "incremented_style": "save-button-saved",
+                "count_excl_you": "none",
+                "actions": { "increment": "TODO", "reset": "TODO" }
+              },
+              {
+                "kind": "counter",
+                "unique_id": "/vote/t3_mkzhur/",
+                "time": 1617954126017,
+                "special": "reddit-points",
+                "label": "Vote",
+                "incremented_label": "Voted",
+                "decremented_label": "Voted",
+                "count_excl_you": 68,
+                "percent": 0.98,
+                "actions": {
+                  "increment": "TODO",
+                  "decrement": "TODO",
+                  "reset": "TODO"
+                }
+              },
+              {
+                "kind": "link",
+                "url": "/r/Zig/duplicates/mkzhur/jakub_konka_hired_full_time/",
+                "text": "Duplicates"
+              },
+              { "kind": "report", "data": "TODO" }
+            ],
+            "default_collapsed": false
+          }
+        ],
+        "replies": []
+      },
+      {
+        "parents": [
+          {
+            "kind": "thread",
+            "title": { "text": "Zig not working on Mac" },
+            "flair": [],
+            "body": {
+              "kind": "array",
+              "body": [
+                {
+                  "kind": "richtext",
+                  "content": [
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "text",
+                          "text": "I just installed Zig on my Mac via homebrew. When I try to run the hello world example as shown on the ",
+                          "styles": {}
+                        },
+                        {
+                          "kind": "link",
+                          "url": "https://ziglang.org/learn/getting-started/#run-hello-world",
+                          "children": [
+                            {
+                              "kind": "text",
+                              "text": "getting started page",
+                              "styles": {}
+                            }
+                          ]
+                        },
+                        { "kind": "text", "text": " I get ", "styles": {} },
+                        {
+                          "kind": "text",
+                          "text": "Illegal instruction: 4",
+                          "styles": {
+                            "strong": false,
+                            "emphasis": false,
+                            "strikethrough": false,
+                            "superscript": false,
+                            "code": true
+                          }
+                        },
+                        {
+                          "kind": "text",
+                          "text": " when I run ",
+                          "styles": {}
+                        },
+                        {
+                          "kind": "text",
+                          "text": "zig build run",
+                          "styles": {
+                            "strong": false,
+                            "emphasis": false,
+                            "strikethrough": false,
+                            "superscript": false,
+                            "code": true
+                          }
+                        },
+                        {
+                          "kind": "text",
+                          "text": ". It is an Intel MacBook (Late 2009) running 10.14.6. Any ideas?",
+                          "styles": {}
+                        }
+                      ]
+                    }
+                  ]
+                },
+                null
+              ]
+            },
+            "display_mode": {
+              "body": "collapsed",
+              "body_default": "closed",
+              "comments": "collapsed"
+            },
+            "raw_value": "TODO",
+            "link": "/r/Zig/comments/mk0fzi/zig_not_working_on_mac/",
+            "layout": "reddit-post",
+            "info": {
+              "time": 1617556576000,
+              "edited": 1617558235000,
+              "author": {
+                "color_hash": "starsega_dude",
+                "name": "starsega_dude",
+                "link": "/u/starsega_dude",
+                "flair": []
+              },
+              "in": { "link": "/r/Zig", "name": "r/Zig" },
+              "pinned": false
+            },
+            "actions": [
+              {
+                "kind": "link",
+                "url": "/r/Zig/comments/mk0fzi/zig_not_working_on_mac/",
+                "text": "4 comments"
+              },
+              { "kind": "link", "url": "/domain/self.Zig", "text": "self.Zig" },
+              { "kind": "delete", "data": "TODO" },
+              {
+                "kind": "counter",
+                "unique_id": "/save/t3_mk0fzi/",
+                "time": 1617954126017,
+                "label": "Save",
+                "incremented_label": "Unsave",
+                "style": "action-button",
+                "incremented_style": "save-button-saved",
+                "count_excl_you": "none",
+                "actions": { "increment": "TODO", "reset": "TODO" }
+              },
+              {
+                "kind": "counter",
+                "unique_id": "/vote/t3_mk0fzi/",
+                "time": 1617954126017,
+                "special": "reddit-points",
+                "label": "Vote",
+                "incremented_label": "Voted",
+                "decremented_label": "Voted",
+                "count_excl_you": 14,
+                "percent": 0.89,
+                "actions": {
+                  "increment": "TODO",
+                  "decrement": "TODO",
+                  "reset": "TODO"
+                }
+              },
+              {
+                "kind": "link",
+                "url": "/r/Zig/duplicates/mk0fzi/zig_not_working_on_mac/",
+                "text": "Duplicates"
+              },
+              { "kind": "report", "data": "TODO" }
+            ],
+            "default_collapsed": false
+          }
+        ],
+        "replies": []
+      },
+      {
+        "parents": [
+          {
+            "kind": "thread",
+            "title": { "text": "Zig show code in Assembly" },
+            "flair": [],
+            "body": {
+              "kind": "array",
+              "body": [
+                {
+                  "kind": "richtext",
+                  "content": [
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "text",
+                          "text": "Hello, I use Doom emacs and recently have got to know about Zig.",
+                          "styles": {}
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "text",
+                          "text": "I think it's a really cool language and the features are just what I have been looking for, but  I had some problem finding tools... I want to be able to read my zig code in assembly, but I'm not sure how to do that.",
+                          "styles": {}
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "text",
+                          "text": "It will be great to know how to do that with the compiler if possible, and if you can reference me to something like disaster.el in emacs, it would be amazing",
+                          "styles": {}
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        { "kind": "text", "text": "Thanks", "styles": {} }
+                      ]
+                    }
+                  ]
+                },
+                null
+              ]
+            },
+            "display_mode": {
+              "body": "collapsed",
+              "body_default": "closed",
+              "comments": "collapsed"
+            },
+            "raw_value": "TODO",
+            "link": "/r/Zig/comments/mjc6zz/zig_show_code_in_assembly/",
+            "layout": "reddit-post",
+            "info": {
+              "time": 1617468378000,
+              "edited": false,
+              "author": {
+                "color_hash": "LeSUTHU",
+                "name": "LeSUTHU",
+                "link": "/u/LeSUTHU",
+                "flair": []
+              },
+              "in": { "link": "/r/Zig", "name": "r/Zig" },
+              "pinned": false
+            },
+            "actions": [
+              {
+                "kind": "link",
+                "url": "/r/Zig/comments/mjc6zz/zig_show_code_in_assembly/",
+                "text": "8 comments"
+              },
+              { "kind": "link", "url": "/domain/self.Zig", "text": "self.Zig" },
+              { "kind": "delete", "data": "TODO" },
+              {
+                "kind": "counter",
+                "unique_id": "/save/t3_mjc6zz/",
+                "time": 1617954126017,
+                "label": "Save",
+                "incremented_label": "Unsave",
+                "style": "action-button",
+                "incremented_style": "save-button-saved",
+                "count_excl_you": "none",
+                "actions": { "increment": "TODO", "reset": "TODO" }
+              },
+              {
+                "kind": "counter",
+                "unique_id": "/vote/t3_mjc6zz/",
+                "time": 1617954126017,
+                "special": "reddit-points",
+                "label": "Vote",
+                "incremented_label": "Voted",
+                "decremented_label": "Voted",
+                "count_excl_you": 17,
+                "percent": 0.95,
+                "actions": {
+                  "increment": "TODO",
+                  "decrement": "TODO",
+                  "reset": "TODO"
+                }
+              },
+              {
+                "kind": "link",
+                "url": "/r/Zig/duplicates/mjc6zz/zig_show_code_in_assembly/",
+                "text": "Duplicates"
+              },
+              { "kind": "report", "data": "TODO" }
+            ],
+            "default_collapsed": false
+          }
+        ],
+        "replies": []
+      },
+      {
+        "parents": [
+          {
+            "kind": "thread",
+            "title": { "text": "Conway's Game of Life, in Zig" },
+            "flair": [],
+            "body": {
+              "kind": "link",
+              "url": "https://github.com/alecstein/conways-game-of-life"
+            },
+            "display_mode": {
+              "body": "collapsed",
+              "body_default": "closed",
+              "comments": "collapsed"
+            },
+            "raw_value": "TODO",
+            "link": "/r/Zig/comments/mi4st4/conways_game_of_life_in_zig/",
+            "layout": "reddit-post",
+            "info": {
+              "time": 1617310484000,
+              "edited": false,
+              "author": {
+                "color_hash": "oscarafone",
+                "name": "oscarafone",
+                "link": "/u/oscarafone",
+                "flair": []
+              },
+              "in": { "link": "/r/Zig", "name": "r/Zig" },
+              "pinned": false
+            },
+            "actions": [
+              {
+                "kind": "link",
+                "url": "/r/Zig/comments/mi4st4/conways_game_of_life_in_zig/",
+                "text": "6 comments"
+              },
+              {
+                "kind": "link",
+                "url": "/domain/github.com",
+                "text": "github.com"
+              },
+              { "kind": "delete", "data": "TODO" },
+              {
+                "kind": "counter",
+                "unique_id": "/save/t3_mi4st4/",
+                "time": 1617954126017,
+                "label": "Save",
+                "incremented_label": "Unsave",
+                "style": "action-button",
+                "incremented_style": "save-button-saved",
+                "count_excl_you": "none",
+                "actions": { "increment": "TODO", "reset": "TODO" }
+              },
+              {
+                "kind": "counter",
+                "unique_id": "/vote/t3_mi4st4/",
+                "time": 1617954126017,
+                "special": "reddit-points",
+                "label": "Vote",
+                "incremented_label": "Voted",
+                "decremented_label": "Voted",
+                "count_excl_you": 31,
+                "percent": 0.97,
+                "actions": {
+                  "increment": "TODO",
+                  "decrement": "TODO",
+                  "reset": "TODO"
+                }
+              },
+              {
+                "kind": "link",
+                "url": "/r/Zig/duplicates/mi4st4/conways_game_of_life_in_zig/",
+                "text": "Duplicates"
+              },
+              { "kind": "report", "data": "TODO" }
+            ],
+            "default_collapsed": false
+          }
+        ],
+        "replies": []
+      },
+      {
+        "parents": [
+          {
+            "kind": "thread",
+            "title": {
+              "text": "Please welcome Frank Denis to the Core Zig Team"
+            },
+            "flair": [],
+            "body": {
+              "kind": "array",
+              "body": [
+                {
+                  "kind": "richtext",
+                  "content": [
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "text",
+                          "text": "Hey everyone,",
+                          "styles": {}
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "text",
+                          "text": "I am pleased to announce our newest Zig team member, Frank. He has completely organized, modernized, fixed, and fleshed out std.crypto, as well as other parts of the standard library. He also delivered a ",
+                          "styles": {}
+                        },
+                        {
+                          "kind": "link",
+                          "url": "https://www.youtube.com/watch?v=G-4_cNAq1uQ",
+                          "children": [
+                            {
+                              "kind": "text",
+                              "text": "Zig Showtime talk on 25519",
+                              "styles": {}
+                            }
+                          ]
+                        },
+                        { "kind": "text", "text": ".", "styles": {} }
+                      ]
+                    },
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "text",
+                          "text": "Frank has shown continued dedication and discipline in contributions to the Zig programming language project. The quality of his work speaks for itself.",
+                          "styles": {}
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "text",
+                          "text": "In addition, Frank has proven to be a steadfast community leader, setting an example for how to treat others with kindness and respect.",
+                          "styles": {}
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "text",
+                          "text": "I look forward to working with Frank as we continue to push Zig toward 1.0.0 and beyond.",
+                          "styles": {}
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        { "kind": "text", "text": "Andrew", "styles": {} }
+                      ]
+                    }
+                  ]
+                },
+                null
+              ]
+            },
+            "display_mode": {
+              "body": "collapsed",
+              "body_default": "closed",
+              "comments": "collapsed"
+            },
+            "raw_value": "TODO",
+            "link": "/r/Zig/comments/mgluix/please_welcome_frank_denis_to_the_core_zig_team/",
+            "layout": "reddit-post",
+            "info": {
+              "time": 1617126901000,
+              "edited": false,
+              "author": {
+                "color_hash": "superjoe30",
+                "name": "superjoe30",
+                "link": "/u/superjoe30",
+                "flair": [
+                  {
+                    "color": "",
+                    "fg_color": "dark",
+                    "elems": [{ "type": "text", "text": "andrewrk" }],
+                    "content_warning": false
+                  }
+                ]
+              },
+              "in": { "link": "/r/Zig", "name": "r/Zig" },
+              "pinned": false
+            },
+            "actions": [
+              {
+                "kind": "link",
+                "url": "/r/Zig/comments/mgluix/please_welcome_frank_denis_to_the_core_zig_team/",
+                "text": "3 comments"
+              },
+              { "kind": "link", "url": "/domain/self.Zig", "text": "self.Zig" },
+              { "kind": "delete", "data": "TODO" },
+              {
+                "kind": "counter",
+                "unique_id": "/save/t3_mgluix/",
+                "time": 1617954126019,
+                "label": "Save",
+                "incremented_label": "Unsave",
+                "style": "action-button",
+                "incremented_style": "save-button-saved",
+                "count_excl_you": "none",
+                "actions": { "increment": "TODO", "reset": "TODO" }
+              },
+              {
+                "kind": "counter",
+                "unique_id": "/vote/t3_mgluix/",
+                "time": 1617954126019,
+                "special": "reddit-points",
+                "label": "Vote",
+                "incremented_label": "Voted",
+                "decremented_label": "Voted",
+                "count_excl_you": 142,
+                "percent": 0.99,
+                "actions": {
+                  "increment": "TODO",
+                  "decrement": "TODO",
+                  "reset": "TODO"
+                }
+              },
+              {
+                "kind": "link",
+                "url": "/r/Zig/duplicates/mgluix/please_welcome_frank_denis_to_the_core_zig_team/",
+                "text": "Duplicates"
+              },
+              { "kind": "report", "data": "TODO" }
+            ],
+            "default_collapsed": false
+          }
+        ],
+        "replies": []
+      },
+      {
+        "parents": [
+          {
+            "kind": "thread",
+            "title": {
+              "text": "Learning Zig -- made a silly CLI app to solve my friend's word puzzle"
+            },
+            "flair": [],
+            "body": {
+              "kind": "link",
+              "url": "https://github.com/alecstein/word_chains"
+            },
+            "display_mode": {
+              "body": "collapsed",
+              "body_default": "closed",
+              "comments": "collapsed"
+            },
+            "raw_value": "TODO",
+            "link": "/r/Zig/comments/mgm0ak/learning_zig_made_a_silly_cli_app_to_solve_my/",
+            "layout": "reddit-post",
+            "info": {
+              "time": 1617127341000,
+              "edited": false,
+              "author": {
+                "color_hash": "oscarafone",
+                "name": "oscarafone",
+                "link": "/u/oscarafone",
+                "flair": []
+              },
+              "in": { "link": "/r/Zig", "name": "r/Zig" },
+              "pinned": false
+            },
+            "actions": [
+              {
+                "kind": "link",
+                "url": "/r/Zig/comments/mgm0ak/learning_zig_made_a_silly_cli_app_to_solve_my/",
+                "text": "2 comments"
+              },
+              {
+                "kind": "link",
+                "url": "/domain/github.com",
+                "text": "github.com"
+              },
+              { "kind": "delete", "data": "TODO" },
+              {
+                "kind": "counter",
+                "unique_id": "/save/t3_mgm0ak/",
+                "time": 1617954126019,
+                "label": "Save",
+                "incremented_label": "Unsave",
+                "style": "action-button",
+                "incremented_style": "save-button-saved",
+                "count_excl_you": "none",
+                "actions": { "increment": "TODO", "reset": "TODO" }
+              },
+              {
+                "kind": "counter",
+                "unique_id": "/vote/t3_mgm0ak/",
+                "time": 1617954126019,
+                "special": "reddit-points",
+                "label": "Vote",
+                "incremented_label": "Voted",
+                "decremented_label": "Voted",
+                "count_excl_you": 15,
+                "percent": 1,
+                "actions": {
+                  "increment": "TODO",
+                  "decrement": "TODO",
+                  "reset": "TODO"
+                }
+              },
+              {
+                "kind": "link",
+                "url": "/r/Zig/duplicates/mgm0ak/learning_zig_made_a_silly_cli_app_to_solve_my/",
+                "text": "Duplicates"
+              },
+              { "kind": "report", "data": "TODO" }
+            ],
+            "default_collapsed": false
+          }
+        ],
+        "replies": []
+      },
+      {
+        "parents": [
+          {
+            "kind": "thread",
+            "title": { "text": "Using ZLS with VSCode" },
+            "flair": [],
+            "body": {
+              "kind": "array",
+              "body": [
+                {
+                  "kind": "richtext",
+                  "content": [
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "text",
+                          "text": "Hi everybody,",
+                          "styles": {}
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "text",
+                          "text": "I wanted to learn me some Zig and was setting up the required toolchains, installing the git versions of both ",
+                          "styles": {}
+                        },
+                        {
+                          "kind": "text",
+                          "text": "zig",
+                          "styles": {
+                            "strong": false,
+                            "emphasis": false,
+                            "strikethrough": false,
+                            "superscript": false,
+                            "code": true
+                          }
+                        },
+                        { "kind": "text", "text": " and ", "styles": {} },
+                        {
+                          "kind": "text",
+                          "text": "zls",
+                          "styles": {
+                            "strong": false,
+                            "emphasis": false,
+                            "strikethrough": false,
+                            "superscript": false,
+                            "code": true
+                          }
+                        },
+                        {
+                          "kind": "text",
+                          "text": " from the AUR and wanted to use my go-to editor VSCode so installed the ZLS extension as well, following instructions along the way, but I've been unable to get the extension working. I keep getting the same error as mentioned in ",
+                          "styles": {}
+                        },
+                        {
+                          "kind": "link",
+                          "url": "https://github.com/zigtools/zls-vscode/issues/16",
+                          "children": [
+                            { "kind": "text", "text": "this", "styles": {} }
+                          ]
+                        },
+                        {
+                          "kind": "text",
+                          "text": " issue and there appears to be no solution for it or much of any activity in the repository for that matter. Is this a common problem (i.e. the extension is simply broken) and should I just setup a different editor for the time being or am I doing something wrong?",
+                          "styles": {}
+                        }
+                      ]
+                    }
+                  ]
+                },
+                null
+              ]
+            },
+            "display_mode": {
+              "body": "collapsed",
+              "body_default": "closed",
+              "comments": "collapsed"
+            },
+            "raw_value": "TODO",
+            "link": "/r/Zig/comments/mfrjva/using_zls_with_vscode/",
+            "layout": "reddit-post",
+            "info": {
+              "time": 1617030356000,
+              "edited": 1617031996000,
+              "author": {
+                "color_hash": "ogyer",
+                "name": "ogyer",
+                "link": "/u/ogyer",
+                "flair": []
+              },
+              "in": { "link": "/r/Zig", "name": "r/Zig" },
+              "pinned": false
+            },
+            "actions": [
+              {
+                "kind": "link",
+                "url": "/r/Zig/comments/mfrjva/using_zls_with_vscode/",
+                "text": "14 comments"
+              },
+              { "kind": "link", "url": "/domain/self.Zig", "text": "self.Zig" },
+              { "kind": "delete", "data": "TODO" },
+              {
+                "kind": "counter",
+                "unique_id": "/save/t3_mfrjva/",
+                "time": 1617954126019,
+                "label": "Save",
+                "incremented_label": "Unsave",
+                "style": "action-button",
+                "incremented_style": "save-button-saved",
+                "count_excl_you": "none",
+                "actions": { "increment": "TODO", "reset": "TODO" }
+              },
+              {
+                "kind": "counter",
+                "unique_id": "/vote/t3_mfrjva/",
+                "time": 1617954126019,
+                "special": "reddit-points",
+                "label": "Vote",
+                "incremented_label": "Voted",
+                "decremented_label": "Voted",
+                "count_excl_you": 16,
+                "percent": 0.94,
+                "actions": {
+                  "increment": "TODO",
+                  "decrement": "TODO",
+                  "reset": "TODO"
+                }
+              },
+              {
+                "kind": "link",
+                "url": "/r/Zig/duplicates/mfrjva/using_zls_with_vscode/",
+                "text": "Duplicates"
+              },
+              { "kind": "report", "data": "TODO" }
+            ],
+            "default_collapsed": false
+          }
+        ],
+        "replies": []
+      },
+      {
+        "parents": [
+          {
+            "kind": "thread",
+            "title": {
+              "text": "Is it possible to access a struct field with a comptime value?"
+            },
+            "flair": [],
+            "body": {
+              "kind": "array",
+              "body": [
+                {
+                  "kind": "richtext",
+                  "content": [
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        { "kind": "text", "text": "Example:", "styles": {} }
+                      ]
+                    },
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "text",
+                          "text": "const Foo = struct { bar: i32, };",
+                          "styles": {}
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "text",
+                          "text": "const foobar = \"bar\"; var test = .{ .bar = 1337 }; test.@foobar // any way to do this?",
+                          "styles": {}
+                        }
+                      ]
+                    }
+                  ]
+                },
+                null
+              ]
+            },
+            "display_mode": {
+              "body": "collapsed",
+              "body_default": "closed",
+              "comments": "collapsed"
+            },
+            "raw_value": "TODO",
+            "link": "/r/Zig/comments/messm1/is_it_possible_to_access_a_struct_field_with_a/",
+            "layout": "reddit-post",
+            "info": {
+              "time": 1616899275000,
+              "edited": false,
+              "author": {
+                "color_hash": "UniqueNam3",
+                "name": "UniqueNam3",
+                "link": "/u/UniqueNam3",
+                "flair": []
+              },
+              "in": { "link": "/r/Zig", "name": "r/Zig" },
+              "pinned": false
+            },
+            "actions": [
+              {
+                "kind": "link",
+                "url": "/r/Zig/comments/messm1/is_it_possible_to_access_a_struct_field_with_a/",
+                "text": "4 comments"
+              },
+              { "kind": "link", "url": "/domain/self.Zig", "text": "self.Zig" },
+              { "kind": "delete", "data": "TODO" },
+              {
+                "kind": "counter",
+                "unique_id": "/save/t3_messm1/",
+                "time": 1617954126019,
+                "label": "Save",
+                "incremented_label": "Unsave",
+                "style": "action-button",
+                "incremented_style": "save-button-saved",
+                "count_excl_you": "none",
+                "actions": { "increment": "TODO", "reset": "TODO" }
+              },
+              {
+                "kind": "counter",
+                "unique_id": "/vote/t3_messm1/",
+                "time": 1617954126019,
+                "special": "reddit-points",
+                "label": "Vote",
+                "incremented_label": "Voted",
+                "decremented_label": "Voted",
+                "count_excl_you": 12,
+                "percent": 1,
+                "actions": {
+                  "increment": "TODO",
+                  "decrement": "TODO",
+                  "reset": "TODO"
+                }
+              },
+              {
+                "kind": "link",
+                "url": "/r/Zig/duplicates/messm1/is_it_possible_to_access_a_struct_field_with_a/",
+                "text": "Duplicates"
+              },
+              { "kind": "report", "data": "TODO" }
+            ],
+            "default_collapsed": false
+          }
+        ],
+        "replies": []
+      },
+      {
+        "parents": [
+          {
+            "kind": "thread",
+            "title": { "text": "OpenXR bindings for Zig (VR + AR standard)" },
+            "flair": [],
+            "body": {
+              "kind": "link",
+              "url": "https://github.com/s-ol/openxr-zig"
+            },
+            "display_mode": {
+              "body": "collapsed",
+              "body_default": "closed",
+              "comments": "collapsed"
+            },
+            "raw_value": "TODO",
+            "link": "/r/Zig/comments/me2ax5/openxr_bindings_for_zig_vr_ar_standard/",
+            "layout": "reddit-post",
+            "info": {
+              "time": 1616804361000,
+              "edited": false,
+              "author": {
+                "color_hash": "HellIsBurnin",
+                "name": "HellIsBurnin",
+                "link": "/u/HellIsBurnin",
+                "flair": []
+              },
+              "in": { "link": "/r/Zig", "name": "r/Zig" },
+              "pinned": false
+            },
+            "actions": [
+              {
+                "kind": "link",
+                "url": "/r/Zig/comments/me2ax5/openxr_bindings_for_zig_vr_ar_standard/",
+                "text": "4 comments"
+              },
+              {
+                "kind": "link",
+                "url": "/domain/github.com",
+                "text": "github.com"
+              },
+              { "kind": "delete", "data": "TODO" },
+              {
+                "kind": "counter",
+                "unique_id": "/save/t3_me2ax5/",
+                "time": 1617954126019,
+                "label": "Save",
+                "incremented_label": "Unsave",
+                "style": "action-button",
+                "incremented_style": "save-button-saved",
+                "count_excl_you": "none",
+                "actions": { "increment": "TODO", "reset": "TODO" }
+              },
+              {
+                "kind": "counter",
+                "unique_id": "/vote/t3_me2ax5/",
+                "time": 1617954126019,
+                "special": "reddit-points",
+                "label": "Vote",
+                "incremented_label": "Voted",
+                "decremented_label": "Voted",
+                "count_excl_you": 36,
+                "percent": 1,
+                "actions": {
+                  "increment": "TODO",
+                  "decrement": "TODO",
+                  "reset": "TODO"
+                }
+              },
+              {
+                "kind": "link",
+                "url": "/r/Zig/duplicates/me2ax5/openxr_bindings_for_zig_vr_ar_standard/",
+                "text": "Duplicates"
+              },
+              { "kind": "report", "data": "TODO" }
+            ],
+            "default_collapsed": false
+          }
+        ],
+        "replies": []
+      },
+      {
+        "parents": [
+          {
+            "kind": "thread",
+            "title": { "text": "Memory leak help" },
+            "flair": [],
+            "body": {
+              "kind": "array",
+              "body": [
+                {
+                  "kind": "richtext",
+                  "content": [
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "text",
+                          "text": "Below is the code, that causes memory leak.",
+                          "styles": {}
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "link",
+                          "url": "https://zigbin.io/7ca70c",
+                          "children": [
+                            {
+                              "kind": "text",
+                              "text": "https://zigbin.io/7ca70c",
+                              "styles": {}
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "text",
+                          "text": "In my understanding, the memory leak comes from initiating",
+                          "styles": {}
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "text",
+                          "text": "var buffer = ArrayList(u8).init(self.allocator);",
+                          "styles": {
+                            "strong": false,
+                            "emphasis": false,
+                            "strikethrough": false,
+                            "superscript": false,
+                            "code": true
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "text",
+                          "text": "But I return the buffer data with",
+                          "styles": {}
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "text",
+                          "text": "return buffer.toOwnedSlice();",
+                          "styles": {
+                            "strong": false,
+                            "emphasis": false,
+                            "strikethrough": false,
+                            "superscript": false,
+                            "code": true
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "text",
+                          "text": "Should it not consume the buffer ?",
+                          "styles": {}
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "text",
+                          "text": "How could  repair the leak in this situation.",
+                          "styles": {}
+                        }
+                      ]
+                    }
+                  ]
+                },
+                null
+              ]
+            },
+            "display_mode": {
+              "body": "collapsed",
+              "body_default": "closed",
+              "comments": "collapsed"
+            },
+            "raw_value": "TODO",
+            "link": "/r/Zig/comments/mea1ks/memory_leak_help/",
+            "layout": "reddit-post",
+            "info": {
+              "time": 1616835163000,
+              "edited": false,
+              "author": {
+                "color_hash": "tonios2",
+                "name": "tonios2",
+                "link": "/u/tonios2",
+                "flair": []
+              },
+              "in": { "link": "/r/Zig", "name": "r/Zig" },
+              "pinned": false
+            },
+            "actions": [
+              {
+                "kind": "link",
+                "url": "/r/Zig/comments/mea1ks/memory_leak_help/",
+                "text": "4 comments"
+              },
+              { "kind": "link", "url": "/domain/self.Zig", "text": "self.Zig" },
+              { "kind": "delete", "data": "TODO" },
+              {
+                "kind": "counter",
+                "unique_id": "/save/t3_mea1ks/",
+                "time": 1617954126019,
+                "label": "Save",
+                "incremented_label": "Unsave",
+                "style": "action-button",
+                "incremented_style": "save-button-saved",
+                "count_excl_you": "none",
+                "actions": { "increment": "TODO", "reset": "TODO" }
+              },
+              {
+                "kind": "counter",
+                "unique_id": "/vote/t3_mea1ks/",
+                "time": 1617954126019,
+                "special": "reddit-points",
+                "label": "Vote",
+                "incremented_label": "Voted",
+                "decremented_label": "Voted",
+                "count_excl_you": 2,
+                "percent": 0.75,
+                "actions": {
+                  "increment": "TODO",
+                  "decrement": "TODO",
+                  "reset": "TODO"
+                }
+              },
+              {
+                "kind": "link",
+                "url": "/r/Zig/duplicates/mea1ks/memory_leak_help/",
+                "text": "Duplicates"
+              },
+              { "kind": "report", "data": "TODO" }
+            ],
+            "default_collapsed": false
+          }
+        ],
+        "replies": []
+      },
+      {
+        "parents": [
+          {
+            "kind": "thread",
+            "title": { "text": "Zig and SIMD" },
+            "flair": [],
+            "body": {
+              "kind": "array",
+              "body": [
+                {
+                  "kind": "richtext",
+                  "content": [
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "text",
+                          "text": "I was wondering what the status of simd is in zig - particularly if the in-built ",
+                          "styles": {}
+                        },
+                        {
+                          "kind": "text",
+                          "text": "@Vector",
+                          "styles": {
+                            "strong": false,
+                            "emphasis": false,
+                            "strikethrough": false,
+                            "superscript": false,
+                            "code": true
+                          }
+                        },
+                        {
+                          "kind": "text",
+                          "text": " operations have been fleshed out, and if it's possible to use something like ",
+                          "styles": {}
+                        },
+                        {
+                          "kind": "link",
+                          "url": "http://sleef.org",
+                          "children": [
+                            { "kind": "text", "text": "sleef", "styles": {} }
+                          ]
+                        },
+                        {
+                          "kind": "text",
+                          "text": " within zig code.",
+                          "styles": {}
+                        }
+                      ]
+                    }
+                  ]
+                },
+                null
+              ]
+            },
+            "display_mode": {
+              "body": "collapsed",
+              "body_default": "closed",
+              "comments": "collapsed"
+            },
+            "raw_value": "TODO",
+            "link": "/r/Zig/comments/mdlhuz/zig_and_simd/",
+            "layout": "reddit-post",
+            "info": {
+              "time": 1616753817000,
+              "edited": false,
+              "author": {
+                "color_hash": "nxpe",
+                "name": "nxpe",
+                "link": "/u/nxpe",
+                "flair": []
+              },
+              "in": { "link": "/r/Zig", "name": "r/Zig" },
+              "pinned": false
+            },
+            "actions": [
+              {
+                "kind": "link",
+                "url": "/r/Zig/comments/mdlhuz/zig_and_simd/",
+                "text": "2 comments"
+              },
+              { "kind": "link", "url": "/domain/self.Zig", "text": "self.Zig" },
+              { "kind": "delete", "data": "TODO" },
+              {
+                "kind": "counter",
+                "unique_id": "/save/t3_mdlhuz/",
+                "time": 1617954126019,
+                "label": "Save",
+                "incremented_label": "Unsave",
+                "style": "action-button",
+                "incremented_style": "save-button-saved",
+                "count_excl_you": "none",
+                "actions": { "increment": "TODO", "reset": "TODO" }
+              },
+              {
+                "kind": "counter",
+                "unique_id": "/vote/t3_mdlhuz/",
+                "time": 1617954126019,
+                "special": "reddit-points",
+                "label": "Vote",
+                "incremented_label": "Voted",
+                "decremented_label": "Voted",
+                "count_excl_you": 25,
+                "percent": 0.96,
+                "actions": {
+                  "increment": "TODO",
+                  "decrement": "TODO",
+                  "reset": "TODO"
+                }
+              },
+              {
+                "kind": "link",
+                "url": "/r/Zig/duplicates/mdlhuz/zig_and_simd/",
+                "text": "Duplicates"
+              },
+              { "kind": "report", "data": "TODO" }
+            ],
+            "default_collapsed": false
+          }
+        ],
+        "replies": []
+      },
+      {
+        "parents": [
+          {
+            "kind": "thread",
+            "title": { "text": "Help with simple stdout snippet" },
+            "flair": [],
+            "body": {
+              "kind": "array",
+              "body": [
+                {
+                  "kind": "richtext",
+                  "content": [
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "text",
+                          "text": "Help me out, guys!",
+                          "styles": {}
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "text",
+                          "text": "Zig looks fascinating, but the documentation doesn't help much.",
+                          "styles": {}
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "text",
+                          "text": "I'm trying to get this to work. Why doesn't it work?",
+                          "styles": {}
+                        }
+                      ]
+                    },
+                    { "kind": "paragraph", "children": [] },
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "text",
+                          "text": "const stdout = u/@import(\"std\").io.getStdOut().writer();",
+                          "styles": {
+                            "strong": false,
+                            "emphasis": false,
+                            "strikethrough": false,
+                            "superscript": false,
+                            "code": true
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "text",
+                          "text": "pub fn main() anyerror!void {",
+                          "styles": {
+                            "strong": false,
+                            "emphasis": false,
+                            "strikethrough": false,
+                            "superscript": false,
+                            "code": true
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "text",
+                          "text": "const name = \"John\";var age:i32 = 89;",
+                          "styles": {
+                            "strong": false,
+                            "emphasis": false,
+                            "strikethrough": false,
+                            "superscript": false,
+                            "code": true
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "text",
+                          "text": "try stdout.print(\"Stakars {s} är {} år gammal.\\n\", .{name}, .{age});",
+                          "styles": {
+                            "strong": false,
+                            "emphasis": false,
+                            "strikethrough": false,
+                            "superscript": false,
+                            "code": true
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "text",
+                          "text": "}",
+                          "styles": {
+                            "strong": false,
+                            "emphasis": false,
+                            "strikethrough": false,
+                            "superscript": false,
+                            "code": true
+                          }
+                        }
+                      ]
+                    },
+                    { "kind": "paragraph", "children": [] },
+                    { "kind": "paragraph", "children": [] }
+                  ]
+                },
+                null
+              ]
+            },
+            "display_mode": {
+              "body": "collapsed",
+              "body_default": "closed",
+              "comments": "collapsed"
+            },
+            "raw_value": "TODO",
+            "link": "/r/Zig/comments/mcyzdx/help_with_simple_stdout_snippet/",
+            "layout": "reddit-post",
+            "info": {
+              "time": 1616681059000,
+              "edited": 1616681936000,
+              "author": {
+                "color_hash": "hank_saywhat",
+                "name": "hank_saywhat",
+                "link": "/u/hank_saywhat",
+                "flair": []
+              },
+              "in": { "link": "/r/Zig", "name": "r/Zig" },
+              "pinned": false
+            },
+            "actions": [
+              {
+                "kind": "link",
+                "url": "/r/Zig/comments/mcyzdx/help_with_simple_stdout_snippet/",
+                "text": "3 comments"
+              },
+              { "kind": "link", "url": "/domain/self.Zig", "text": "self.Zig" },
+              { "kind": "delete", "data": "TODO" },
+              {
+                "kind": "counter",
+                "unique_id": "/save/t3_mcyzdx/",
+                "time": 1617954126020,
+                "label": "Save",
+                "incremented_label": "Unsave",
+                "style": "action-button",
+                "incremented_style": "save-button-saved",
+                "count_excl_you": "none",
+                "actions": { "increment": "TODO", "reset": "TODO" }
+              },
+              {
+                "kind": "counter",
+                "unique_id": "/vote/t3_mcyzdx/",
+                "time": 1617954126020,
+                "special": "reddit-points",
+                "label": "Vote",
+                "incremented_label": "Voted",
+                "decremented_label": "Voted",
+                "count_excl_you": 10,
+                "percent": 1,
+                "actions": {
+                  "increment": "TODO",
+                  "decrement": "TODO",
+                  "reset": "TODO"
+                }
+              },
+              {
+                "kind": "link",
+                "url": "/r/Zig/duplicates/mcyzdx/help_with_simple_stdout_snippet/",
+                "text": "Duplicates"
+              },
+              { "kind": "report", "data": "TODO" }
+            ],
+            "default_collapsed": false
+          }
+        ],
+        "replies": []
+      },
+      {
+        "parents": [
+          {
+            "kind": "thread",
+            "title": { "text": "A \"Better C\" Benchmark" },
+            "flair": [],
+            "body": {
+              "kind": "link",
+              "url": "https://zserge.com/posts/better-c-benchmark/"
+            },
+            "display_mode": {
+              "body": "collapsed",
+              "body_default": "closed",
+              "comments": "collapsed"
+            },
+            "raw_value": "TODO",
+            "link": "/r/Zig/comments/mc312h/a_better_c_benchmark/",
+            "layout": "reddit-post",
+            "info": {
+              "time": 1616584038000,
+              "edited": false,
+              "author": {
+                "color_hash": "zserge",
+                "name": "zserge",
+                "link": "/u/zserge",
+                "flair": []
+              },
+              "in": { "link": "/r/Zig", "name": "r/Zig" },
+              "pinned": false
+            },
+            "actions": [
+              {
+                "kind": "link",
+                "url": "/r/Zig/comments/mc312h/a_better_c_benchmark/",
+                "text": "23 comments"
+              },
+              {
+                "kind": "link",
+                "url": "/domain/zserge.com",
+                "text": "zserge.com"
+              },
+              { "kind": "delete", "data": "TODO" },
+              {
+                "kind": "counter",
+                "unique_id": "/save/t3_mc312h/",
+                "time": 1617954126020,
+                "label": "Save",
+                "incremented_label": "Unsave",
+                "style": "action-button",
+                "incremented_style": "save-button-saved",
+                "count_excl_you": "none",
+                "actions": { "increment": "TODO", "reset": "TODO" }
+              },
+              {
+                "kind": "counter",
+                "unique_id": "/vote/t3_mc312h/",
+                "time": 1617954126020,
+                "special": "reddit-points",
+                "label": "Vote",
+                "incremented_label": "Voted",
+                "decremented_label": "Voted",
+                "count_excl_you": 48,
+                "percent": 0.96,
+                "actions": {
+                  "increment": "TODO",
+                  "decrement": "TODO",
+                  "reset": "TODO"
+                }
+              },
+              {
+                "kind": "link",
+                "url": "/r/Zig/duplicates/mc312h/a_better_c_benchmark/",
+                "text": "Duplicates"
+              },
+              { "kind": "report", "data": "TODO" }
+            ],
+            "default_collapsed": false
+          }
+        ],
+        "replies": []
+      },
+      {
+        "parents": [
+          {
+            "kind": "thread",
+            "title": { "text": "How safe is Zig" },
+            "flair": [],
+            "body": {
+              "kind": "link",
+              "url": "https://scattered-thoughts.net/writing/how-safe-is-zig/"
+            },
+            "display_mode": {
+              "body": "collapsed",
+              "body_default": "closed",
+              "comments": "collapsed"
+            },
+            "raw_value": "TODO",
+            "link": "/r/Zig/comments/mavl69/how_safe_is_zig/",
+            "layout": "reddit-post",
+            "info": {
+              "time": 1616440717000,
+              "edited": false,
+              "author": {
+                "color_hash": "Inyayde",
+                "name": "Inyayde",
+                "link": "/u/Inyayde",
+                "flair": []
+              },
+              "in": { "link": "/r/Zig", "name": "r/Zig" },
+              "pinned": false
+            },
+            "actions": [
+              {
+                "kind": "link",
+                "url": "/r/Zig/comments/mavl69/how_safe_is_zig/",
+                "text": "6 comments"
+              },
+              {
+                "kind": "link",
+                "url": "/domain/scattered-thoughts.net",
+                "text": "scattered-thoughts.net"
+              },
+              { "kind": "delete", "data": "TODO" },
+              {
+                "kind": "counter",
+                "unique_id": "/save/t3_mavl69/",
+                "time": 1617954126020,
+                "label": "Save",
+                "incremented_label": "Unsave",
+                "style": "action-button",
+                "incremented_style": "save-button-saved",
+                "count_excl_you": "none",
+                "actions": { "increment": "TODO", "reset": "TODO" }
+              },
+              {
+                "kind": "counter",
+                "unique_id": "/vote/t3_mavl69/",
+                "time": 1617954126020,
+                "special": "reddit-points",
+                "label": "Vote",
+                "incremented_label": "Voted",
+                "decremented_label": "Voted",
+                "count_excl_you": 49,
+                "percent": 0.98,
+                "actions": {
+                  "increment": "TODO",
+                  "decrement": "TODO",
+                  "reset": "TODO"
+                }
+              },
+              {
+                "kind": "link",
+                "url": "/r/Zig/duplicates/mavl69/how_safe_is_zig/",
+                "text": "Duplicates"
+              },
+              { "kind": "report", "data": "TODO" }
+            ],
+            "default_collapsed": false
+          }
+        ],
+        "replies": []
+      },
+      {
+        "parents": [
+          {
+            "kind": "thread",
+            "title": {
+              "text": "Using Zig and the STM32H7 to drive stepper motors - Blog"
+            },
+            "flair": [],
+            "body": {
+              "kind": "link",
+              "url": "https://codelv.com/blog/2020/5/using-zig-and-the-stm32h7-to-drive-stepper-motors"
+            },
+            "display_mode": {
+              "body": "collapsed",
+              "body_default": "closed",
+              "comments": "collapsed"
+            },
+            "raw_value": "TODO",
+            "link": "/r/Zig/comments/maq23d/using_zig_and_the_stm32h7_to_drive_stepper_motors/",
+            "layout": "reddit-post",
+            "info": {
+              "time": 1616426400000,
+              "edited": false,
+              "author": {
+                "color_hash": "kassany",
+                "name": "kassany",
+                "link": "/u/kassany",
+                "flair": []
+              },
+              "in": { "link": "/r/Zig", "name": "r/Zig" },
+              "pinned": false
+            },
+            "actions": [
+              {
+                "kind": "link",
+                "url": "/r/Zig/comments/maq23d/using_zig_and_the_stm32h7_to_drive_stepper_motors/",
+                "text": "1 comment"
+              },
+              {
+                "kind": "link",
+                "url": "/domain/codelv.com",
+                "text": "codelv.com"
+              },
+              { "kind": "delete", "data": "TODO" },
+              {
+                "kind": "counter",
+                "unique_id": "/save/t3_maq23d/",
+                "time": 1617954126020,
+                "label": "Save",
+                "incremented_label": "Unsave",
+                "style": "action-button",
+                "incremented_style": "save-button-saved",
+                "count_excl_you": "none",
+                "actions": { "increment": "TODO", "reset": "TODO" }
+              },
+              {
+                "kind": "counter",
+                "unique_id": "/vote/t3_maq23d/",
+                "time": 1617954126020,
+                "special": "reddit-points",
+                "label": "Vote",
+                "incremented_label": "Voted",
+                "decremented_label": "Voted",
+                "count_excl_you": 18,
+                "percent": 1,
+                "actions": {
+                  "increment": "TODO",
+                  "decrement": "TODO",
+                  "reset": "TODO"
+                }
+              },
+              {
+                "kind": "link",
+                "url": "/r/Zig/duplicates/maq23d/using_zig_and_the_stm32h7_to_drive_stepper_motors/",
+                "text": "Duplicates"
+              },
+              { "kind": "report", "data": "TODO" }
+            ],
+            "default_collapsed": false
+          }
+        ],
+        "replies": []
+      },
+      {
+        "parents": [
+          {
+            "kind": "thread",
+            "title": { "text": "New Suzie art! ⚡ Zig SHOWTIME #22" },
+            "flair": [],
+            "body": {
+              "kind": "link",
+              "url": "https://youtu.be/4nVhByP-npU",
+              "embed_html": "<iframe width=\"356\" height=\"200\" src=\"https://www.youtube.com/embed/4nVhByP-npU?feature=oembed&enablejsapi=1\" frameborder=\"0\" allow=\"accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture\" allowfullscreen></iframe>"
+            },
+            "display_mode": {
+              "body": "collapsed",
+              "body_default": "closed",
+              "comments": "collapsed"
+            },
+            "raw_value": "TODO",
+            "link": "/r/Zig/comments/ma6js3/new_suzie_art_zig_showtime_22/",
+            "layout": "reddit-post",
+            "info": {
+              "time": 1616361868000,
+              "edited": false,
+              "author": {
+                "color_hash": "kristoff-it",
+                "name": "kristoff-it",
+                "link": "/u/kristoff-it",
+                "flair": []
+              },
+              "in": { "link": "/r/Zig", "name": "r/Zig" },
+              "pinned": false
+            },
+            "actions": [
+              {
+                "kind": "link",
+                "url": "/r/Zig/comments/ma6js3/new_suzie_art_zig_showtime_22/",
+                "text": "1 comment"
+              },
+              { "kind": "link", "url": "/domain/youtu.be", "text": "youtu.be" },
+              { "kind": "delete", "data": "TODO" },
+              {
+                "kind": "counter",
+                "unique_id": "/save/t3_ma6js3/",
+                "time": 1617954126020,
+                "label": "Save",
+                "incremented_label": "Unsave",
+                "style": "action-button",
+                "incremented_style": "save-button-saved",
+                "count_excl_you": "none",
+                "actions": { "increment": "TODO", "reset": "TODO" }
+              },
+              {
+                "kind": "counter",
+                "unique_id": "/vote/t3_ma6js3/",
+                "time": 1617954126020,
+                "special": "reddit-points",
+                "label": "Vote",
+                "incremented_label": "Voted",
+                "decremented_label": "Voted",
+                "count_excl_you": 12,
+                "percent": 0.93,
+                "actions": {
+                  "increment": "TODO",
+                  "decrement": "TODO",
+                  "reset": "TODO"
+                }
+              },
+              {
+                "kind": "link",
+                "url": "/r/Zig/duplicates/ma6js3/new_suzie_art_zig_showtime_22/",
+                "text": "Duplicates"
+              },
+              { "kind": "report", "data": "TODO" }
+            ],
+            "default_collapsed": false
+          }
+        ],
+        "replies": []
+      },
+      {
+        "parents": [
+          {
+            "kind": "thread",
+            "title": {
+              "text": "How to convert identifiers and strings in compile time?"
+            },
+            "flair": [],
+            "body": {
+              "kind": "array",
+              "body": [
+                {
+                  "kind": "richtext",
+                  "content": [
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "text",
+                          "text": "In c macro, we have some way to convert identifier to string, I wonder what's the alternative in Zig.",
+                          "styles": {}
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "text",
+                          "text": "Allowing these techniques sometimes greatly help you write codes.",
+                          "styles": {}
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "text",
+                          "text": "Thanks a lot!",
+                          "styles": {}
+                        }
+                      ]
+                    }
+                  ]
+                },
+                null
+              ]
+            },
+            "display_mode": {
+              "body": "collapsed",
+              "body_default": "closed",
+              "comments": "collapsed"
+            },
+            "raw_value": "TODO",
+            "link": "/r/Zig/comments/ma0l79/how_to_convert_identifiers_and_strings_in_compile/",
+            "layout": "reddit-post",
+            "info": {
+              "time": 1616345070000,
+              "edited": false,
+              "author": {
+                "color_hash": "lyhokia",
+                "name": "lyhokia",
+                "link": "/u/lyhokia",
+                "flair": []
+              },
+              "in": { "link": "/r/Zig", "name": "r/Zig" },
+              "pinned": false
+            },
+            "actions": [
+              {
+                "kind": "link",
+                "url": "/r/Zig/comments/ma0l79/how_to_convert_identifiers_and_strings_in_compile/",
+                "text": "2 comments"
+              },
+              { "kind": "link", "url": "/domain/self.Zig", "text": "self.Zig" },
+              { "kind": "delete", "data": "TODO" },
+              {
+                "kind": "counter",
+                "unique_id": "/save/t3_ma0l79/",
+                "time": 1617954126020,
+                "label": "Save",
+                "incremented_label": "Unsave",
+                "style": "action-button",
+                "incremented_style": "save-button-saved",
+                "count_excl_you": "none",
+                "actions": { "increment": "TODO", "reset": "TODO" }
+              },
+              {
+                "kind": "counter",
+                "unique_id": "/vote/t3_ma0l79/",
+                "time": 1617954126020,
+                "special": "reddit-points",
+                "label": "Vote",
+                "incremented_label": "Voted",
+                "decremented_label": "Voted",
+                "count_excl_you": 6,
+                "percent": 1,
+                "actions": {
+                  "increment": "TODO",
+                  "decrement": "TODO",
+                  "reset": "TODO"
+                }
+              },
+              {
+                "kind": "link",
+                "url": "/r/Zig/duplicates/ma0l79/how_to_convert_identifiers_and_strings_in_compile/",
+                "text": "Duplicates"
+              },
+              { "kind": "report", "data": "TODO" }
+            ],
+            "default_collapsed": false
+          }
+        ],
+        "replies": []
+      },
+      {
+        "parents": [
+          {
+            "kind": "thread",
+            "title": { "text": "Is Zig backwards compatible?" },
+            "flair": [],
+            "body": {
+              "kind": "array",
+              "body": [
+                {
+                  "kind": "richtext",
+                  "content": [
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "text",
+                          "text": "Hi, Zig is yet to mature to v1.0, but are v0.6, 0.7, 0.x backwards compatible?  I've been watching it closely for the past few weeks, and the more I learn about Zig, the more I like it.",
+                          "styles": {}
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "text",
+                          "text": "I am planning to do a small project in Zig, but I do not want to rewrite it in the future because of incompatibility. For example, from Zig 0.7 to Zig 0.9.",
+                          "styles": {}
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "text",
+                          "text": "Should I wait it out for Zig 1.0? What was your experience?",
+                          "styles": {}
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "text",
+                          "text": "Thanks in advance.",
+                          "styles": {}
+                        }
+                      ]
+                    }
+                  ]
+                },
+                null
+              ]
+            },
+            "display_mode": {
+              "body": "collapsed",
+              "body_default": "closed",
+              "comments": "collapsed"
+            },
+            "raw_value": "TODO",
+            "link": "/r/Zig/comments/m6ajuz/is_zig_backwards_compatible/",
+            "layout": "reddit-post",
+            "info": {
+              "time": 1615905598000,
+              "edited": false,
+              "author": {
+                "color_hash": "rillk500",
+                "name": "rillk500",
+                "link": "/u/rillk500",
+                "flair": []
+              },
+              "in": { "link": "/r/Zig", "name": "r/Zig" },
+              "pinned": false
+            },
+            "actions": [
+              {
+                "kind": "link",
+                "url": "/r/Zig/comments/m6ajuz/is_zig_backwards_compatible/",
+                "text": "10 comments"
+              },
+              { "kind": "link", "url": "/domain/self.Zig", "text": "self.Zig" },
+              { "kind": "delete", "data": "TODO" },
+              {
+                "kind": "counter",
+                "unique_id": "/save/t3_m6ajuz/",
+                "time": 1617954126020,
+                "label": "Save",
+                "incremented_label": "Unsave",
+                "style": "action-button",
+                "incremented_style": "save-button-saved",
+                "count_excl_you": "none",
+                "actions": { "increment": "TODO", "reset": "TODO" }
+              },
+              {
+                "kind": "counter",
+                "unique_id": "/vote/t3_m6ajuz/",
+                "time": 1617954126020,
+                "special": "reddit-points",
+                "label": "Vote",
+                "incremented_label": "Voted",
+                "decremented_label": "Voted",
+                "count_excl_you": 25,
+                "percent": 1,
+                "actions": {
+                  "increment": "TODO",
+                  "decrement": "TODO",
+                  "reset": "TODO"
+                }
+              },
+              {
+                "kind": "link",
+                "url": "/r/Zig/duplicates/m6ajuz/is_zig_backwards_compatible/",
+                "text": "Duplicates"
+              },
+              { "kind": "report", "data": "TODO" }
+            ],
+            "default_collapsed": false
+          }
+        ],
+        "replies": []
+      },
+      {
+        "parents": [
+          {
+            "kind": "thread",
+            "title": {
+              "text": "How do I generate a formatted string? A la sprintf in C"
+            },
+            "flair": [],
+            "body": {
+              "kind": "array",
+              "body": [
+                {
+                  "kind": "richtext",
+                  "content": [
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "text",
+                          "text": "I think I've looked just about everywhere, and I haven't found any solid answers anywhere.",
+                          "styles": {}
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "text",
+                          "text": "Digging through the standard library reveals something that ",
+                          "styles": {}
+                        },
+                        {
+                          "kind": "text",
+                          "text": "looks",
+                          "styles": {
+                            "strong": false,
+                            "emphasis": true,
+                            "strikethrough": false,
+                            "superscript": false,
+                            "code": false
+                          }
+                        },
+                        {
+                          "kind": "text",
+                          "text": " right, namely ",
+                          "styles": {}
+                        },
+                        {
+                          "kind": "text",
+                          "text": "formatText",
+                          "styles": {
+                            "strong": false,
+                            "emphasis": false,
+                            "strikethrough": false,
+                            "superscript": false,
+                            "code": true
+                          }
+                        },
+                        {
+                          "kind": "text",
+                          "text": ", but there's no documentation on how to use it, so I don't actually know if it's what I'm looking for.",
+                          "styles": {}
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "text",
+                          "text": "A lot of the console writers have printf-ish functionality, so I'd expect a sprintf equivalent to also exist.",
+                          "styles": {}
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        { "kind": "text", "text": "Any help?", "styles": {} }
+                      ]
+                    },
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "text",
+                          "text": "Edit: yes I know I can just import stdio.h and be over with, but that feels like such a cop-out",
+                          "styles": {}
+                        }
+                      ]
+                    }
+                  ]
+                },
+                null
+              ]
+            },
+            "display_mode": {
+              "body": "collapsed",
+              "body_default": "closed",
+              "comments": "collapsed"
+            },
+            "raw_value": "TODO",
+            "link": "/r/Zig/comments/m678iy/how_do_i_generate_a_formatted_string_a_la_sprintf/",
+            "layout": "reddit-post",
+            "info": {
+              "time": 1615895311000,
+              "edited": 1615896035000,
+              "author": {
+                "color_hash": "TheTimegazer",
+                "name": "TheTimegazer",
+                "link": "/u/TheTimegazer",
+                "flair": []
+              },
+              "in": { "link": "/r/Zig", "name": "r/Zig" },
+              "pinned": false
+            },
+            "actions": [
+              {
+                "kind": "link",
+                "url": "/r/Zig/comments/m678iy/how_do_i_generate_a_formatted_string_a_la_sprintf/",
+                "text": "2 comments"
+              },
+              { "kind": "link", "url": "/domain/self.Zig", "text": "self.Zig" },
+              { "kind": "delete", "data": "TODO" },
+              {
+                "kind": "counter",
+                "unique_id": "/save/t3_m678iy/",
+                "time": 1617954126020,
+                "label": "Save",
+                "incremented_label": "Unsave",
+                "style": "action-button",
+                "incremented_style": "save-button-saved",
+                "count_excl_you": "none",
+                "actions": { "increment": "TODO", "reset": "TODO" }
+              },
+              {
+                "kind": "counter",
+                "unique_id": "/vote/t3_m678iy/",
+                "time": 1617954126020,
+                "special": "reddit-points",
+                "label": "Vote",
+                "incremented_label": "Voted",
+                "decremented_label": "Voted",
+                "count_excl_you": 8,
+                "percent": 1,
+                "actions": {
+                  "increment": "TODO",
+                  "decrement": "TODO",
+                  "reset": "TODO"
+                }
+              },
+              {
+                "kind": "link",
+                "url": "/r/Zig/duplicates/m678iy/how_do_i_generate_a_formatted_string_a_la_sprintf/",
+                "text": "Duplicates"
+              },
+              { "kind": "report", "data": "TODO" }
+            ],
+            "default_collapsed": false
+          }
+        ],
+        "replies": []
+      },
+      {
+        "parents": [
+          {
+            "kind": "thread",
+            "title": { "text": "Learning About ELF With Zig" },
+            "flair": [],
+            "body": {
+              "kind": "link",
+              "url": "https://g-w1.github.io/blog/zig/low-level/2021/03/15/elf-linux.html"
+            },
+            "display_mode": {
+              "body": "collapsed",
+              "body_default": "closed",
+              "comments": "collapsed"
+            },
+            "raw_value": "TODO",
+            "link": "/r/Zig/comments/m5nvq4/learning_about_elf_with_zig/",
+            "layout": "reddit-post",
+            "info": {
+              "time": 1615823972000,
+              "edited": false,
+              "author": {
+                "color_hash": "kassany",
+                "name": "kassany",
+                "link": "/u/kassany",
+                "flair": []
+              },
+              "in": { "link": "/r/Zig", "name": "r/Zig" },
+              "pinned": false
+            },
+            "actions": [
+              {
+                "kind": "link",
+                "url": "/r/Zig/comments/m5nvq4/learning_about_elf_with_zig/",
+                "text": "0 comments"
+              },
+              {
+                "kind": "link",
+                "url": "/domain/g-w1.github.io",
+                "text": "g-w1.github.io"
+              },
+              { "kind": "delete", "data": "TODO" },
+              {
+                "kind": "counter",
+                "unique_id": "/save/t3_m5nvq4/",
+                "time": 1617954126020,
+                "label": "Save",
+                "incremented_label": "Unsave",
+                "style": "action-button",
+                "incremented_style": "save-button-saved",
+                "count_excl_you": "none",
+                "actions": { "increment": "TODO", "reset": "TODO" }
+              },
+              {
+                "kind": "counter",
+                "unique_id": "/vote/t3_m5nvq4/",
+                "time": 1617954126020,
+                "special": "reddit-points",
+                "label": "Vote",
+                "incremented_label": "Voted",
+                "decremented_label": "Voted",
+                "count_excl_you": 37,
+                "percent": 1,
+                "actions": {
+                  "increment": "TODO",
+                  "decrement": "TODO",
+                  "reset": "TODO"
+                }
+              },
+              {
+                "kind": "link",
+                "url": "/r/Zig/duplicates/m5nvq4/learning_about_elf_with_zig/",
+                "text": "Duplicates"
+              },
+              { "kind": "report", "data": "TODO" }
+            ],
+            "default_collapsed": false
+          }
+        ],
+        "replies": []
+      },
+      {
+        "parents": [
+          {
+            "kind": "thread",
+            "title": { "text": "Fully comptime lisp" },
+            "flair": [],
+            "body": {
+              "kind": "array",
+              "body": [
+                {
+                  "kind": "richtext",
+                  "content": [
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        { "kind": "text", "text": "I made a ", "styles": {} },
+                        {
+                          "kind": "link",
+                          "url": "https://github.com/igmanthony/zig_comptime_lisp/",
+                          "children": [
+                            { "kind": "text", "text": "toy lisp", "styles": {} }
+                          ]
+                        },
+                        {
+                          "kind": "text",
+                          "text": " in zig that 'interprets' embedded files entirely in comptime code (so it's a scripting compiler thing). Even for a toy... it's not fully working (no recursion, loops, comments), but there are user-defined functions, variables, conditionals, and arithmetic (and it's pretty easy to implement new functions in Zig and load them).",
+                          "styles": {}
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "text",
+                          "text": "It was a pain to get working. Linked lists are awesome but suck when you can't debug them properly (@compileLog debugging ftw). No allocations is a fun challenge. I think it's neat that Zig's comptime is powerful enough to allow for fully comptime scripting languages.",
+                          "styles": {}
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "text",
+                          "text": "It was also weird and funny getting a bunch of memory bugs if I ever tried to move from comp time to run time.",
+                          "styles": {}
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "text",
+                          "text": "I wonder if someone who is actually competent/wants to make a language could get something working that's not just a toy. Does anyone know of another comptime scripting language in Zig?",
+                          "styles": {}
+                        }
+                      ]
+                    }
+                  ]
+                },
+                null
+              ]
+            },
+            "display_mode": {
+              "body": "collapsed",
+              "body_default": "closed",
+              "comments": "collapsed"
+            },
+            "raw_value": "TODO",
+            "link": "/r/Zig/comments/m4zo47/fully_comptime_lisp/",
+            "layout": "reddit-post",
+            "info": {
+              "time": 1615743263000,
+              "edited": false,
+              "author": {
+                "color_hash": "bentonite",
+                "name": "bentonite",
+                "link": "/u/bentonite",
+                "flair": []
+              },
+              "in": { "link": "/r/Zig", "name": "r/Zig" },
+              "pinned": false
+            },
+            "actions": [
+              {
+                "kind": "link",
+                "url": "/r/Zig/comments/m4zo47/fully_comptime_lisp/",
+                "text": "1 comment"
+              },
+              { "kind": "link", "url": "/domain/self.Zig", "text": "self.Zig" },
+              { "kind": "delete", "data": "TODO" },
+              {
+                "kind": "counter",
+                "unique_id": "/save/t3_m4zo47/",
+                "time": 1617954126021,
+                "label": "Save",
+                "incremented_label": "Unsave",
+                "style": "action-button",
+                "incremented_style": "save-button-saved",
+                "count_excl_you": "none",
+                "actions": { "increment": "TODO", "reset": "TODO" }
+              },
+              {
+                "kind": "counter",
+                "unique_id": "/vote/t3_m4zo47/",
+                "time": 1617954126021,
+                "special": "reddit-points",
+                "label": "Vote",
+                "incremented_label": "Voted",
+                "decremented_label": "Voted",
+                "count_excl_you": 47,
+                "percent": 1,
+                "actions": {
+                  "increment": "TODO",
+                  "decrement": "TODO",
+                  "reset": "TODO"
+                }
+              },
+              {
+                "kind": "link",
+                "url": "/r/Zig/duplicates/m4zo47/fully_comptime_lisp/",
+                "text": "Duplicates"
+              },
+              { "kind": "report", "data": "TODO" }
+            ],
+            "default_collapsed": false
+          }
+        ],
+        "replies": []
+      },
+      {
+        "parents": [
+          {
+            "kind": "thread",
+            "title": { "text": "Seg fault when creating arrays of containers" },
+            "flair": [],
+            "body": {
+              "kind": "array",
+              "body": [
+                {
+                  "kind": "richtext",
+                  "content": [
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "text",
+                          "text": "I'm trying to create a 2d array of AutoHashMap(u32, u1), having written these codes:",
+                          "styles": {}
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "code_block",
+                      "text": "fn alloc2d(comptime t: type, m: u32, n: u32, allocator: *Allocator) callconv(.Inline) ![][]t {\n    const array = try allocator.alloc([]t, m);\n    for (array) |_, index| {\n        array[index] = try allocator.alloc(t, n);\n    }\n    return array;\n}\n\nfn free2d(comptime t: type, array: [][]t, allocator: *Allocator) callconv(.Inline) void {\n    for (array) |_, index| {\n        allocator.free(array[index]);\n    }\n    allocator.free(array);\n}\n\ntest \"Alloc 2D Array\" {\n    var gpa = std.heap.GeneralPurposeAllocator(.{}){};\n    const allocator = &gpa.allocator;\n    defer _ = gpa.deinit();\n\n    const HashSet = std.AutoHashMap(u32, u1);\n    var array = try alloc2d(*HashSet, 4, 4, allocator);\n    defer free2d(*HashSet, array, allocator);\n\n    for (array) |_, i| {\n        for (array[i]) |_, j| {\n            array[i][j] = &(HashSet.init(allocator));\n        }\n    }\n    defer {\n        for (array) |_, i| {\n            for (array[i]) |_, j| {\n                array[i][j].deinit();\n            }\n        }\n    }\n}"
+                    },
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "text",
+                          "text": "However, when I test it, it gives out some error message:",
+                          "styles": {}
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "text",
+                          "text": "Segmentation fault at address 0x0",
+                          "styles": {}
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "text",
+                          "text": "Can anyone tell me what's happening?",
+                          "styles": {}
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "text",
+                          "text": "Thanks a lot!",
+                          "styles": {}
+                        }
+                      ]
+                    }
+                  ]
+                },
+                null
+              ]
+            },
+            "display_mode": {
+              "body": "collapsed",
+              "body_default": "closed",
+              "comments": "collapsed"
+            },
+            "raw_value": "TODO",
+            "link": "/r/Zig/comments/m57s33/seg_fault_when_creating_arrays_of_containers/",
+            "layout": "reddit-post",
+            "info": {
+              "time": 1615766204000,
+              "edited": 1615766454000,
+              "author": {
+                "color_hash": "lyhokia",
+                "name": "lyhokia",
+                "link": "/u/lyhokia",
+                "flair": []
+              },
+              "in": { "link": "/r/Zig", "name": "r/Zig" },
+              "pinned": false
+            },
+            "actions": [
+              {
+                "kind": "link",
+                "url": "/r/Zig/comments/m57s33/seg_fault_when_creating_arrays_of_containers/",
+                "text": "5 comments"
+              },
+              { "kind": "link", "url": "/domain/self.Zig", "text": "self.Zig" },
+              { "kind": "delete", "data": "TODO" },
+              {
+                "kind": "counter",
+                "unique_id": "/save/t3_m57s33/",
+                "time": 1617954126021,
+                "label": "Save",
+                "incremented_label": "Unsave",
+                "style": "action-button",
+                "incremented_style": "save-button-saved",
+                "count_excl_you": "none",
+                "actions": { "increment": "TODO", "reset": "TODO" }
+              },
+              {
+                "kind": "counter",
+                "unique_id": "/vote/t3_m57s33/",
+                "time": 1617954126021,
+                "special": "reddit-points",
+                "label": "Vote",
+                "incremented_label": "Voted",
+                "decremented_label": "Voted",
+                "count_excl_you": 6,
+                "percent": 1,
+                "actions": {
+                  "increment": "TODO",
+                  "decrement": "TODO",
+                  "reset": "TODO"
+                }
+              },
+              {
+                "kind": "link",
+                "url": "/r/Zig/duplicates/m57s33/seg_fault_when_creating_arrays_of_containers/",
+                "text": "Duplicates"
+              },
+              { "kind": "report", "data": "TODO" }
+            ],
+            "default_collapsed": false
+          }
+        ],
+        "replies": []
+      }
+    ],
+    "next": {
+      "kind": "load_more_unmounted",
+      "load_more_unmounted": "TODO",
+      "url": "/r/zig?after=t3_m57s33",
+      "raw_value": "TODO"
+    }
+  },
+  "sidebar": [
+    {
+      "kind": "widget",
+      "title": "Ziglang",
+      "raw_value": "TODO",
+      "widget_content": {
+        "kind": "community-details",
+        "description": "Zig Programming Language. https://ziglang.org/"
+      },
+      "actions_bottom": [
+        {
+          "kind": "counter",
+          "unique_id": "/subscribe/zig/",
+          "time": 1617954125791,
+          "label": "Subscribe",
+          "incremented_label": "Subscribed",
+          "style": "pill-filled",
+          "incremented_style": "pill-empty",
+          "count_excl_you": 2855,
+          "you": "increment",
+          "actions": { "increment": "TODO", "reset": "TODO" }
+        }
+      ]
+    },
+    {
+      "kind": "thread",
+      "raw_value": "TODO",
+      "body": {
+        "kind": "text",
+        "markdown_format": "reddit",
+        "content": "Zig Programming Language. https://ziglang.org/"
+      },
+      "display_mode": { "body": "collapsed", "comments": "visible" },
+      "link": "/r/zig/about/sidebar",
+      "layout": "reddit-post",
+      "title": { "text": "old.reddit sidebar" },
+      "actions": [],
+      "default_collapsed": false
+    },
+    {
+      "kind": "widget",
+      "title": "Subreddit Rules",
+      "raw_value": "TODO",
+      "widget_content": {
+        "kind": "list",
+        "items": [
+          {
+            "name": { "kind": "text", "text": "1. Be Constructive" },
+            "click": {
+              "kind": "body",
+              "body": {
+                "kind": "text",
+                "content": "/r/zig is not a place for Freedom of Expression; it is for focused work on the ZIG project. Your involvement in this community must be constructive. \n\nConstructive examples:\n* How to accomplish XYZ?\n* Zig/Windows/Rust's decision to XYZ was a mistake because FOO\n* Suggestions to improve Zig\n* This URL answers your question\n\nDestructive examples:\n* I hate XYZ. I'm tired of XYZ.\n* Linux sucks. Windows sucks. Rust sucks. Zig sucks.\n* Why I'm rage quitting Zig\n* Telling someone to use a search engine",
+                "markdown_format": "reddit"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "widget",
+      "title": "Moderators",
+      "raw_value": "TODO",
+      "widget_content": {
+        "kind": "body",
+        "body": {
+          "kind": "richtext",
+          "content": [
+            {
+              "kind": "paragraph",
+              "children": [
+                {
+                  "kind": "link",
+                  "url": "/message/compose?to=/r/zig",
+                  "children": [
+                    { "kind": "text", "text": "Message the mods", "styles": {} }
+                  ],
+                  "style": "pill-empty"
+                }
+              ]
+            },
+            {
+              "kind": "list",
+              "ordered": false,
+              "children": [
+                {
+                  "kind": "list_item",
+                  "children": [
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "link",
+                          "url": "/u/superjoe30",
+                          "children": [
+                            {
+                              "kind": "text",
+                              "text": "u/superjoe30",
+                              "styles": {}
+                            }
+                          ],
+                          "is_user_link": "superjoe30"
+                        },
+                        { "kind": "text", "text": " ", "styles": {} },
+                        {
+                          "kind": "flair",
+                          "flair": {
+                            "color": "",
+                            "fg_color": "dark",
+                            "elems": [{ "type": "text", "text": "andrewrk" }],
+                            "content_warning": false
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "kind": "list_item",
+                  "children": [
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "link",
+                          "url": "/u/daurnimator",
+                          "children": [
+                            {
+                              "kind": "text",
+                              "text": "u/daurnimator",
+                              "styles": {}
+                            }
+                          ],
+                          "is_user_link": "daurnimator"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "kind": "list_item",
+                  "children": [
+                    {
+                      "kind": "paragraph",
+                      "children": [
+                        {
+                          "kind": "link",
+                          "url": "/u/kristoff-it",
+                          "children": [
+                            {
+                              "kind": "text",
+                              "text": "u/kristoff-it",
+                              "styles": {}
+                            }
+                          ],
+                          "is_user_link": "kristoff-it"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "paragraph",
+              "children": [
+                {
+                  "kind": "link",
+                  "url": "/r/zig/about/moderators",
+                  "children": [
+                    {
+                      "kind": "text",
+                      "text": "View All Moderators",
+                      "styles": {}
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "display_style": "fullscreen-view"
+}
