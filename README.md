@@ -21,39 +21,52 @@ a layout manager that's actively trying to prevent you from doing what you want.
 neat imgui stuff:
 
 - completely virtual scrolling. no scrollbar. when you get to the bottom, more can be loaded.
-- the super nice imgui thing you can do with virtual things is :: render one node above, current node, and below until off-screen
 - nodes that are not in view do not need to be rendered
-- there are some additional considerations that come along with that : these offscreen nodes need to retain state, so seperate state has to be passed around
-  - I haven't figured out state yet but I will
-- it's really easy to do fun stuff like :: actions, rather than wrapping, can go into a "…" button when they are too wide
-  - (ok, this requires double-rendering actions unfortunately, but still pretty neat)
-- here's the simplest way to store state: just store it along with initial data
-- I'll probably, instead, just have two structures that are passed everywhere : initial data, item state
-  - and that should work fine
-  - some things will need some form of global state, eg counters when you click the counter it has to retain its value on different screens
-  - that's fine and not too difficult
-- huh, it might not be necessary to have a super complicated id system
+- the sidebar can track properly. like the twitter sidebar is supposed to but this can actually do it because it's not html.
+- I can make an inspector similar to html "inspect element"
+  - this seems like it could be really fun and I want to do it
+  - it can't do some things eg you can't modify properties, but you can look through all the rendered things and see where they're
+    drawing and hover them to display an outline and get size and stuff
+  - if I do implement property modification support it will have to "pause" the content you're editing and once you resume, any
+    modified properties will be cleared
+  - I'm really excited to work on this it seems super fun
+- it will be possible to mix this stuff with gtk widgets. eg if I need a textarea and haven't written one yet, or if I need
+  a webview to play videos and embeds it will be possible to embed these.
+- eventually I can add touch support and make this into a mobile application
+- eventually I can build this to wasm and make a web application, but it won't fit in as well with other websites and performance
+  will probably hurt
 
-# other
+what imgui can do:
 
-- sometimes, threadreader requires webviews.
-- for example:
-- sidebar widgets might be an embed
-- youtube videos must play in a webview
-- other videos will probably be put in a webview because I don't think I want to deal with implementing a video player
-- suggested embeds must be a webview
+- layout of items, and often better and easier than retained gui can
+  - imgui makes it easy to make a horizontal list of buttons that overflows into a "…" button rather than onto the next line
+  - imgui makes it easy to center things, both vertically and horizontally
+  - imgui makes it easy to make responsive layouts
+- almost everything retained gui can
+- it's very fun to program for
 
-how it works:
+what imgui can't do:
 
-this will likely be accomplished using a gtk webview that gets rendered in with the rest of the content
+- match optimal performance of retained gui
+  - it is very difficult to get optimal performance out of retained gui, it is much easier to get optimal performance out of imgui
+- super weird constraint setups that you often don't want and are slow to compute but the retained gui toolkit forces on you anyway
 
-for a web build (html5 canvas rather than cairo as the rendering backend | some way to render cairo to canvas?)
+advantages of this specific imgui implementation:
 
-fixed-positioned iframes will be used I guess
+- centering, drawing a background behind things, and other layout things that require knowing the size of widgets before rendering them
+- can be made to look good
+  - rounded boxes
+  - backgrounds behind things
+  - smooth transitions
+- tailwind css-like styling to make interfaces more consistent and to add automatic dark mode support eventually
+- id generation uses source locations which makes it much better than some other libraries
 
-MAYBE:
+disadvantages of this specific imgui implementation:
 
-change `RenderResult` → `Widget` and add back the width/height properties
+- slow
+- has a very low chance of randomly glitching. this is fixable but it means it will be slightly slower. it might be worth the
+  performance cost to fix though
+- currently has a bug where sometimes the wrong text will render? not sure why yet (this is not related to the above)
 
 # notes
 
@@ -69,53 +82,8 @@ some methods are needed for user interaction
 - screenreaders. similar to the tab key but a bit different. focused items need to be able to post a text description of
   themselves, similar to setting cursors.
 
-clicks are "easy" : consistent ids and that's it you're done
-
-tabs: the focused object needs to be a list of ids rather than a single id
-
-here's how it works:
-
-say you render
-
-```
-<id=12 [
-  <id=13 []>
-  <id=24 []>
-  <id=34 []>
-]>
-```
-
-id=24 is focused
-
-say next frame, id=24 is gone. id=34 should be loosely focused. wait how do you do that?
-might take two ticks to process that. 1: uh oh that id was never used this frame. go find where the focus should be. 2: rerender, the exact same ids will be used this
-frame as last frame because there were no changes (even the timestamp of this frame should be the same as the timestamp of last frame). now this time the new selection
-can be rendered focused and necessary changes can be made
-
-notes: what happens when a focused object is in a virtual scroll thing : the object loses focus when it leaves scroll unfortunately probably
-
-"loose focus" : the "focus cursor" thing is there so next time you press tab it starts from there but there's no visual indication of the focus or anything
-
-I'll probably ignore tab focus for now
-
-touch will be interesting to handle, there are a bunch of things you have to do with touch you don't have to do with normal mice
-
----
-
-ok so the actual idea for interaction
-
-every rendernode will have a consistent id
-
-? maybe
-
-either that or special rendernodes will be created with ids
-
-alternatively (the js approach) : callbacks
-
-callbacks seem like a kind of bad solution though
-
-the idea with callbacks is the callback would update a bit of persistent data. but if you need persistent data you might as well just generate an id and store it persistently
-like why make a mess out of callbacks
+focus and the tab key is kind of complicated unfortunately. it is 100% doable though, just have to keep a few anchor points for
+when the focused item gets unfocused.
 
 # sample data
 
@@ -131,3 +99,5 @@ copy(
   })
 );
 ```
+
+eventually, this will be done automatically through one of: (node server | embedded javascript runtime)
