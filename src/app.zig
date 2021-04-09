@@ -11,6 +11,7 @@ const Widget = ui.Widget;
 const RenderCtx = ui.RenderCtx;
 const range = ui.range;
 const Src = ui.Src;
+const IdStateCache = ui.IdStateCache;
 const generic = @import("generic.zig");
 
 // RenderResult : when both W and H are specified to the function you're calling
@@ -206,9 +207,11 @@ pub const AppState = struct {
     }
 };
 
-pub fn renderApp(src: Src, imev: *ImEvent, wh: WH, page: generic.Page, state: *AppState) RenderResult {
+pub fn renderApp(src: Src, imev: *ImEvent, wh: WH, page: generic.Page, isc: *IdStateCache) RenderResult {
     var ctx = imev.render(src);
     defer ctx.pop();
+
+    const state = isc.state(@src(), imev, AppState, AppState.init);
 
     ctx.place(primitives.rect(@src(), imev, wh, .{ .bg = .gray100 }), Point.origin);
 

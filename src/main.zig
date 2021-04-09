@@ -342,6 +342,86 @@ const TextCacheHM = std.HashMap(
     TextHashKey.eql,
     std.hash_map.default_max_load_percentage,
 );
+pub const IdStateCache = struct {
+    pub const Entry = struct {
+        ptr: usize,
+        deinitFn: fn (entry: Entry, imev: *ImEvent) void,
+        created_src_file: [*:0]const u8,
+        created_src_line: u32,
+        created_src_col: u32,
+
+        used_this_frame: bool,
+
+        pub fn readAs(value: Entry, comptime src: Src, comptime Type: type) *Type {
+            if (value.created_src_line != src.line or value.created_src_col != src.column or value.created_src_file != src.file.ptr) {
+                @panic("random crash. TODO fix.");
+            }
+            return @intToPtr(*Type, value.ptr);
+        }
+    };
+    hm: std.AutoHashMapUnmanaged(u64, Entry),
+
+    pub fn init() IdStateCache {
+        return .{
+            .hm = std.AutoHashMapUnmanaged(u64, Entry){},
+        };
+    }
+
+    // this is where |these| {things} would be useful:
+    // ` cache.state(@src(), imev, struct{x: f64}, |_| .{.x = 25});
+    // unfortunately, not yet
+    pub fn state(isc: *IdStateCache, comptime src: Src, imev: *ImEvent, comptime Type: type, comptime initFn: fn () Type) *Type {
+        const id = imev.frame.id.forSrc(src);
+        if (isc.hm.getEntry(id)) |entry| {
+            entry.value.used_this_frame = true;
+            return entry.value.readAs(src, Type);
+        }
+        var item_ptr: *Type = imev.persistentAlloc().create(Type) catch @panic("oom");
+        item_ptr.* = initFn();
+        isc.hm.putNoClobber(imev.persistentAlloc(), id, .{
+            .ptr = @ptrToInt(item_ptr),
+            .deinitFn = struct {
+                fn a(entry: Entry, imev_shadow: *ImEvent) void {
+                    const ptr_v = entry.readAs(src, Type);
+                    if (@hasDecl(Type, "deinit")) {
+                        ptr_v.deinit(imev_shadow);
+                    }
+                    imev_shadow.persistentAlloc().destroy(ptr_v);
+                }
+            }.a,
+            .created_src_file = src.file.ptr,
+            .created_src_line = src.line,
+            .created_src_col = src.column,
+            .used_this_frame = true,
+        }) catch @panic("oom");
+        return item_ptr;
+    }
+    pub fn cleanupUnused(isc: *IdStateCache, imev: *ImEvent) void {
+        if (!imev.isRenderFrame()) return;
+
+        var iter = isc.hm.iterator();
+        var unused = std.ArrayList(u64).init(imev.persistentAlloc());
+        defer unused.deinit();
+        while (iter.next()) |ntry| {
+            if (ntry.value.used_this_frame) {
+                ntry.value.used_this_frame = false;
+            } else {
+                ntry.value.deinitFn(ntry.value, imev);
+                unused.append(ntry.key) catch @panic("oom");
+            }
+        }
+        for (unused.items) |key| {
+            isc.hm.removeAssertDiscard(key);
+        }
+    }
+    pub fn deinit(isc: *IdStateCache, imev: *ImEvent) void {
+        var iter = isc.hm.iterator();
+        while (iter.next()) |ntry| {
+            ntry.value.deinitFn(ntry.value, imev);
+        }
+        isc.hm.deinit(imev.persistentAlloc());
+    }
+};
 pub const ImEvent = struct { // pinned?
     // structures that are created at init.
     persistent: struct {
@@ -388,6 +468,9 @@ pub const ImEvent = struct { // pinned?
 
     pub fn arena(imev: *ImEvent) *std.mem.Allocator {
         return &imev.frame.arena_allocator.allocator;
+    }
+    pub fn persistentAlloc(imev: *ImEvent) *std.mem.Allocator {
+        return imev.persistent.real_allocator;
     }
 
     pub fn init(alloc: *std.mem.Allocator) ImEvent {
@@ -752,7 +835,7 @@ pub const VLayoutManager = struct {
 
 var content: generic.Page = undefined;
 var global_imevent: ImEvent = undefined;
-var app_state: app.AppState = undefined;
+var root_state_cache: IdStateCache = undefined;
 pub fn renderFrame(cr: cairo.Context, rr: cairo.RerenderRequest) void {
     const timer = std.time.Timer.start() catch @panic("bad timer");
     const imev = &global_imevent;
@@ -763,12 +846,14 @@ pub fn renderFrame(cr: cairo.Context, rr: cairo.RerenderRequest) void {
     while (true) {
         render_count += 1;
         imev.startFrame(cr, false) catch @panic("Start frame error");
-        if (imev.endFrame(app.renderApp(root_src, imev, imev.persistent.screen_size, content, &app_state))) break;
+        if (imev.endFrame(app.renderApp(root_src, imev, imev.persistent.screen_size, content, &root_state_cache))) break;
     }
 
     render_count += 1;
     imev.startFrame(cr, true) catch @panic("Start frame error");
-    imev.endFrameRender(app.renderApp(root_src, imev, imev.persistent.screen_size, content, &app_state));
+    imev.endFrameRender(app.renderApp(root_src, imev, imev.persistent.screen_size, content, &root_state_cache));
+    root_state_cache.cleanupUnused(imev);
+
     // std.log.info("rerender×{} in {}ns", .{ render_count, timer.read() }); // max allowed time is 4ms
 }
 pub fn pushEvent(ev: cairo.RawEvent, rr: cairo.RerenderRequest) void {
@@ -788,10 +873,11 @@ pub fn main() !void {
 
     content = generic.initSample(&sample_arena.allocator);
 
-    app_state = app.AppState.init();
-
     global_imevent = ImEvent.init(alloc);
     defer global_imevent.deinit();
+
+    root_state_cache = IdStateCache.init();
+    defer root_state_cache.deinit(&global_imevent);
 
     try cairo.start();
 }
