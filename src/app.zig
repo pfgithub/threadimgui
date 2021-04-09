@@ -52,7 +52,7 @@ fn renderAction(src: Src, imev: *ImEvent, action: generic.Action) Widget {
     //    <Text sm [action.text]>
     // ]>
     const text = primitives.text(@src(), imev, .{ .size = .sm, .color = .white }, action.text);
-    const id = imev.id.forSrc(@src());
+    const id = imev.frame.id.forSrc(@src());
     return inset(@src(), imev, 4, text);
 }
 fn renderExtraActionsMenu(src: Src, imev: *ImEvent, actions: []const generic.Action) Widget {
@@ -126,7 +126,7 @@ fn renderPost(src: Src, imev: *ImEvent, width: f64, node: generic.Post) VLayoutM
         var actions_lm = HLayoutManager.init(imev, .{ .max_w = layout.top_rect.w, .gap_x = 8, .gap_y = 0 });
         actions_lm.overflow(renderExtraActionsMenu(@src(), imev, node.actions));
         for (node.actions) |action, i| {
-            const k = imev.id.pushIndex(@src(), i);
+            const k = imev.frame.id.pushIndex(@src(), i);
             defer k.pop();
             actions_lm.put(renderAction(@src(), imev, action)) orelse break;
         }
@@ -194,7 +194,7 @@ pub fn renderApp(src: Src, imev: *ImEvent, wh: WH) RenderResult {
         var sidebar = layout.cutRight(.{ .w = sidebar_width, .gap = 20 });
 
         for (page.sidebar) |sidebar_node, i| {
-            const v = imev.id.pushIndex(@src(), i); // TODO once virtual scrolling is added this will have to no longer be pushIndex
+            const v = imev.frame.id.pushIndex(@src(), i); // TODO once virtual scrolling is added this will have to no longer be pushIndex
             defer v.pop();
 
             const sidebar_widget = renderSidebarWidget(@src(), imev, sidebar.top_rect.w, sidebar_node);
@@ -203,7 +203,7 @@ pub fn renderApp(src: Src, imev: *ImEvent, wh: WH) RenderResult {
         }
 
         for ([_]f64{ 244, 66, 172, 332, 128, 356 }) |height, i| {
-            const v = imev.id.pushIndex(@src(), i);
+            const v = imev.frame.id.pushIndex(@src(), i);
             defer v.pop();
 
             sidebar.place(&ctx, .{ .gap = 10 }, topLevelContainer(@src(), imev, sidebar.top_rect.w, VLayoutManager.Child{ .h = height, .node = null }, .{ .rounded = true }));
@@ -212,7 +212,7 @@ pub fn renderApp(src: Src, imev: *ImEvent, wh: WH) RenderResult {
 
     const rounded = wh.w > mobile_cutoff;
     for (page.content) |context_node, i| {
-        const v = imev.id.pushIndex(@src(), i); // TODO once virtual scrolling is added this will have to no longer be pushIndex
+        const v = imev.frame.id.pushIndex(@src(), i); // TODO once virtual scrolling is added this will have to no longer be pushIndex
         defer v.pop();
 
         const context_widget = renderContextNode(@src(), imev, layout.top_rect.w, context_node);
@@ -220,7 +220,7 @@ pub fn renderApp(src: Src, imev: *ImEvent, wh: WH) RenderResult {
         layout.place(&ctx, .{ .gap = 10 }, topLevelContainer(@src(), imev, layout.top_rect.w, context_widget, .{ .rounded = rounded }));
     }
     for (range(20)) |_, i| {
-        const v = imev.id.pushIndex(@src(), i);
+        const v = imev.frame.id.pushIndex(@src(), i);
         defer v.pop();
 
         layout.place(&ctx, .{ .gap = 10 }, topLevelContainer(@src(), imev, layout.top_rect.w, VLayoutManager.Child{ .h = 92, .node = null }, .{ .rounded = rounded }));

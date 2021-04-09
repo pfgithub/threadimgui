@@ -322,37 +322,34 @@ const TextCacheHM = std.HashMap(
     std.hash_map.default_max_load_percentage,
 );
 pub const ImEvent = struct { // pinned?
+    // structures that are created at init
     unprocessed_events: Queue(cairo.RawEvent),
-    should_render: bool,
-    should_continue: bool,
     real_allocator: *std.mem.Allocator,
-    arena_allocator: std.heap.ArenaAllocator,
     text_cache: TextCacheHM,
-    id: ID,
-
     screen_size: WH,
     internal_screen_offset: Point,
 
-    cr: cairo.Context,
-    // maybe split this out into values which are retained across frames and values which are not
-    // to make init and startFrame easier
+    /// structures that are only defined during a frame
+    frame: struct {
+        should_render: bool,
+        should_continue: bool,
+        arena_allocator: std.heap.ArenaAllocator,
+        id: ID,
+        cr: cairo.Context,
+    },
 
     pub fn arena(imev: *ImEvent) *std.mem.Allocator {
-        return &imev.arena_allocator.allocator;
+        return &imev.frame.arena_allocator.allocator;
     }
 
     pub fn init(alloc: *std.mem.Allocator) ImEvent {
         return .{
             .unprocessed_events = Queue(cairo.RawEvent){},
-            .should_render = undefined,
             .real_allocator = alloc,
-            .arena_allocator = undefined,
-            .cr = undefined,
+            .text_cache = TextCacheHM.init(alloc),
             .screen_size = .{ .w = 0, .h = 0 },
             .internal_screen_offset = .{ .x = 0, .y = 0 },
-            .should_continue = undefined,
-            .text_cache = TextCacheHM.init(alloc),
-            .id = undefined,
+            .frame = undefined,
         };
     }
     pub fn deinit(imev: *ImEvent) void {
@@ -373,21 +370,12 @@ pub const ImEvent = struct { // pinned?
     pub fn startFrame(imev: *ImEvent, cr: cairo.Context, should_render: bool) !void {
         const event = imev.unprocessed_events.pop(imev.real_allocator);
 
-        imev.arena_allocator = std.heap.ArenaAllocator.init(imev.real_allocator);
-        imev.* = .{
-            .unprocessed_events = imev.unprocessed_events,
+        imev.frame = .{
             .should_render = should_render,
-
-            .real_allocator = imev.real_allocator,
-            .arena_allocator = imev.arena_allocator,
-            .cr = cr,
             .should_continue = event != null,
-
-            .screen_size = imev.screen_size,
-            .internal_screen_offset = imev.internal_screen_offset,
-            .text_cache = imev.text_cache,
+            .arena_allocator = std.heap.ArenaAllocator.init(imev.real_allocator),
             .id = ID.init(imev.real_allocator),
-            // .real_allocator =
+            .cr = cr,
         };
         if (event == null) {
             var iter = imev.text_cache.iterator();
@@ -411,14 +399,15 @@ pub const ImEvent = struct { // pinned?
     }
     pub fn internalRender(imev: *ImEvent, nodes: RenderResult, offset: Point) void {
         var nodeiter = nodes;
+        const cr = imev.frame.cr;
         while (nodeiter) |node| {
             const rnode: RenderNode = node.value;
             switch (rnode.value) {
                 .rectangle => |rect| {
-                    imev.cr.renderRectangle(rect.bg_color, .{ .x = offset.x, .y = offset.y, .w = rect.wh.w, .h = rect.wh.h }, rect.radius);
+                    cr.renderRectangle(rect.bg_color, .{ .x = offset.x, .y = offset.y, .w = rect.wh.w, .h = rect.wh.h }, rect.radius);
                 },
                 .text => |text| {
-                    imev.cr.renderText(offset, text.layout, text.color);
+                    cr.renderText(offset, text.layout, text.color);
                 },
                 .place => |place| {
                     imev.internalRender(place.node, .{ .x = offset.x + place.offset.x, .y = offset.y + place.offset.y });
@@ -428,7 +417,7 @@ pub const ImEvent = struct { // pinned?
         }
     }
     pub fn endFrameRender(imev: *ImEvent, render_v: RenderResult) void {
-        if (!imev.should_render) unreachable;
+        if (!imev.frame.should_render) unreachable;
 
         imev.internalRender(render_v, imev.internal_screen_offset);
 
@@ -449,23 +438,23 @@ pub const ImEvent = struct { // pinned?
         if (!imev.internalEndFrame()) unreachable; // a render frame indicated that there was more to do this tick; this is invalid
     }
     pub fn endFrame(imev: *ImEvent) bool {
-        if (imev.should_render) unreachable;
+        if (imev.frame.should_render) unreachable;
 
         return imev.internalEndFrame();
     }
     pub fn internalEndFrame(imev: *ImEvent) bool {
-        imev.arena_allocator.deinit();
-        imev.id.deinit();
-        imev.id = undefined;
+        imev.frame.arena_allocator.deinit();
+        imev.frame.id.deinit();
+        imev.frame.id = undefined;
 
-        return !imev.should_continue; // rendering is over, do not execute more frames this frame
+        return !imev.frame.should_continue; // rendering is over, do not execute more frames this frame
     }
 
     // TODO const ctx = imev.render(@src())
     // defer ctx.pop();
     // then it adds the source location to the hash thing automatically
     pub fn render(imev: *ImEvent, src: Src) RenderCtx {
-        return RenderCtx.init(imev, imev.id.pushFunction(src));
+        return RenderCtx.init(imev, imev.frame.id.pushFunction(src));
     }
     pub fn renderNoSrc(imev: *ImEvent) RenderCtx {
         return RenderCtx.init(imev, null);
@@ -478,7 +467,7 @@ pub const ImEvent = struct { // pinned?
         } else {
             const text_dupe = imev.real_allocator.dupe(u8, key.text) catch @panic("oom");
             const font_str = std.fmt.allocPrint0(imev.arena(), "{}", .{key.font_opts}) catch @panic("oom");
-            const layout = imev.cr.layoutText(font_str.ptr, text_dupe, .{ .width = key.width });
+            const layout = imev.frame.cr.layoutText(font_str.ptr, text_dupe, .{ .width = key.width });
 
             const cache_value: TextCacheValue = .{
                 .layout = layout,
