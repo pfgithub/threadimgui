@@ -192,6 +192,13 @@ pub fn topLevelContainer(src: Src, imev: *ImEvent, width: f64, child: VLayoutMan
     };
 }
 
+// this is the state for a single navigation entry
+// the reason for not storing this in the element tree is because in the element tree it will be lost on:
+// - scrolling too far (nodes are virtual)
+// - navigating away (the entire page is no longer rendered anymore so any saved data will be dropped)
+// some things can be stored in the element tree:
+// - transitions. I'll make an imev.transition(@src(), current, 100, .easeinout)
+// : (src: Src, current: f64, duration: u64, easing: Easing): f64
 pub const AppState = struct {
     scroll: f64, // TODO this will store the current top node (body and sidebar) and the scroll offset of that node
     pub fn init() AppState {
@@ -215,6 +222,10 @@ pub fn renderApp(src: Src, imev: *ImEvent, wh: WH, page: generic.Page, state: *A
     if (scrollable.scrolling) |scrolling| {
         state.scroll += scrolling.delta.y;
     }
+    if (state.scroll <= 0) {
+        state.scroll = 0;
+    }
+    // TODO based on the maximum rendered height of all the items, limit the vertical scroll
 
     var layout = VLayoutManager.fromWidth(wh.w);
     if (wh.w > mobile_cutoff) layout.inset(20) //
