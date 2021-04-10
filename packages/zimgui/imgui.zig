@@ -1,31 +1,13 @@
 const std = @import("std");
 const app = @import("app.zig");
-const cairo = @import("backends/cairo/cairo.zig");
+const backend = @import("backends/backend.zig");
 const ID = @import("id.zig").ID;
+pub usingnamespace @import("structures.zig");
 
 pub fn range(max: usize) []const void {
     return @as([]const void, &[_]void{}).ptr[0..max];
 }
 
-pub const Color = struct {
-    r: f64,
-    g: f64,
-    b: f64,
-    a: f64 = 1,
-    pub fn rgb(r: u8, g: u8, b: u8) Color {
-        return Color{
-            .r = @intToFloat(f64, r) / 0xFF,
-            .g = @intToFloat(f64, g) / 0xFF,
-            .b = @intToFloat(f64, b) / 0xFF,
-        };
-    }
-    pub fn hex(v: u24) Color {
-        const r = @intCast(u8, (v & 0xFF0000) >> 16);
-        const g = @intCast(u8, (v & 0x00FF00) >> 8);
-        const b = @intCast(u8, (v & 0x0000FF) >> 0);
-        return Color.rgb(r, g, b);
-    }
-};
 pub const RenderNode = struct { value: union(enum) {
     rectangle: struct {
         wh: WH,
@@ -33,7 +15,7 @@ pub const RenderNode = struct { value: union(enum) {
         bg_color: Color,
     },
     text: struct {
-        layout: cairo.TextLayout,
+        layout: backend.TextLayout,
         color: Color,
     },
     place: struct {
@@ -215,7 +197,7 @@ pub const primitives = struct {
         defer ctx.pop();
 
         const all_font_opts = opts.all();
-        const w_int = cairo.pangoScale(width);
+        const w_int = backend.pangoScale(width);
         const layout = imev.layoutText(.{ .font_opts = all_font_opts, .width = w_int, .text = text_val });
 
         const size = layout.getSize();
@@ -285,55 +267,8 @@ fn Queue(comptime T: type) type {
         }
     };
 }
-pub const Point = struct {
-    x: f64,
-    y: f64,
-    pub const origin = Point{ .x = 0, .y = 0 };
-    pub fn toRectBR(pt: Point, wh: WH) Rect {
-        return .{ .x = pt.x, .y = pt.y, .w = wh.w, .h = wh.h };
-    }
-};
-pub const Rect = struct {
-    x: f64,
-    y: f64,
-    w: f64,
-    h: f64,
-    pub fn inset(rect: Rect, distance: f64) Rect {
-        return .{
-            .x = rect.x + distance,
-            .y = rect.y + distance,
-            .w = rect.w - distance * 2,
-            .h = rect.h - distance * 2,
-        };
-    }
-    pub fn wh(rect: Rect) WH {
-        return .{ .w = rect.w, .h = rect.h };
-    }
-    pub fn ul(rect: Rect) Point {
-        return .{ .x = rect.x, .y = rect.y };
-    }
-    pub fn ur(rect: Rect) Point {
-        return .{ .x = rect.x + rect.w, .y = rect.y };
-    }
-    pub fn bl(rect: Rect) Point {
-        return .{ .x = rect.x, .y = rect.y + rect.h };
-    }
-    pub fn br(rect: Rect) Point {
-        return .{ .x = rect.x + rect.w, .y = rect.y + rect.h };
-    }
-    pub fn containsPoint(rect: Rect, point: Point) bool {
-        return point.x >= rect.x and point.x < rect.x + rect.w and
-            point.y >= rect.y and point.y < rect.y + rect.h //
-        ;
-    }
-};
-pub const WH = struct {
-    w: f64,
-    h: f64,
-    // should this be float or int?
-};
 const TextCacheValue = struct {
-    layout: cairo.TextLayout,
+    layout: backend.TextLayout,
     used_in_this_render_frame: bool,
 };
 const TextCacheHM = std.HashMap(
@@ -426,12 +361,12 @@ pub const IdStateCache = struct {
 pub const ImEvent = struct { // pinned?
     // structures that are created at init.
     persistent: struct {
-        unprocessed_events: Queue(cairo.RawEvent),
+        unprocessed_events: Queue(RawEvent),
         real_allocator: *std.mem.Allocator,
         text_cache: TextCacheHM,
         screen_size: WH,
         internal_screen_offset: Point,
-        current_cursor: cairo.CursorEnum,
+        current_cursor: CursorEnum,
         allow_event_introspection: bool, // to set this a helper fn needs to be made. this must be set and then used next frame, not this frame.
 
         mouse_position: Point,
@@ -449,8 +384,8 @@ pub const ImEvent = struct { // pinned?
         should_continue: bool,
         arena_allocator: std.heap.ArenaAllocator,
         id: ID,
-        cr: cairo.Context,
-        cursor: cairo.CursorEnum,
+        cr: backend.Context,
+        cursor: CursorEnum,
 
         mouse_down: bool,
         mouse_up: bool,
@@ -477,7 +412,7 @@ pub const ImEvent = struct { // pinned?
     pub fn init(alloc: *std.mem.Allocator) ImEvent {
         return .{
             .persistent = .{
-                .unprocessed_events = Queue(cairo.RawEvent){},
+                .unprocessed_events = Queue(RawEvent){},
                 .real_allocator = alloc,
                 .text_cache = TextCacheHM.init(alloc),
                 .screen_size = .{ .w = 0, .h = 0 },
@@ -504,14 +439,14 @@ pub const ImEvent = struct { // pinned?
         }
         imev.persistent.text_cache.deinit();
     }
-    pub fn addEvent(imev: *ImEvent, event: cairo.RawEvent) !void {
+    pub fn addEvent(imev: *ImEvent, event: RawEvent) !void {
         // could use an arena allocator, unfortunately arena allocators are created at frame start
         // rather than on init 🙲 frame end.
         // TODO consolidate similar events
         try imev.persistent.unprocessed_events.push(imev.persistent.real_allocator, event);
     }
-    pub fn startFrame(imev: *ImEvent, cr: cairo.Context, should_render: bool) !void {
-        const event: ?cairo.RawEvent = imev.persistent.unprocessed_events.pop(imev.persistent.real_allocator);
+    pub fn startFrame(imev: *ImEvent, cr: backend.Context, should_render: bool) !void {
+        const event: ?RawEvent = imev.persistent.unprocessed_events.pop(imev.persistent.real_allocator);
 
         imev.frame = .{
             .should_render = should_render,
@@ -671,7 +606,7 @@ pub const ImEvent = struct { // pinned?
         return if (imev.persistent.allow_event_introspection) true else imev.frame.should_render;
     }
 
-    pub fn layoutText(imev: *ImEvent, key: TextHashKey) cairo.TextLayout {
+    pub fn layoutText(imev: *ImEvent, key: TextHashKey) backend.TextLayout {
         if (imev.persistent.text_cache.getEntry(key)) |cached_value| {
             cached_value.value.used_in_this_render_frame = true;
             return cached_value.value.layout;
@@ -727,7 +662,7 @@ pub const ClickableState = struct {
         // clicking: bool
         // click: bool
         // mpos: ?Point, // while clicking, this can go negative. coords are relative to where the node was placed.
-        pub fn setCursor(fcsd: Focused, imev: *ImEvent, cursor: cairo.CursorEnum) void {
+        pub fn setCursor(fcsd: Focused, imev: *ImEvent, cursor: CursorEnum) void {
             // alternatively: make this struct pinned and use fieldparentptr
             imev.frame.cursor = cursor;
         }
@@ -754,11 +689,6 @@ pub const ScrollableState = struct {
     scrolling: ?Scrolling,
 };
 
-pub const TopRect = struct {
-    x: f64,
-    y: f64,
-    w: f64,
-};
 pub const VLayoutManager = struct {
     top_rect: TopRect,
     uncommitted_gap: f64, // maybe don't do this it's weird ; do the opposite maybe idk
@@ -849,7 +779,7 @@ pub const VLayoutManager = struct {
     }
 };
 
-pub fn renderFrame(cr: cairo.Context, rr: cairo.RerenderRequest, data: ExecData) void {
+pub fn renderFrame(cr: backend.Context, rr: backend.RerenderRequest, data: ExecData) void {
     const timer = std.time.Timer.start() catch @panic("bad timer");
     const imev = data.imev;
     const root_state_cache = data.root_state_cache;
@@ -870,7 +800,7 @@ pub fn renderFrame(cr: cairo.Context, rr: cairo.RerenderRequest, data: ExecData)
 
     // std.log.info("rerender×{} in {}ns", .{ render_count, timer.read() }); // max allowed time is 4ms
 }
-pub fn pushEvent(ev: cairo.RawEvent, rr: cairo.RerenderRequest, data: ExecData) void {
+pub fn pushEvent(ev: RawEvent, rr: backend.RerenderRequest, data: ExecData) void {
     const imev = data.imev;
 
     imev.addEvent(ev) catch @panic("oom");
@@ -906,5 +836,5 @@ pub fn runUntilExit(alloc: *std.mem.Allocator, content: anytype, comptime render
         .imev = &imevent,
         .root_state_cache = &root_state_cache,
     };
-    try cairo.runUntilExit(exec_data, renderFrame, pushEvent);
+    try backend.runUntilExit(exec_data, renderFrame, pushEvent);
 }

@@ -2,7 +2,8 @@ usingnamespace @cImport({
     @cInclude("cairo_cbind.h");
 });
 const std = @import("std");
-const imgui = @import("../../imgui.zig"); // TODO structures.zig
+const backend = @import("../backend.zig");
+usingnamespace @import("../../structures.zig"); // a bug is causing this to leak public values even though it's not pub usingnamespace
 
 pub fn renderRect(window: *const Window, color: Color, rect: Rect) ER!void {
     setClip(window);
@@ -24,28 +25,6 @@ pub fn time_() u64 {
     return @intCast(i64, std.time.milliTimestamp());
 }
 
-pub const RawEvent = union(enum) {
-    empty: void,
-    key: struct { down: bool, key: Key, modifiers: KeyModifiers },
-    textcommit: []const u8,
-    resize: struct { x: c_int, y: c_int, w: c_int, h: c_int },
-    mouse_click: struct { button: c_uint, x: f64, y: f64, down: bool },
-    mouse_move: struct { x: f64, y: f64 },
-    scroll: struct { scroll_x: f64, scroll_y: f64 },
-};
-
-pub const KeyModifiers = packed struct {
-    shift: bool,
-    ctrl: bool,
-    alt: bool,
-    win: bool,
-    caps: bool,
-    // maybe remove alt, win, and caps? they're not all that useful
-};
-pub const Key = enum {
-    f12,
-    unsupported,
-};
 // https://gitlab.gnome.org/GNOME/gtk/blob/master/gdk/gdkkeysyms.h
 const KeyMap = enum(guint) {
     f12 = GDK_KEY_F12,
@@ -170,7 +149,7 @@ pub const TextLayout = struct {
     pub fn deinit(layout: TextLayout) void {
         g_object_unref(layout.layout);
     }
-    pub fn getSize(layout: TextLayout) imgui.WH {
+    pub fn getSize(layout: TextLayout) WH {
         var w: c_int = 0;
         var h: c_int = 0;
         pango_layout_get_size(layout.layout, &w, &h);
@@ -178,68 +157,72 @@ pub const TextLayout = struct {
     }
 };
 
-pub const CursorEnum = enum {
+pub fn cursorString(cursor: CursorEnum) [:0]const u8 {
     // https://developer.gnome.org/gdk3/stable/gdk3-Cursors.html#gdk-cursor-new-from-name
-    none,
-    default,
-    pointer,
-    @"context-menu",
-    progress,
-    wait,
-    cell,
-    crosshair,
-    text,
-    @"vertical-text",
-    alias,
-    copy,
-    @"no-drop",
-    move,
-    @"not-allowed",
-    grab,
-    grabbing,
-    @"all-scroll",
-    @"col-resize",
-    @"row-resize",
-    @"n-resize",
-    @"e-resize",
-    @"s-resize",
-    @"w-resize",
-    @"ne-resize",
-    @"nw-resize",
-    @"sw-resize",
-    @"se-resize",
-    @"ew-resize",
-    @"ns-resize",
-    @"nesw-resize",
-    @"nwse-resize",
-    @"zoom-in",
-    @"zoom-out",
-    help,
-};
+    return switch (cursor) {
+        .none => "none",
+        .default => "default",
+        .pointer => "pointer",
+
+        .n_resize => "n-resize",
+        .e_resize => "e-resize",
+        .s_resize => "s-resize",
+        .w_resize => "w-resize",
+        .ne_resize => "ne-resize",
+        .nw_resize => "nw-resize",
+        .sw_resize => "sw-resize",
+        .se_resize => "se-resize",
+
+        .ns_resize => "ns-resize",
+        .ew_resize => "ew-resize",
+        .nesw_resize => "nesw-resize",
+        .nwse_resize => "nwse-resize",
+
+        // "help",
+        // "context-menu",
+        // "progress",
+        // "wait",
+        // "cell",
+        // "crosshair",
+        // "text",
+        // "vertical-text",
+        // "alias",
+        // "copy",
+        // "no-drop",
+        // "move",
+        // "not-allowed",
+        // "grab",
+        // "grabbing",
+        // "all-scroll",
+        // "col-resize",
+        // "row-resize",
+        // "zoom-in",
+        // "zoom-out",
+    };
+}
 
 pub const Context = struct {
     cr: *cairo_t,
     widget: *GtkWidget,
-    fn setRgba(ctx: Context, color: imgui.Color) void {
+    fn setRgba(ctx: Context, color: Color) void {
         const cr = ctx.cr;
         cairo_set_source_rgba(cr, color.r, color.g, color.b, color.a);
     }
     pub fn setCursor(ctx: Context, cursor_tag: CursorEnum) void {
         const display = gtk_widget_get_display(ctx.widget);
         const window = gtk_widget_get_window(ctx.widget);
-        const cursor_tag_str0 = std.heap.c_allocator.dupeZ(u8, @tagName(cursor_tag)) catch @panic("oom");
-        const cursor = gdk_cursor_new_from_name(display, cursor_tag_str0);
+        const cursor = gdk_cursor_new_from_name(display, cursorString(cursor_tag));
         // uuh TODO free this also maybe don't create duplicate cursors like
         // store a hashmap(CursorEnum, *GdkCursor) and then free them all at the end
         gdk_window_set_cursor(window, cursor);
     }
-    pub fn renderRectangle(ctx: Context, color: imgui.Color, rect: imgui.Rect, radius: f64) void {
+    pub fn renderRectangle(ctx: Context, color: Color, rect: Rect, radius: f64) void {
         const cr = ctx.cr;
         roundedRectangle(cr, rect.x, rect.y, rect.w, rect.h, radius);
         ctx.setRgba(color);
         cairo_fill(cr);
     }
-    pub fn renderText(ctx: Context, point: imgui.Point, text: TextLayout, color: imgui.Color) void {
+    pub fn renderText(ctx: Context, point: Point, text: TextLayout, color: Color) void {
         const cr = ctx.cr;
         ctx.setRgba(color);
         cairo_save(cr);
@@ -275,14 +258,8 @@ pub const Context = struct {
     }
 };
 
-const OpaquePtrData = struct {
-    data: usize,
-    renderFrame: fn (cr: Context, rr: RerenderRequest, data: usize) void,
-    pushEvent: fn (ev: RawEvent, rr: RerenderRequest, data: usize) void,
-};
-
 const OpaqueData = extern struct {
-    zig: *OpaquePtrData,
+    zig: *backend.OpaquePtrData,
     darea: *GtkWidget,
 };
 
@@ -290,30 +267,6 @@ pub fn pangoScale(float: f64) c_int {
     return @floatToInt(gint, float * @intToFloat(f64, PANGO_SCALE));
 }
 
-pub fn start() !void {
-    if (start_gtk(0, undefined, @ptrToInt("a")) != 0) return error.Failure;
-}
-
-pub fn runUntilExit(
-    data_in: anytype,
-    comptime renderFrame: fn (cr: Context, rr: RerenderRequest, data: @TypeOf(data_in)) void,
-    comptime pushEvent: fn (ev: RawEvent, rr: RerenderRequest, data: @TypeOf(data_in)) void,
-) !void {
-    const data_ptr = @ptrToInt(&data_in);
-    comptime const DataPtr = @TypeOf(&data_in);
-    var opaque_ptr_data = OpaquePtrData{
-        .data = data_ptr,
-        .renderFrame = struct {
-            fn a(cr: Context, rr: RerenderRequest, data: usize) void {
-                return renderFrame(cr, rr, @intToPtr(DataPtr, data).*);
-            }
-        }.a,
-        .pushEvent = struct {
-            fn a(ev: RawEvent, rr: RerenderRequest, data: usize) void {
-                return pushEvent(ev, rr, @intToPtr(DataPtr, data).*);
-            }
-        }.a,
-    };
-
-    if (start_gtk(0, undefined, @intToPtr(*c_void, @ptrToInt(&opaque_ptr_data))) != 0) return error.Failure;
+pub fn start(data_ptr: *const backend.OpaquePtrData) error{Failure}!void {
+    if (start_gtk(0, undefined, @intToPtr(*c_int, @ptrToInt(data_ptr))) != 0) return error.Failure;
 }
