@@ -319,12 +319,14 @@ pub const IdStateCache = struct {
     }
     pub fn useStateCustomInit(isc: *IdStateCache, comptime src: Src, imev: *ImEvent, comptime Type: type) StateRes(Type) {
         const id = imev.frame.id.forSrc(src);
-        if (isc.hm.getEntry(id)) |entry| {
-            entry.value.used_this_frame = true;
-            return .{ .ptr = entry.value.readAs(src, Type), .initialized = true };
+
+        const hm_entry = isc.hm.getOrPut(imev.persistentAlloc(), id) catch @panic("oom");
+        if (hm_entry.found_existing) {
+            hm_entry.entry.value.used_this_frame = true;
+            return .{ .ptr = hm_entry.entry.value.readAs(src, Type), .initialized = true };
         }
         var item_ptr: *Type = imev.persistentAlloc().create(Type) catch @panic("oom");
-        isc.hm.putNoClobber(imev.persistentAlloc(), id, .{
+        hm_entry.entry.value = .{
             .ptr = @ptrToInt(item_ptr),
             .deinitFn = struct {
                 fn a(entry: Entry, imev_shadow: *ImEvent) void {
@@ -339,7 +341,7 @@ pub const IdStateCache = struct {
             .created_src_line = src.line,
             .created_src_col = src.column,
             .used_this_frame = true,
-        }) catch @panic("oom");
+        };
         return .{ .ptr = item_ptr, .initialized = false };
     }
     pub fn cleanupUnused(isc: *IdStateCache, imev: *ImEvent) void {
