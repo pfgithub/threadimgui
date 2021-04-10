@@ -686,7 +686,7 @@ pub const ImEvent = struct { // pinned?
 
     pub fn clickable(imev: *ImEvent, src: Src) ClickableState {
         const id = imev.frame.id.forSrc(src);
-        return ClickableState{ .id = id, .imev = imev, .focused = if (imev.persistent.mouse_focused) |mfx| if (mfx.id == id) ClickableState.Focused{
+        return ClickableState{ .key = .{ .id = id }, .focused = if (imev.persistent.mouse_focused) |mfx| if (mfx.id == id) ClickableState.Focused{
             .hover = mfx.hover,
             .click = imev.frame.mouse_up and mfx.hover,
         } else null else null };
@@ -694,14 +694,22 @@ pub const ImEvent = struct { // pinned?
 
     pub fn scrollable(imev: *ImEvent, src: Src) ScrollableState {
         const id = imev.frame.id.forSrc(src);
-        return ScrollableState{ .id = id, .imev = imev, .scrolling = if (imev.persistent.scroll_focused) |scr| if (scr.id == id) ScrollableState.Scrolling{
+        return ScrollableState{ .key = .{ .id = id }, .scrolling = if (imev.persistent.scroll_focused) |scr| if (scr.id == id) ScrollableState.Scrolling{
             .delta = scr.delta,
         } else null else null };
     }
 };
 pub const Src = ID.Src;
 
-const ClickableState = struct {
+pub const ClickableKey = struct {
+    id: u64,
+    pub fn node(key: ClickableKey, imev: *ImEvent, wh: WH) RenderResult {
+        var ctx = imev.renderNoSrc();
+        ctx.putRenderNode(.{ .value = .{ .clickable = .{ .id = key.id, .wh = wh } } });
+        return ctx.result();
+    }
+};
+pub const ClickableState = struct {
     const Focused = struct {
         hover: bool,
         click: bool,
@@ -714,32 +722,26 @@ const ClickableState = struct {
             imev.frame.cursor = cursor;
         }
     };
-    id: u64,
-    imev: *ImEvent,
+    key: ClickableKey,
 
     focused: ?Focused,
+};
 
-    pub fn node(fc: ClickableState, wh: WH) RenderResult {
-        var ctx = fc.imev.renderNoSrc();
-        ctx.putRenderNode(.{ .value = .{ .clickable = .{ .id = fc.id, .wh = wh } } });
+pub const ScrollableKey = struct {
+    id: u64,
+    pub fn node(key: ScrollableKey, imev: *ImEvent, wh: WH) RenderResult {
+        var ctx = imev.renderNoSrc();
+        ctx.putRenderNode(.{ .value = .{ .scrollable = .{ .id = key.id, .wh = wh } } });
         return ctx.result();
     }
 };
-
-const ScrollableState = struct {
+pub const ScrollableState = struct {
     const Scrolling = struct {
         delta: Point,
     };
-    id: u64,
-    imev: *ImEvent,
+    key: ScrollableKey,
 
     scrolling: ?Scrolling,
-
-    pub fn node(fc: ScrollableState, wh: WH) RenderResult {
-        var ctx = fc.imev.renderNoSrc();
-        ctx.putRenderNode(.{ .value = .{ .scrollable = .{ .id = fc.id, .wh = wh } } });
-        return ctx.result();
-    }
 };
 
 pub const TopRect = struct {

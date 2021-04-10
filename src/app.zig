@@ -83,7 +83,7 @@ fn renderAction(src: Src, imev: *ImEvent, isc: *IdStateCache, action: generic.Ac
         }
     }
     ctx.place(insetv.node, Point.origin);
-    ctx.place(clickable.node(insetv.wh), Point.origin);
+    ctx.place(clickable.key.node(imev, insetv.wh), Point.origin);
 
     return .{
         .wh = insetv.wh,
@@ -150,28 +150,40 @@ const HLayoutManager = struct {
     }
 };
 
+pub const ButtonKey = struct {
+    hover: bool,
+    clicked: bool,
+    key: ui.ClickableKey,
+};
+
 pub const ButtonRes = struct {
     widget: Widget,
     clicked: bool,
 };
-fn renderButton(src: Src, imev: *ImEvent, text: []const u8) ButtonRes {
+fn keyButton(src: Src, imev: *ImEvent) ButtonKey {
+    const pop = imev.frame.id.pushFunction(src);
+    defer pop.pop();
+
+    const clicked_state = imev.clickable(@src());
+    return .{
+        .hover = if (clicked_state.focused) |fxd| fxd.hover else false,
+        .clicked = if (clicked_state.focused) |fxd| fxd.click else false,
+        .key = clicked_state.key,
+    };
+}
+fn renderButton(src: Src, imev: *ImEvent, key: ButtonKey, text: []const u8) Widget {
     var ctx = imev.render(src);
     defer ctx.pop();
 
-    var clicked_state = imev.clickable(@src());
-
     const btn_widget = inset(@src(), imev, 4, primitives.text(@src(), imev, .{ .size = .sm, .color = .white }, text));
 
-    if (clicked_state.focused) |fcsd| if (fcsd.hover) {
+    if (key.hover) {
         ctx.place(primitives.rect(@src(), imev, btn_widget.wh, .{ .bg = .gray700 }), Point.origin);
-    };
-    ctx.place(clicked_state.node(btn_widget.wh), Point.origin);
+    }
+    ctx.place(key.key.node(imev, btn_widget.wh), Point.origin);
     ctx.place(btn_widget.node, Point.origin);
 
-    return .{
-        .widget = .{ .node = ctx.result(), .wh = btn_widget.wh },
-        .clicked = if (clicked_state.focused) |fsc| fsc.click else false,
-    };
+    return .{ .node = ctx.result(), .wh = btn_widget.wh };
 }
 
 fn renderBody(src: Src, imev: *ImEvent, isc: *IdStateCache, body: generic.Body, width: f64) VLayoutManager.Child {
@@ -214,9 +226,9 @@ fn renderPost(src: Src, imev: *ImEvent, isc: *IdStateCache, width: f64, node: ge
     {
         var actions_lm = HLayoutManager.init(imev, .{ .max_w = layout.top_rect.w, .gap_x = 8, .gap_y = 0 });
 
-        const button = renderButton(@src(), imev, if (state.display_body) "Hide" else "Show");
-        actions_lm.put(button.widget) orelse unreachable;
-        if (button.clicked) {
+        const btn_key = keyButton(@src(), imev);
+        actions_lm.put(renderButton(@src(), imev, btn_key, if (state.display_body) "Hide" else "Show")) orelse unreachable;
+        if (btn_key.clicked) {
             state.display_body = !state.display_body;
         }
 
@@ -298,7 +310,7 @@ pub fn renderApp(src: Src, imev: *ImEvent, isc: *IdStateCache, wh: WH, page: gen
     const mobile_cutoff = 600;
 
     const scrollable = imev.scrollable(@src());
-    ctx.place(scrollable.node(wh), Point.origin);
+    ctx.place(scrollable.key.node(imev, wh), Point.origin);
 
     if (scrollable.scrolling) |scrolling| {
         state.scroll += scrolling.delta.y;
