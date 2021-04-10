@@ -23,6 +23,10 @@ gboolean zig_motion_notify_event(GtkWidget *widget, GdkEventMotion *event, gpoin
 
 gboolean zig_scroll_event(GtkWidget *widget, GdkEventScroll *event, gpointer data);
 
+gboolean zig_key_press_event(GtkWidget *widget, GdkEventKey *event, gpointer data);
+gboolean zig_key_release_event(GtkWidget *widget, GdkEventKey *event, gpointer data);
+void zig_on_commit_event(GtkIMContext *context, char *str, gpointer data);
+
 static void destroy(GtkWidget *widget, gpointer data) {
     gtk_main_quit ();
 }
@@ -98,12 +102,13 @@ IMPL({
 		| GDK_SMOOTH_SCROLL_MASK
 	);
 
-	// g_signal_connect(G_OBJECT(window), "key_press_event", G_CALLBACK(on_keypress_event), im_context);
-	// g_signal_connect(G_OBJECT(window), "key_release_event", G_CALLBACK(on_keyrelease_event), NULL);
-	// g_signal_connect(im_context, "commit", G_CALLBACK(zig_on_commit_event), NULL);
-	//g_signal_connect(im_context, "delete-surrounding", G_CALLBACK(zig_on_delete_surrounding_event), NULL);
-	//g_signal_connect(im_context, "preedit-changed", G_CALLBACK(zig_on_preedit_changed_event), NULL);
-	//g_signal_connect(im_context, "retrieve-surrounding", G_CALLBACK(zig_on_retrieve_surrounding_event), NULL);
+	g_signal_connect(G_OBJECT(window), "key_press_event", G_CALLBACK(zig_key_press_event), im_context);
+	g_signal_connect(G_OBJECT(window), "key_release_event", G_CALLBACK(zig_key_release_event), NULL);
+	g_signal_connect(im_context, "commit", G_CALLBACK(zig_on_commit_event), NULL);
+	//g_signal_connect(im_context, "delete-surrounding", G_CALLBACK(zig_delete_surrounding_event), NULL);
+	//g_signal_connect(im_context, "preedit-changed", G_CALLBACK(zig_preedit_changed_event), NULL);
+	//g_signal_connect(im_context, "retrieve-surrounding", G_CALLBACK(zig_retrieve_surrounding_event), NULL);
+	//TODO specify location of IME screen
 
 	gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
 	gtk_window_set_default_size(GTK_WINDOW(window), 400, 90); 

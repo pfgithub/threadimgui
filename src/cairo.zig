@@ -44,8 +44,7 @@ const GdkEventKey_f = extern struct {
 
 pub const RawEvent = union(enum) {
     empty: void,
-    keypress: *GdkEventKey_f,
-    keyrelease: *GdkEventKey_f,
+    key_press: struct { down: bool },
     textcommit: []const u8,
     resize: struct { x: c_int, y: c_int, w: c_int, h: c_int },
     mouse_click: struct { button: c_uint, x: f64, y: f64, down: bool },
@@ -59,25 +58,6 @@ export fn zig_on_draw_event(widget: *GtkWidget, cr: *cairo_t, user_data: gpointe
     main.renderFrame(Context{ .cr = cr, .widget = widget }, rrFrom(widget));
     return 0;
 }
-// export fn zig_on_keypress_event(evk: *GdkEventKey_f, im_context: *GtkIMContext) callconv(.C) gboolean {
-//     main.pushEvent(.{ .keypress = evk });
-//     return gtk_im_context_filter_keypress(im_context, evk.c()); // don't do this for modifier keys obv
-// }
-// export fn zig_on_keyrelease_event(evk: *GdkEventKey_f) callconv(.C) void {
-//     main.pushEvent(.{ .keyrelease = evk });
-// }
-// export fn zig_on_commit_event(context: *GtkIMContext, str: [*:0]gchar, user_data: gpointer) callconv(.C) void {
-//     main.pushEvent(.{ .textcommit = std.mem.span(str) });
-// }
-// export fn zig_on_delete_surrounding_event(context: *GtkIMContext, offset: gint, n_chars: gint, user_data: gpointer) callconv(.C) gboolean {
-//     @panic("TODO implement IME support");
-// }
-// export fn zig_on_preedit_changed_event(context: *GtkIMContext, user_data: gpointer) callconv(.C) void {
-//     @panic("TODO implement IME support");
-// }
-// export fn zig_on_retrieve_surrounding_event(context: *GtkIMContext, user_data: gpointer) callconv(.C) gboolean {
-//     @panic("TODO implement IME support");
-// }
 export fn zig_on_resize_event(widget: *GtkWidget, rect: *GdkRectangle, user_data: gpointer) callconv(.C) gboolean {
     main.pushEvent(.{ .resize = .{ .x = rect.x, .y = rect.y, .w = rect.width, .h = rect.height } }, rrFrom(widget));
     return 1;
@@ -109,6 +89,17 @@ export fn zig_scroll_event(widget: *GtkWidget, event: *GdkEventScroll, data: gpo
     main.pushEvent(.{ .scroll = .{ .scroll_x = delta_x * SCROLL_SPEED, .scroll_y = delta_y * SCROLL_SPEED } }, rrFrom(widget));
     // this passes a mouse position event, I'm just going to hope that mouse motion handles that for me though
     return 1;
+}
+export fn zig_key_press_event(widget: *GtkWidget, event: *GdkEventKey, data: gpointer) callconv(.C) gboolean {
+    main.pushEvent(.{ .key_press = .{ .down = true } }, rrFrom(widget));
+    return 1;
+}
+export fn zig_key_release_event(widget: *GtkWidget, event: *GdkEventKey, data: gpointer) callconv(.C) gboolean {
+    main.pushEvent(.{ .key_press = .{ .down = true } }, rrFrom(widget));
+    return 1;
+}
+export fn zig_on_commit_event(context: *GtkIMContext, text: [*:0]const u8, data: gpointer) callconv(.C) void {
+    std.log.info("Commit `{s}`", .{text});
 }
 
 fn rrFrom(widget: *GtkWidget) RerenderRequest {
