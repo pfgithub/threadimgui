@@ -24,32 +24,38 @@ pub fn time_() u64 {
     return @intCast(i64, std.time.milliTimestamp());
 }
 
-// has bitfield
-const GdkEventKey_f = extern struct {
-    type_: GdkEventType,
-    window: *GdkWindow,
-    send_event: gint8,
-    time: gint32,
-    state: guint,
-    keyval: guint,
-    length: gint,
-    string: [*]gchar,
-    hardware_keycode: guint16,
-    group: guint8,
-    is_modifier: u8, // bitfield u1
-    fn c(me: *GdkEventKey_f) *GdkEventKey {
-        return @ptrCast(*GdkEventKey, me);
-    }
-};
-
 pub const RawEvent = union(enum) {
     empty: void,
-    key_press: struct { down: bool },
+    key: struct { down: bool, key: Key, modifiers: KeyModifiers },
     textcommit: []const u8,
     resize: struct { x: c_int, y: c_int, w: c_int, h: c_int },
     mouse_click: struct { button: c_uint, x: f64, y: f64, down: bool },
     mouse_move: struct { x: f64, y: f64 },
     scroll: struct { scroll_x: f64, scroll_y: f64 },
+};
+
+pub const KeyModifiers = packed struct {
+    shift: bool,
+    ctrl: bool,
+    alt: bool,
+    win: bool,
+    caps: bool,
+    // maybe remove alt, win, and caps? they're not all that useful
+};
+pub const Key = enum {
+    f12,
+    unsupported,
+};
+// https://gitlab.gnome.org/GNOME/gtk/blob/master/gdk/gdkkeysyms.h
+const KeyMap = enum(guint) {
+    f12 = GDK_KEY_F12,
+    _,
+    pub fn toKey(raw: KeyMap) Key {
+        return switch (raw) {
+            .f12 => .f12,
+            _ => .unsupported,
+        };
+    }
 };
 
 // oh I can have user data I should use that
@@ -90,16 +96,41 @@ export fn zig_scroll_event(widget: *GtkWidget, event: *GdkEventScroll, data: *Op
     // this passes a mouse position event, I'm just going to hope that mouse motion handles that for me though
     return 1;
 }
-export fn zig_key_press_event(widget: *GtkWidget, event: *GdkEventKey, data: *OpaqueData) callconv(.C) gboolean {
-    data.zig.pushEvent(.{ .key_press = .{ .down = true } }, rrFrom(data.darea), data.zig.data);
-    return 1;
-}
-export fn zig_key_release_event(widget: *GtkWidget, event: *GdkEventKey, data: *OpaqueData) callconv(.C) gboolean {
-    data.zig.pushEvent(.{ .key_press = .{ .down = true } }, rrFrom(data.darea), data.zig.data);
+export fn zig_key_event(widget: *GtkWidget, event: *GdkEventKey, data: *OpaqueData) callconv(.C) gboolean {
+    // check:
+    // event.type == GDK_KEY_PRESS || GDK_KEY_RELEASE,
+    // event.hardware_keycode, event.is_modifier == 1,
+    // event.keyval, https://gitlab.gnome.org/GNOME/gtk/blob/master/gdk/gdkkeysyms.h
+
+    var ev_type: GdkEventType = undefined;
+    var keyval: guint = undefined; // https://gitlab.gnome.org/GNOME/gtk/blob/master/gdk/gdkkeysyms.h
+    var modifiers: guint = undefined; // https://developer.gnome.org/gdk3/unstable/gdk3-Windows.html#GdkModifierType
+
+    extract_key_event_fields(event, &ev_type, &keyval, &modifiers);
+
+    const mapped = @intToEnum(KeyMap, keyval);
+
+    const is_down = switch (ev_type) {
+        .GDK_KEY_PRESS => true,
+        .GDK_KEY_RELEASE => false,
+        else => return 1,
+    };
+
+    // https://developer.gnome.org/gdk3/unstable/gdk3-Windows.html#GdkModifierType
+    data.zig.pushEvent(.{ .key = .{ .down = is_down, .key = mapped.toKey(), .modifiers = .{
+        .shift = modifiers & GDK_SHIFT_MASK != 0,
+        .ctrl = modifiers & GDK_CONTROL_MASK != 0,
+        .alt = modifiers & GDK_MOD1_MASK != 0,
+        .win = modifiers & GDK_MOD4_MASK != 0,
+        .caps = modifiers & GDK_LOCK_MASK != 0,
+    } } }, rrFrom(data.darea), data.zig.data);
     return 1;
 }
 export fn zig_on_commit_event(context: *GtkIMContext, text: [*:0]const u8, data: *OpaqueData) callconv(.C) void {
-    // std.log.info("Commit `{s}`", .{text});
+    // note: to start recieving im events, you must request them:
+    // gtk_im_context_focus_in / gtk_im_context_focus_out
+    // https://developer.gnome.org/gtk3/stable/GtkIMContext.html#gtk-im-context-focus-out
+    // so an input should, if it's focused, tell imev that next frame an input is focused.
     data.zig.pushEvent(.{ .textcommit = std.mem.span(text) }, rrFrom(data.darea), data.zig.data);
 }
 

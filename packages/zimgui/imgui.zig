@@ -562,6 +562,17 @@ pub const ImEvent = struct { // pinned?
                 // imev.persistent.mouse_position = .{ .x = sev.mouse_x, .y = sev.mouse_y };
                 imev.frame.scroll_delta = .{ .x = sev.scroll_x, .y = sev.scroll_y };
             },
+            .key => |key| {
+                std.log.info("key: {s}{s}{s}{s}{s}{s}{s}", .{
+                    (&[_][]const u8{ "↑", "↓" })[@boolToInt(key.down)],
+                    @tagName(key.key),
+                    (&[_][]const u8{ "", " ⌃" })[@boolToInt(key.modifiers.ctrl)],
+                    (&[_][]const u8{ "", " ⎇ " })[@boolToInt(key.modifiers.alt)],
+                    (&[_][]const u8{ "", " ⇧" })[@boolToInt(key.modifiers.shift)],
+                    (&[_][]const u8{ "", " ⌘" })[@boolToInt(key.modifiers.win)],
+                    "",
+                });
+            },
             else => {},
         };
     }

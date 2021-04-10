@@ -23,8 +23,7 @@ gboolean zig_motion_notify_event(GtkWidget *widget, GdkEventMotion *event, gpoin
 
 gboolean zig_scroll_event(GtkWidget *widget, GdkEventScroll *event, gpointer data);
 
-gboolean zig_key_press_event(GtkWidget *widget, GdkEventKey *event, gpointer data);
-gboolean zig_key_release_event(GtkWidget *widget, GdkEventKey *event, gpointer data);
+gboolean zig_key_event(GtkWidget *widget, GdkEventKey *event, gpointer data);
 void zig_on_commit_event(GtkIMContext *context, char *str, gpointer data);
 
 static void destroy(GtkWidget *widget, gpointer data) {
@@ -65,6 +64,13 @@ gboolean get_scroll_delta(GdkEventScroll *event, gdouble *out_x, gdouble *out_y)
 	}else{
 		return FALSE;
 	}
+})
+
+// it has bitfields https://developer.gnome.org/gdk3/unstable/gdk3-Event-Structures.html#GdkEventKey
+void extract_key_event_fields(GdkEventKey* event, GdkEventType* out_event_type, guint* out_keyval, guint* out_modifiers) IMPL({
+	*out_event_type = event->type;
+	*out_keyval = event->keyval;
+	*out_modifiers = event->state;
 })
 
 IMPLONLY(
@@ -113,8 +119,8 @@ IMPL({
 	);
 
 	// https://developer.gnome.org/gtk3/stable/GtkWidget.html#GtkWidget-key-press-event
-	g_signal_connect(G_OBJECT(window), "key_press_event", G_CALLBACK(zig_key_press_event), user_ptr);
-	g_signal_connect(G_OBJECT(window), "key_release_event", G_CALLBACK(zig_key_release_event), user_ptr);
+	g_signal_connect(G_OBJECT(window), "key_press_event", G_CALLBACK(zig_key_event), user_ptr);
+	g_signal_connect(G_OBJECT(window), "key_release_event", G_CALLBACK(zig_key_event), user_ptr);
 
 	// https://developer.gnome.org/gtk3/stable/GtkIMContext.html
 	g_signal_connect(im_context, "commit", G_CALLBACK(zig_on_commit_event), user_ptr);
