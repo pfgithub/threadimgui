@@ -230,10 +230,7 @@ pub const Context = struct {
         pango_cairo_show_layout(cr, text.layout);
         cairo_restore(cr);
     }
-    const TextLayoutOpts = struct {
-        width: ?c_int, // pango scaled
-    };
-    pub fn layoutText(ctx: Context, font: [*:0]const u8, text: []const u8, opts: TextLayoutOpts) TextLayout {
+    pub fn layoutText(ctx: Context, font: [*:0]const u8, text: []const u8, width: ?c_int) TextLayout {
         const cr = ctx.cr;
         // if (layout == null) {
         const layout = pango_cairo_create_layout(cr) orelse @panic("no layout"); // ?*PangoLayout, g_object_unref(layout)
@@ -245,7 +242,7 @@ pub const Context = struct {
         }
         pango_layout_set_text(layout, text.ptr, @intCast(gint, text.len));
 
-        if (opts.width) |w| pango_layout_set_width(layout, w);
+        if (width) |w| pango_layout_set_width(layout, w);
         pango_layout_set_wrap(layout, .PANGO_WRAP_WORD_CHAR);
 
         return TextLayout{ .layout = layout };
