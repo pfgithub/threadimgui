@@ -217,7 +217,7 @@ fn renderPost(src: Src, imev: *ImEvent, isc: *IdStateCache, width: f64, node: ge
     var ctx = imev.render(src);
     defer ctx.pop();
 
-    const state = isc.state(@src(), imev, PostState, PostState.init); // |_| .{.display_body = node.default_open}
+    const state = isc.useState(@src(), imev, PostState, PostState.init); // |_| .{.display_body = node.default_open}
 
     var layout = VLayoutManager.fromWidth(width);
 
@@ -300,7 +300,7 @@ pub fn renderApp(src: Src, imev: *ImEvent, isc: *IdStateCache, wh: WH, page: gen
     var ctx = imev.render(src);
     defer ctx.pop();
 
-    const state = isc.state(@src(), imev, AppState, AppState.init); // |_| AppState.init()
+    const state = isc.useState(@src(), imev, AppState, AppState.init); // |_| AppState.init()
 
     ctx.place(primitives.rect(@src(), imev, wh, .{ .bg = .gray100 }), Point.origin);
 

@@ -306,14 +306,24 @@ pub const IdStateCache = struct {
     // this is where |these| {things} would be useful:
     // ` cache.state(@src(), imev, struct{x: f64}, |_| .{.x = 25});
     // unfortunately, not yet
-    pub fn state(isc: *IdStateCache, comptime src: Src, imev: *ImEvent, comptime Type: type, comptime initFn: fn () Type) *Type {
+    pub fn useState(isc: *IdStateCache, comptime src: Src, imev: *ImEvent, comptime Type: type, comptime initFn: fn () Type) *Type {
+        var res = isc.useStateCustomInit(src, imev, Type);
+        if (!res.initialized) res.ptr.* = initFn();
+        return res.ptr;
+    }
+    fn StateRes(comptime Type: type) type {
+        return struct {
+            ptr: *Type,
+            initialized: bool,
+        };
+    }
+    pub fn useStateCustomInit(isc: *IdStateCache, comptime src: Src, imev: *ImEvent, comptime Type: type) StateRes(Type) {
         const id = imev.frame.id.forSrc(src);
         if (isc.hm.getEntry(id)) |entry| {
             entry.value.used_this_frame = true;
-            return entry.value.readAs(src, Type);
+            return .{ .ptr = entry.value.readAs(src, Type), .initialized = true };
         }
         var item_ptr: *Type = imev.persistentAlloc().create(Type) catch @panic("oom");
-        item_ptr.* = initFn();
         isc.hm.putNoClobber(imev.persistentAlloc(), id, .{
             .ptr = @ptrToInt(item_ptr),
             .deinitFn = struct {
@@ -330,7 +340,7 @@ pub const IdStateCache = struct {
             .created_src_col = src.column,
             .used_this_frame = true,
         }) catch @panic("oom");
-        return item_ptr;
+        return .{ .ptr = item_ptr, .initialized = false };
     }
     pub fn cleanupUnused(isc: *IdStateCache, imev: *ImEvent) void {
         if (!imev.isRenderFrame()) return;
