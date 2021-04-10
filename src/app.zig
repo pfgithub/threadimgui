@@ -154,13 +154,27 @@ pub const ButtonKey = struct {
     hover: bool,
     clicked: bool,
     key: ui.ClickableKey,
+    pub fn render(key: ButtonKey, src: Src, imev: *ImEvent, text: []const u8) Widget {
+        var ctx = imev.render(src);
+        defer ctx.pop();
+
+        const btn_widget = inset(@src(), imev, 4, primitives.text(@src(), imev, .{ .size = .sm, .color = .white }, text));
+
+        if (key.hover) {
+            ctx.place(primitives.rect(@src(), imev, btn_widget.wh, .{ .bg = .gray700 }), Point.origin);
+        }
+        ctx.place(key.key.node(imev, btn_widget.wh), Point.origin);
+        ctx.place(btn_widget.node, Point.origin);
+
+        return .{ .node = ctx.result(), .wh = btn_widget.wh };
+    }
 };
 
 pub const ButtonRes = struct {
     widget: Widget,
     clicked: bool,
 };
-fn keyButton(src: Src, imev: *ImEvent) ButtonKey {
+fn useButton(src: Src, imev: *ImEvent) ButtonKey {
     const pop = imev.frame.id.pushFunction(src);
     defer pop.pop();
 
@@ -170,20 +184,6 @@ fn keyButton(src: Src, imev: *ImEvent) ButtonKey {
         .clicked = if (clicked_state.focused) |fxd| fxd.click else false,
         .key = clicked_state.key,
     };
-}
-fn renderButton(src: Src, imev: *ImEvent, key: ButtonKey, text: []const u8) Widget {
-    var ctx = imev.render(src);
-    defer ctx.pop();
-
-    const btn_widget = inset(@src(), imev, 4, primitives.text(@src(), imev, .{ .size = .sm, .color = .white }, text));
-
-    if (key.hover) {
-        ctx.place(primitives.rect(@src(), imev, btn_widget.wh, .{ .bg = .gray700 }), Point.origin);
-    }
-    ctx.place(key.key.node(imev, btn_widget.wh), Point.origin);
-    ctx.place(btn_widget.node, Point.origin);
-
-    return .{ .node = ctx.result(), .wh = btn_widget.wh };
 }
 
 fn renderBody(src: Src, imev: *ImEvent, isc: *IdStateCache, body: generic.Body, width: f64) VLayoutManager.Child {
@@ -226,8 +226,8 @@ fn renderPost(src: Src, imev: *ImEvent, isc: *IdStateCache, width: f64, node: ge
     {
         var actions_lm = HLayoutManager.init(imev, .{ .max_w = layout.top_rect.w, .gap_x = 8, .gap_y = 0 });
 
-        const btn_key = keyButton(@src(), imev);
-        actions_lm.put(renderButton(@src(), imev, btn_key, if (state.display_body) "Hide" else "Show")) orelse unreachable;
+        const btn_key = useButton(@src(), imev);
+        actions_lm.put(btn_key.render(@src(), imev, if (state.display_body) "Hide" else "Show")) orelse unreachable;
         if (btn_key.clicked) {
             state.display_body = !state.display_body;
         }
