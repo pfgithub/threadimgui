@@ -66,7 +66,6 @@ disadvantages of this specific imgui implementation:
 - slow
 - has a very low chance of randomly glitching. this is fixable but it means it will be slightly slower. it might be worth the
   performance cost to fix though
-- currently has a bug where sometimes the wrong text will render? not sure why yet (this is not related to the above)
 
 # notes
 

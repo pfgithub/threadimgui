@@ -135,7 +135,7 @@ const TextHashKey = struct {
     width: ?c_int,
     text: []const u8, // a duplicate is made using the persistent allocator before storing in the hm across frames
     pub fn eql(a: TextHashKey, b: TextHashKey) bool {
-        return std.meta.eql(a.font_opts, b.font_opts) or std.meta.eql(a.width, b.width) or std.mem.eql(u8, a.text, b.text);
+        return std.meta.eql(a.font_opts, b.font_opts) and std.meta.eql(a.width, b.width) and std.mem.eql(u8, a.text, b.text);
     }
     pub fn hash(key: TextHashKey) u64 {
         var hasher = std.hash.Wyhash.init(0);
