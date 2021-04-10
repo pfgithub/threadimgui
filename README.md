@@ -100,3 +100,15 @@ copy(
 ```
 
 eventually, this will be done automatically through one of: (node server | embedded javascript runtime)
+
+# notes
+
+- rename hook functions `useX()`? like react
+- `const state = blk: {const state = useState(imev, @src(), StateType); if(!state.initialized) state.value.* = StateType.init(); break :blk &state.value;}`
+- uuh
+- `const state = useState(imev, @src(), StateType)`
+- that's what I meant
+- and same for buttons
+- `const button = useButton(imev, @src());`
+- `place(button.value("text"))`
+- oh yeah, why does buttonkey not have the widget() fn on it? fix that
