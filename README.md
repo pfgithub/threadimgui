@@ -112,3 +112,4 @@ eventually, this will be done automatically through one of: (node server | embed
 - `const button = useButton(imev, @src());`
 - `place(button.value("text"))`
 - oh yeah, why does buttonkey not have the widget() fn on it? fix that
+- also - maybe not but what about making imev a global variable so it can just be `useButton(@src())`
