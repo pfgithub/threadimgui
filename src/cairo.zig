@@ -54,52 +54,53 @@ pub const RawEvent = union(enum) {
 
 // oh I can have user data I should use that
 // pass it through the start fn
-export fn zig_on_draw_event(widget: *GtkWidget, cr: *cairo_t, user_data: gpointer) callconv(.C) gboolean {
-    main.renderFrame(Context{ .cr = cr, .widget = widget }, rrFrom(widget));
+export fn zig_on_draw_event(widget: *GtkWidget, cr: *cairo_t, data: *OpaqueData) callconv(.C) gboolean {
+    main.renderFrame(Context{ .cr = cr, .widget = widget }, rrFrom(data.darea));
     return 0;
 }
-export fn zig_on_resize_event(widget: *GtkWidget, rect: *GdkRectangle, user_data: gpointer) callconv(.C) gboolean {
-    main.pushEvent(.{ .resize = .{ .x = rect.x, .y = rect.y, .w = rect.width, .h = rect.height } }, rrFrom(widget));
+export fn zig_on_resize_event(widget: *GtkWidget, rect: *GdkRectangle, data: *OpaqueData) callconv(.C) gboolean {
+    main.pushEvent(.{ .resize = .{ .x = rect.x, .y = rect.y, .w = rect.width, .h = rect.height } }, rrFrom(data.darea));
     return 1;
 }
-export fn zig_button_press_event(widget: *GtkWidget, event: *GdkEventButton, data: gpointer) callconv(.C) gboolean {
+export fn zig_button_press_event(widget: *GtkWidget, event: *GdkEventButton, data: *OpaqueData) callconv(.C) gboolean {
     // std.log.info("Button ↓{} at ({}, {})", .{ event.button, event.x, event.y });
-    main.pushEvent(.{ .mouse_click = .{ .down = true, .x = event.x, .y = event.y, .button = event.button } }, rrFrom(widget));
+    main.pushEvent(.{ .mouse_click = .{ .down = true, .x = event.x, .y = event.y, .button = event.button } }, rrFrom(data.darea));
     return 1;
 }
-export fn zig_button_release_event(widget: *GtkWidget, event: *GdkEventButton, data: gpointer) callconv(.C) gboolean {
+export fn zig_button_release_event(widget: *GtkWidget, event: *GdkEventButton, data: *OpaqueData) callconv(.C) gboolean {
     // std.log.info("Button ↑{} at ({}, {})", .{ event.button, event.x, event.y });
-    main.pushEvent(.{ .mouse_click = .{ .down = false, .x = event.x, .y = event.y, .button = event.button } }, rrFrom(widget));
+    main.pushEvent(.{ .mouse_click = .{ .down = false, .x = event.x, .y = event.y, .button = event.button } }, rrFrom(data.darea));
     return 1;
 }
-export fn zig_motion_notify_event(widget: *GtkWidget, event: *GdkEventMotion, data: gpointer) callconv(.C) gboolean {
+export fn zig_motion_notify_event(widget: *GtkWidget, event: *GdkEventMotion, data: *OpaqueData) callconv(.C) gboolean {
     // std.log.info("Mouse to ({}, {})", .{ event.x, event.y });
-    main.pushEvent(.{ .mouse_move = .{ .x = event.x, .y = event.y } }, rrFrom(widget));
+    main.pushEvent(.{ .mouse_move = .{ .x = event.x, .y = event.y } }, rrFrom(data.darea));
     return 1;
 }
 const SCROLL_SPEED = 55;
 // gtk does not appear to tell you the scroll speed + there does not appear to be a standard scroll speed
 // setting on linux
-export fn zig_scroll_event(widget: *GtkWidget, event: *GdkEventScroll, data: gpointer) callconv(.C) gboolean {
+export fn zig_scroll_event(widget: *GtkWidget, event: *GdkEventScroll, data: *OpaqueData) callconv(.C) gboolean {
     // https://bugzilla.gnome.org/show_bug.cgi?id=675959
     var delta_x: gdouble = undefined;
     var delta_y: gdouble = undefined;
     if (get_scroll_delta(event, &delta_x, &delta_y) == 0) unreachable;
     // TODO if shift key pressed && delta_x == 0, delta_x = delta_y, delta_y = 0;
-    main.pushEvent(.{ .scroll = .{ .scroll_x = delta_x * SCROLL_SPEED, .scroll_y = delta_y * SCROLL_SPEED } }, rrFrom(widget));
+    main.pushEvent(.{ .scroll = .{ .scroll_x = delta_x * SCROLL_SPEED, .scroll_y = delta_y * SCROLL_SPEED } }, rrFrom(data.darea));
     // this passes a mouse position event, I'm just going to hope that mouse motion handles that for me though
     return 1;
 }
-export fn zig_key_press_event(widget: *GtkWidget, event: *GdkEventKey, data: gpointer) callconv(.C) gboolean {
-    main.pushEvent(.{ .key_press = .{ .down = true } }, rrFrom(widget));
+export fn zig_key_press_event(widget: *GtkWidget, event: *GdkEventKey, data: *OpaqueData) callconv(.C) gboolean {
+    main.pushEvent(.{ .key_press = .{ .down = true } }, rrFrom(data.darea));
     return 1;
 }
-export fn zig_key_release_event(widget: *GtkWidget, event: *GdkEventKey, data: gpointer) callconv(.C) gboolean {
-    main.pushEvent(.{ .key_press = .{ .down = true } }, rrFrom(widget));
+export fn zig_key_release_event(widget: *GtkWidget, event: *GdkEventKey, data: *OpaqueData) callconv(.C) gboolean {
+    main.pushEvent(.{ .key_press = .{ .down = true } }, rrFrom(data.darea));
     return 1;
 }
-export fn zig_on_commit_event(context: *GtkIMContext, text: [*:0]const u8, data: gpointer) callconv(.C) void {
-    std.log.info("Commit `{s}`", .{text});
+export fn zig_on_commit_event(context: *GtkIMContext, text: [*:0]const u8, data: *OpaqueData) callconv(.C) void {
+    // std.log.info("Commit `{s}`", .{text});
+    main.pushEvent(.{ .textcommit = std.mem.span(text) }, rrFrom(data.darea));
 }
 
 fn rrFrom(widget: *GtkWidget) RerenderRequest {
@@ -248,5 +249,5 @@ pub fn pangoScale(float: f64) c_int {
 }
 
 pub fn start() !void {
-    if (start_gtk(0, undefined) != 0) return error.Failure;
+    if (start_gtk(0, undefined, @ptrToInt("a")) != 0) return error.Failure;
 }

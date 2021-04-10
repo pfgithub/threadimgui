@@ -3,11 +3,11 @@
 #include <gtk/gtk.h>
 
 #ifdef cairo_implementation
-	#define IMPL(body) body
-	#define IMPLONLY(body) body
+	#define IMPL(...) __VA_ARGS__
+	#define IMPLONLY(...) __VA_ARGS__
 #else
-	#define IMPL(body) ;
-	#define IMPLONLY(body)
+	#define IMPL(...) ;
+	#define IMPLONLY(...)
 #endif
 
 typedef struct StructZigOpaque ZigOpaque;
@@ -69,7 +69,12 @@ gboolean get_scroll_delta(GdkEventScroll *event, gdouble *out_x, gdouble *out_y)
 
 // maybe switch to gdk instead? give up on gtk?
 
-int start_gtk(int argc, char *argv[])
+typedef struct {
+	size_t zig;
+	GtkWidget* darea;
+} OpaqueData;
+
+int start_gtk(int argc, char *argv[], size_t zig_ptr)
 IMPL({
 	gtk_init(&argc, &argv);
 
@@ -85,14 +90,17 @@ IMPL({
 	GtkWidget *darea = gtk_drawing_area_new();
 	gtk_container_add(GTK_CONTAINER(window), darea);
 
-	g_signal_connect(G_OBJECT(darea), "draw", G_CALLBACK(zig_on_draw_event), NULL); 
-	g_signal_connect(G_OBJECT(darea), "size_allocate", G_CALLBACK(zig_on_resize_event), NULL);
-	g_signal_connect(window, "destroy", G_CALLBACK(destroy), NULL);
+	OpaqueData user_data = { .zig = zig_ptr, .darea = darea };
+	OpaqueData* user_ptr = (gpointer)(&user_data);
 
-	g_signal_connect(G_OBJECT(darea), "button_press_event", G_CALLBACK(zig_button_press_event), NULL);
-	g_signal_connect(G_OBJECT(darea), "button_release_event", G_CALLBACK(zig_button_release_event), NULL);
-	g_signal_connect(G_OBJECT(darea), "motion_notify_event", G_CALLBACK(zig_motion_notify_event), NULL);
-	g_signal_connect(G_OBJECT(darea), "scroll_event", G_CALLBACK(zig_scroll_event), NULL);
+	g_signal_connect(G_OBJECT(darea), "draw", G_CALLBACK(zig_on_draw_event), user_ptr); 
+	g_signal_connect(G_OBJECT(darea), "size_allocate", G_CALLBACK(zig_on_resize_event), user_ptr);
+	g_signal_connect(window, "destroy", G_CALLBACK(destroy), user_ptr);
+
+	g_signal_connect(G_OBJECT(darea), "button_press_event", G_CALLBACK(zig_button_press_event), user_ptr);
+	g_signal_connect(G_OBJECT(darea), "button_release_event", G_CALLBACK(zig_button_release_event), user_ptr);
+	g_signal_connect(G_OBJECT(darea), "motion_notify_event", G_CALLBACK(zig_motion_notify_event), user_ptr);
+	g_signal_connect(G_OBJECT(darea), "scroll_event", G_CALLBACK(zig_scroll_event), user_ptr);
 	gtk_widget_set_events (darea, 0
 		| GDK_LEAVE_NOTIFY_MASK
 		| GDK_BUTTON_PRESS_MASK
@@ -102,12 +110,15 @@ IMPL({
 		| GDK_SMOOTH_SCROLL_MASK
 	);
 
-	g_signal_connect(G_OBJECT(window), "key_press_event", G_CALLBACK(zig_key_press_event), im_context);
-	g_signal_connect(G_OBJECT(window), "key_release_event", G_CALLBACK(zig_key_release_event), NULL);
-	g_signal_connect(im_context, "commit", G_CALLBACK(zig_on_commit_event), NULL);
-	//g_signal_connect(im_context, "delete-surrounding", G_CALLBACK(zig_delete_surrounding_event), NULL);
-	//g_signal_connect(im_context, "preedit-changed", G_CALLBACK(zig_preedit_changed_event), NULL);
-	//g_signal_connect(im_context, "retrieve-surrounding", G_CALLBACK(zig_retrieve_surrounding_event), NULL);
+	// https://developer.gnome.org/gtk3/stable/GtkWidget.html#GtkWidget-key-press-event
+	g_signal_connect(G_OBJECT(window), "key_press_event", G_CALLBACK(zig_key_press_event), user_ptr);
+	g_signal_connect(G_OBJECT(window), "key_release_event", G_CALLBACK(zig_key_release_event), user_ptr);
+
+	// https://developer.gnome.org/gtk3/stable/GtkIMContext.html
+	g_signal_connect(im_context, "commit", G_CALLBACK(zig_on_commit_event), user_ptr);
+	//g_signal_connect(im_context, "delete-surrounding", G_CALLBACK(zig_delete_surrounding_event), user_ptr);
+	//g_signal_connect(im_context, "preedit-changed", G_CALLBACK(zig_preedit_changed_event), user_ptr);
+	//g_signal_connect(im_context, "retrieve-surrounding", G_CALLBACK(zig_retrieve_surrounding_event), user_ptr);
 	//TODO specify location of IME screen
 
 	gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
