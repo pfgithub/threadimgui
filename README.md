@@ -101,22 +101,3 @@ copy(
 ```
 
 eventually, this will be done automatically through one of: (node server | embedded javascript runtime)
-
-# notes
-
-ideal interface
-
-```zig
-// imgui.zig
-pub usingnamespace @import("imgui").configure(.{}); // picks a backend for the current target
-
-// main.zig
-const imgui = @import("imgui");
-pub fn main() !void {
-  imgui.start({}, App.renderRoot); // fn start(comptime Data: type, renderRoot: fn(imev: *ImEvent, isc: *IdStateCache, wh: WH, user_data: Data))
-}
-```
-
-alternatively render fns can be runtime dispatch, probably easier
-
-runtime dispatch is good for zls support and probably fine for perf

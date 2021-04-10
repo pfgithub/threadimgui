@@ -1,4 +1,4 @@
-const ui = @import("main.zig");
+const ui = @import("imgui");
 const ImEvent = ui.ImEvent;
 const WH = ui.WH;
 const Point = ui.Point;
@@ -374,4 +374,8 @@ pub fn renderApp(src: Src, imev: *ImEvent, isc: *IdStateCache, wh: WH, page: gen
     // }
 
     return ctx.result();
+}
+
+pub fn renderRoot(src: Src, imev: *ImEvent, isc: *IdStateCache, wh: WH, content: generic.Page) RenderResult {
+    return renderApp(src, imev, isc, wh, content);
 }

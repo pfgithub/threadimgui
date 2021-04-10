@@ -67,14 +67,16 @@ gboolean get_scroll_delta(GdkEventScroll *event, gdouble *out_x, gdouble *out_y)
 	}
 })
 
-// maybe switch to gdk instead? give up on gtk?
+IMPLONLY(
 
 typedef struct {
-	size_t zig;
+	void* zig;
 	GtkWidget* darea;
 } OpaqueData;
 
-int start_gtk(int argc, char *argv[], size_t zig_ptr)
+);
+
+int start_gtk(int argc, char *argv[], void* zig_ptr)
 IMPL({
 	gtk_init(&argc, &argv);
 

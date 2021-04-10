@@ -2,7 +2,7 @@ usingnamespace @cImport({
     @cInclude("cairo_cbind.h");
 });
 const std = @import("std");
-const main = @import("main.zig"); // TODO remove this (using the user data gpointer args provided to pass info around)
+const imgui = @import("../../imgui.zig"); // TODO structures.zig
 
 pub fn renderRect(window: *const Window, color: Color, rect: Rect) ER!void {
     setClip(window);
@@ -55,26 +55,26 @@ pub const RawEvent = union(enum) {
 // oh I can have user data I should use that
 // pass it through the start fn
 export fn zig_on_draw_event(widget: *GtkWidget, cr: *cairo_t, data: *OpaqueData) callconv(.C) gboolean {
-    main.renderFrame(Context{ .cr = cr, .widget = widget }, rrFrom(data.darea));
+    data.zig.renderFrame(Context{ .cr = cr, .widget = widget }, rrFrom(data.darea), data.zig.data);
     return 0;
 }
 export fn zig_on_resize_event(widget: *GtkWidget, rect: *GdkRectangle, data: *OpaqueData) callconv(.C) gboolean {
-    main.pushEvent(.{ .resize = .{ .x = rect.x, .y = rect.y, .w = rect.width, .h = rect.height } }, rrFrom(data.darea));
+    data.zig.pushEvent(.{ .resize = .{ .x = rect.x, .y = rect.y, .w = rect.width, .h = rect.height } }, rrFrom(data.darea), data.zig.data);
     return 1;
 }
 export fn zig_button_press_event(widget: *GtkWidget, event: *GdkEventButton, data: *OpaqueData) callconv(.C) gboolean {
     // std.log.info("Button ↓{} at ({}, {})", .{ event.button, event.x, event.y });
-    main.pushEvent(.{ .mouse_click = .{ .down = true, .x = event.x, .y = event.y, .button = event.button } }, rrFrom(data.darea));
+    data.zig.pushEvent(.{ .mouse_click = .{ .down = true, .x = event.x, .y = event.y, .button = event.button } }, rrFrom(data.darea), data.zig.data);
     return 1;
 }
 export fn zig_button_release_event(widget: *GtkWidget, event: *GdkEventButton, data: *OpaqueData) callconv(.C) gboolean {
     // std.log.info("Button ↑{} at ({}, {})", .{ event.button, event.x, event.y });
-    main.pushEvent(.{ .mouse_click = .{ .down = false, .x = event.x, .y = event.y, .button = event.button } }, rrFrom(data.darea));
+    data.zig.pushEvent(.{ .mouse_click = .{ .down = false, .x = event.x, .y = event.y, .button = event.button } }, rrFrom(data.darea), data.zig.data);
     return 1;
 }
 export fn zig_motion_notify_event(widget: *GtkWidget, event: *GdkEventMotion, data: *OpaqueData) callconv(.C) gboolean {
     // std.log.info("Mouse to ({}, {})", .{ event.x, event.y });
-    main.pushEvent(.{ .mouse_move = .{ .x = event.x, .y = event.y } }, rrFrom(data.darea));
+    data.zig.pushEvent(.{ .mouse_move = .{ .x = event.x, .y = event.y } }, rrFrom(data.darea), data.zig.data);
     return 1;
 }
 const SCROLL_SPEED = 55;
@@ -86,21 +86,21 @@ export fn zig_scroll_event(widget: *GtkWidget, event: *GdkEventScroll, data: *Op
     var delta_y: gdouble = undefined;
     if (get_scroll_delta(event, &delta_x, &delta_y) == 0) unreachable;
     // TODO if shift key pressed && delta_x == 0, delta_x = delta_y, delta_y = 0;
-    main.pushEvent(.{ .scroll = .{ .scroll_x = delta_x * SCROLL_SPEED, .scroll_y = delta_y * SCROLL_SPEED } }, rrFrom(data.darea));
+    data.zig.pushEvent(.{ .scroll = .{ .scroll_x = delta_x * SCROLL_SPEED, .scroll_y = delta_y * SCROLL_SPEED } }, rrFrom(data.darea), data.zig.data);
     // this passes a mouse position event, I'm just going to hope that mouse motion handles that for me though
     return 1;
 }
 export fn zig_key_press_event(widget: *GtkWidget, event: *GdkEventKey, data: *OpaqueData) callconv(.C) gboolean {
-    main.pushEvent(.{ .key_press = .{ .down = true } }, rrFrom(data.darea));
+    data.zig.pushEvent(.{ .key_press = .{ .down = true } }, rrFrom(data.darea), data.zig.data);
     return 1;
 }
 export fn zig_key_release_event(widget: *GtkWidget, event: *GdkEventKey, data: *OpaqueData) callconv(.C) gboolean {
-    main.pushEvent(.{ .key_press = .{ .down = true } }, rrFrom(data.darea));
+    data.zig.pushEvent(.{ .key_press = .{ .down = true } }, rrFrom(data.darea), data.zig.data);
     return 1;
 }
 export fn zig_on_commit_event(context: *GtkIMContext, text: [*:0]const u8, data: *OpaqueData) callconv(.C) void {
     // std.log.info("Commit `{s}`", .{text});
-    main.pushEvent(.{ .textcommit = std.mem.span(text) }, rrFrom(data.darea));
+    data.zig.pushEvent(.{ .textcommit = std.mem.span(text) }, rrFrom(data.darea), data.zig.data);
 }
 
 fn rrFrom(widget: *GtkWidget) RerenderRequest {
@@ -139,7 +139,7 @@ pub const TextLayout = struct {
     pub fn deinit(layout: TextLayout) void {
         g_object_unref(layout.layout);
     }
-    pub fn getSize(layout: TextLayout) main.WH {
+    pub fn getSize(layout: TextLayout) imgui.WH {
         var w: c_int = 0;
         var h: c_int = 0;
         pango_layout_get_size(layout.layout, &w, &h);
@@ -189,7 +189,7 @@ pub const CursorEnum = enum {
 pub const Context = struct {
     cr: *cairo_t,
     widget: *GtkWidget,
-    fn setRgba(ctx: Context, color: main.Color) void {
+    fn setRgba(ctx: Context, color: imgui.Color) void {
         const cr = ctx.cr;
         cairo_set_source_rgba(cr, color.r, color.g, color.b, color.a);
     }
@@ -202,13 +202,13 @@ pub const Context = struct {
         // store a hashmap(CursorEnum, *GdkCursor) and then free them all at the end
         gdk_window_set_cursor(window, cursor);
     }
-    pub fn renderRectangle(ctx: Context, color: main.Color, rect: main.Rect, radius: f64) void {
+    pub fn renderRectangle(ctx: Context, color: imgui.Color, rect: imgui.Rect, radius: f64) void {
         const cr = ctx.cr;
         roundedRectangle(cr, rect.x, rect.y, rect.w, rect.h, radius);
         ctx.setRgba(color);
         cairo_fill(cr);
     }
-    pub fn renderText(ctx: Context, point: main.Point, text: TextLayout, color: main.Color) void {
+    pub fn renderText(ctx: Context, point: imgui.Point, text: TextLayout, color: imgui.Color) void {
         const cr = ctx.cr;
         ctx.setRgba(color);
         cairo_save(cr);
@@ -244,10 +244,45 @@ pub const Context = struct {
     }
 };
 
+const OpaquePtrData = struct {
+    data: usize,
+    renderFrame: fn (cr: Context, rr: RerenderRequest, data: usize) void,
+    pushEvent: fn (ev: RawEvent, rr: RerenderRequest, data: usize) void,
+};
+
+const OpaqueData = extern struct {
+    zig: *OpaquePtrData,
+    darea: *GtkWidget,
+};
+
 pub fn pangoScale(float: f64) c_int {
     return @floatToInt(gint, float * @intToFloat(f64, PANGO_SCALE));
 }
 
 pub fn start() !void {
     if (start_gtk(0, undefined, @ptrToInt("a")) != 0) return error.Failure;
+}
+
+pub fn runUntilExit(
+    data_in: anytype,
+    comptime renderFrame: fn (cr: Context, rr: RerenderRequest, data: @TypeOf(data_in)) void,
+    comptime pushEvent: fn (ev: RawEvent, rr: RerenderRequest, data: @TypeOf(data_in)) void,
+) !void {
+    const data_ptr = @ptrToInt(&data_in);
+    comptime const DataPtr = @TypeOf(&data_in);
+    var opaque_ptr_data = OpaquePtrData{
+        .data = data_ptr,
+        .renderFrame = struct {
+            fn a(cr: Context, rr: RerenderRequest, data: usize) void {
+                return renderFrame(cr, rr, @intToPtr(DataPtr, data).*);
+            }
+        }.a,
+        .pushEvent = struct {
+            fn a(ev: RawEvent, rr: RerenderRequest, data: usize) void {
+                return pushEvent(ev, rr, @intToPtr(DataPtr, data).*);
+            }
+        }.a,
+    };
+
+    if (start_gtk(0, undefined, @intToPtr(*c_void, @ptrToInt(&opaque_ptr_data))) != 0) return error.Failure;
 }

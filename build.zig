@@ -4,7 +4,7 @@ pub fn build(b: *std.build.Builder) void {
     const target = b.standardTargetOptions(.{});
     const mode = b.standardReleaseOptions();
 
-    const tracy_enabled = b.option([]const u8, "tracy", "Enable tracy");
+    const tracy_enabled = b.option([]const u8, "tracy", "Enable tracy (path to folder containing TracyClient.cpp)");
 
     const exe = b.addExecutable("threadimgui", "src/main.zig");
     exe.setTarget(target);
@@ -12,10 +12,11 @@ pub fn build(b: *std.build.Builder) void {
 
     exe.linkLibC();
 
+    exe.addPackagePath("imgui", "packages/zimgui/main.zig");
     exe.linkSystemLibrary("cairo");
     exe.linkSystemLibrary("gtk+-3.0");
-    exe.addIncludeDir("src/c");
-    exe.addCSourceFile("src/c/cairo_cbind.c", &[_][]const u8{});
+    exe.addIncludeDir("packages/zimgui/backends/cairo");
+    exe.addCSourceFile("packages/zimgui/backends/cairo/cairo_cbind.c", &[_][]const u8{});
 
     exe.addBuildOption(bool, "enable_tracy", tracy_enabled != null);
     if (tracy_enabled) |tracy_path| {
