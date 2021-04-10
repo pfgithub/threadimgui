@@ -153,27 +153,26 @@ const HLayoutManager = struct {
 pub const ButtonKey = struct {
     hover: bool,
     clicked: bool,
-    key: ui.ClickableKey,
+    key: ui.ClickableState,
     pub fn render(key: ButtonKey, src: Src, imev: *ImEvent, text: []const u8) Widget {
         var ctx = imev.render(src);
         defer ctx.pop();
 
         const btn_widget = inset(@src(), imev, 4, primitives.text(@src(), imev, .{ .size = .sm, .color = .white }, text));
 
-        if (key.hover) {
-            ctx.place(primitives.rect(@src(), imev, btn_widget.wh, .{ .bg = .gray700 }), Point.origin);
+        if (key.key.focused) |mfocus| {
+            if (mfocus.hover) {
+                ctx.place(primitives.rect(@src(), imev, btn_widget.wh, .{ .bg = .gray700, .rounded = .sm }), Point.origin);
+                mfocus.setCursor(imev, .pointer);
+            }
         }
-        ctx.place(key.key.node(imev, btn_widget.wh), Point.origin);
+        ctx.place(key.key.key.node(imev, btn_widget.wh), Point.origin);
         ctx.place(btn_widget.node, Point.origin);
 
         return .{ .node = ctx.result(), .wh = btn_widget.wh };
     }
 };
 
-pub const ButtonRes = struct {
-    widget: Widget,
-    clicked: bool,
-};
 fn useButton(src: Src, imev: *ImEvent) ButtonKey {
     const pop = imev.frame.id.pushFunction(src);
     defer pop.pop();
@@ -182,7 +181,7 @@ fn useButton(src: Src, imev: *ImEvent) ButtonKey {
     return .{
         .hover = if (clicked_state.focused) |fxd| fxd.hover else false,
         .clicked = if (clicked_state.focused) |fxd| fxd.click else false,
-        .key = clicked_state.key,
+        .key = clicked_state,
     };
 }
 
