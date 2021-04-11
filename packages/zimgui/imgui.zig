@@ -390,6 +390,7 @@ pub const ImEvent = struct { // pinned?
         scroll_focused: ?ScrollFocused,
         // last_scroll_time: u64, // to prevent switching scroll focuses until «»ms of time without scrolling or similar
 
+        prev_frame_keydown: ?Key = null, // todo + modifiers // todo determine who to dispatch to based on focus
     },
 
     /// structures that are only defined during a frame
@@ -406,7 +407,7 @@ pub const ImEvent = struct { // pinned?
 
         scroll_delta: Point = Point.origin,
 
-        key_down: ?Key = null, // todo + modifiers // todo determine who to dispatch to based on focus
+        key_down: ?Key = null,
     },
 
     const ScrollFocused = struct {
@@ -526,7 +527,10 @@ pub const ImEvent = struct { // pinned?
         };
 
         if (imev.persistent.is_first_frame) imev.persistent.is_first_frame = false //
-        else imev.destroyFrame();
+        else {
+            imev.persistent.prev_frame_keydown = imev.frame.key_down;
+            imev.destroyFrame();
+        }
 
         if (should_render) {
             var iter = imev.persistent.text_cache.iterator();
@@ -973,7 +977,7 @@ pub fn renderBaseRoot(src: Src, imev: *ImEvent, isc: *IdStateCache, wh: WH, data
     const rootfn_src = @src();
 
     // TODO imev.hotkey with dispatch based on focus and stuff
-    if (imev.frame.key_down) |kd| if (kd == .f12) {
+    if (imev.persistent.prev_frame_keydown) |kd| if (kd == .f12) {
         state.devtools_open = !state.devtools_open;
     };
 
