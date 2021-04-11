@@ -5,6 +5,10 @@ pub fn build(b: *std.build.Builder) void {
     const mode = b.standardReleaseOptions();
 
     const tracy_enabled = b.option([]const u8, "tracy", "Enable tracy (path to folder containing TracyClient.cpp)");
+    // more build options:
+    // - enable devtools (defaults to true on Debug, false on Release builds)
+    // - set backend (defaults to cairo, only option is cairo)
+    //   (in the future this would pick based on what platform you're building for)
 
     const exe = b.addExecutable("threadimgui", "src/main.zig");
     exe.setTarget(target);
