@@ -201,11 +201,26 @@ fn renderRichtextSpan(src: Src, imev: *ImEvent, isc: *IdStateCache, span: generi
 }
 
 fn renderRichtextParagraph(src: Src, imev: *ImEvent, isc: *IdStateCache, paragraph: generic.RichtextParagraph, width: f64) VLayoutManager.Child {
+    var ctx = imev.render(src);
+    defer ctx.pop();
+
     switch (paragraph) {
         .paragraph => |par| {
             // render the richtext spans, a bit complicated
+            if (par.len == 1 and par[0] == .text) {
+                const widget = primitives.textV(@src(), imev, width, .{ .color = .white, .size = .sm }, par[0].text.str);
+                ctx.place(widget.node, Point.origin);
+                return .{ .h = widget.h, .node = ctx.result() };
+            }
+            const widget = primitives.textV(@src(), imev, width, .{ .color = .red, .size = .sm }, "TODO non-text | multi-span paragraph");
+            ctx.place(widget.node, Point.origin);
+            return .{ .h = widget.h, .node = ctx.result() };
         },
-        .unsupported => |unsup_msg| {},
+        .unsupported => |unsup_msg| {
+            const widget = primitives.textV(@src(), imev, width, .{ .color = .red, .size = .sm }, "TODO richtext");
+            ctx.place(widget.node, Point.origin);
+            return .{ .h = widget.h, .node = ctx.result() };
+        },
     }
 }
 
@@ -218,16 +233,24 @@ fn renderBody(src: Src, imev: *ImEvent, isc: *IdStateCache, body: generic.Body, 
     switch (body) {
         .none => {},
         .array => |array| {
-            for (array) |array_item| {
+            for (array) |array_item, i| {
+                const scope_index = imev.frame.id.pushIndex(@src(), i);
+                defer scope_index.pop();
+
                 if (array_item == .none) continue;
-                layout.place(&ctx, .{ .gap = 4 }, renderBody(src, imev, isc, array_item, width));
+                layout.place(&ctx, .{ .gap = 8 }, renderBody(src, imev, isc, array_item, width));
             }
         },
-        .richtext => {
-            layout.place(&ctx, .{ .gap = 4 }, primitives.textV(@src(), imev, layout.top_rect.w, .{ .color = .red, .size = .sm }, "TODO richtext"));
+        .richtext => |paragraphs| {
+            for (paragraphs) |paragraph, i| {
+                const scope_index = imev.frame.id.pushIndex(@src(), i);
+                defer scope_index.pop();
+
+                layout.place(&ctx, .{ .gap = 8 }, renderRichtextParagraph(src, imev, isc, paragraph, width));
+            }
         },
         .unsupported => |name| {
-            layout.place(&ctx, .{ .gap = 4 }, primitives.textV(@src(), imev, layout.top_rect.w, .{ .color = .red, .size = .sm }, name));
+            layout.place(&ctx, .{ .gap = 8 }, primitives.textV(@src(), imev, layout.top_rect.w, .{ .color = .red, .size = .sm }, name));
         },
     }
 
