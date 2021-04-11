@@ -143,6 +143,10 @@ eventually, this will be done automatically through one of: (node server | embed
 - add extras on the bottom if needed
 - add extras on the top if needed
 
+# notes:
+
+- to help with scrolling, add smooth scroll emulation on middle mouse drag. mouse doesn't move but window scrolls
+
 # notes
 
 - !! decouple id push/pop from render ctx

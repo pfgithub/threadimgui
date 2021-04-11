@@ -464,7 +464,20 @@ pub const ImEvent = struct { // pinned?
         // could use an arena allocator, unfortunately arena allocators are created at frame start
         // rather than on init 🙲 frame end.
         // TODO consolidate similar events
-        try imev.persistent.unprocessed_events.push(imev.persistent.real_allocator, event);
+
+        switch (event) {
+            .resize => |rsz| {
+                imev.persistent.internal_screen_offset = .{
+                    .x = @intToFloat(f64, rsz.x),
+                    .y = @intToFloat(f64, rsz.y),
+                };
+                imev.persistent.screen_size = .{
+                    .w = @intToFloat(f64, rsz.w),
+                    .h = @intToFloat(f64, rsz.h),
+                };
+            },
+            else => try imev.persistent.unprocessed_events.push(imev.persistent.real_allocator, event),
+        }
     }
     pub fn prerender(imev: *ImEvent) bool {
         if (imev.persistent.is_first_frame) return true;
@@ -474,16 +487,7 @@ pub const ImEvent = struct { // pinned?
     pub fn startFrame(imev: *ImEvent, cr: backend.Context, should_render: bool) void {
         if (!imev.persistent.is_first_frame) if (imev.persistent.unprocessed_events.pop(imev.persistent.real_allocator)) |ev| {
             switch (ev) {
-                .resize => |rsz| {
-                    imev.persistent.internal_screen_offset = .{
-                        .x = @intToFloat(f64, rsz.x),
-                        .y = @intToFloat(f64, rsz.y),
-                    };
-                    imev.persistent.screen_size = .{
-                        .w = @intToFloat(f64, rsz.w),
-                        .h = @intToFloat(f64, rsz.h),
-                    };
-                },
+                .resize => unreachable,
                 .mouse_click => |mclick| {
                     imev.persistent.mouse_position = .{ .x = mclick.x, .y = mclick.y };
                     if (mclick.button == 1) {
