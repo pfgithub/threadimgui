@@ -100,7 +100,7 @@ pub const TextFormatOpts = packed struct {
     italic: bool,
     strike: bool,
     sup: bool,
-    code: bool,
+    code: bool, // TODO move this to RichtextSpan.code{text: []const u8}
     err: bool, // TODO get rid of this and use RichtextSpan.Error instead
 
     pub fn fromJSON(jh: JsonHelper) !TextFormatOpts {
