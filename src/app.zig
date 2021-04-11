@@ -447,15 +447,9 @@ pub fn renderApp(src: Src, imev: *ImEvent, isc: *IdStateCache, wh: WH, page: gen
     if (scrollable.scrolling) |scrolling| {
         state.content.scroll(scrolling.delta.y);
         state.sidebar.scroll(scrolling.delta.y);
-        // state.scroll += scrolling.delta.y;
     }
 
     // todo make it possible to put a, also virtualized, header thing above both scroll helpers somehow
-
-    // {
-    //     const content_render = state.content.render(imev, AppNodeRenderer{ .page = &page, .width = wh.w, .rounded = true }, wh.h);
-    //     ctx.place(content_render, Point.origin);
-    // }
 
     var layout = VLayoutManager.fromWidth(wh.w);
     if (wh.w > mobile_cutoff) layout.inset(20) //
@@ -474,14 +468,6 @@ pub fn renderApp(src: Src, imev: *ImEvent, isc: *IdStateCache, wh: WH, page: gen
         const areaa = sidebar.take(.{ .gap = 8, .h = 1 });
         const sidebar_render = state.sidebar.render(@src(), imev, AppSidebarRender{ .sidebar = page.sidebar, .width = areaa.w, .rounded = true }, wh.h, areaa.y);
         ctx.place(sidebar_render, .{ .x = areaa.x, .y = areaa.y });
-        // for (page.sidebar) |sidebar_node, i| {
-        //     const v = imev.frame.id.pushIndex(@src(), i); // TODO once virtual scrolling is added this will have to no longer be pushIndex
-        //     defer v.pop();
-
-        //     const sidebar_widget = renderSidebarWidget(@src(), imev, isc, sidebar.top_rect.w, sidebar_node);
-
-        //     sidebar.place(&ctx, .{ .gap = 10 }, topLevelContainer(@src(), imev, sidebar.top_rect.w, sidebar_widget, .{ .rounded = true }));
-        // }
     }
 
     const rounded = wh.w > mobile_cutoff;
@@ -490,18 +476,6 @@ pub fn renderApp(src: Src, imev: *ImEvent, isc: *IdStateCache, wh: WH, page: gen
         const areaa = layout.take(.{ .gap = 8, .h = 1 });
         const content_render = state.content.render(@src(), imev, AppNodeRenderer{ .page = &page, .width = areaa.w, .rounded = rounded }, wh.h, areaa.y);
         ctx.place(content_render, .{ .x = areaa.x, .y = areaa.y });
-    }
-    switch (page.body) {
-        .listing => |listing| {
-            // for (listing.items) |context_node, i| {
-            //     const v = imev.frame.id.pushIndex(@src(), i); // TODO once virtual scrolling is added this will have to no longer be pushIndex
-            //     defer v.pop();
-
-            //     const context_widget = renderContextNode(@src(), imev, isc, layout.top_rect.w, context_node);
-
-            //     layout.place(&ctx, .{ .gap = 10 }, topLevelContainer(@src(), imev, layout.top_rect.w, context_widget, .{ .rounded = rounded }));
-            // }
-        },
     }
 
     return ctx.result();
