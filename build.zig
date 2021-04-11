@@ -14,13 +14,19 @@ pub fn build(b: *std.build.Builder) void {
     exe.setTarget(target);
     exe.setBuildMode(mode);
 
-    exe.linkLibC();
-
     exe.addPackagePath("imgui", "packages/zimgui/main.zig");
-    exe.linkSystemLibrary("cairo");
-    exe.linkSystemLibrary("gtk+-3.0");
-    exe.addIncludeDir("packages/zimgui/backends/cairo");
-    exe.addCSourceFile("packages/zimgui/backends/cairo/cairo_cbind.c", &[_][]const u8{});
+    if (false) {
+        exe.linkLibC();
+
+        exe.linkSystemLibrary("cairo");
+        exe.linkSystemLibrary("gtk+-3.0");
+        exe.addIncludeDir("packages/zimgui/backends/cairo");
+        exe.addCSourceFile("packages/zimgui/backends/cairo/cairo_cbind.c", &[_][]const u8{});
+    } else {
+        exe.linkLibC();
+        exe.addIncludeDir("packages/zimgui/backends/windows");
+        exe.addCSourceFile("packages/zimgui/backends/windows/windows_cbind.c", &[_][]const u8{});
+    }
 
     exe.addBuildOption(bool, "enable_tracy", tracy_enabled != null);
     if (tracy_enabled) |tracy_path| {

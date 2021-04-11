@@ -1,4 +1,7 @@
-const backend = @import("cairo/cairo.zig");
+const backend = switch(false) {
+    true => @import("cairo/cairo.zig"),
+    false => @import("windows/windows.zig"),
+};
 const structures = @import("../structures.zig");
 
 pub const TextLayout = struct {
