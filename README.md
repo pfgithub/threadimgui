@@ -113,3 +113,13 @@ eventually, this will be done automatically through one of: (node server | embed
 - `place(button.value("text"))`
 - oh yeah, why does buttonkey not have the widget() fn on it? fix that
 - also - maybe not but what about making imev a global variable so it can just be `useButton(@src())`
+
+# notes
+
+- for the scroll thing - what about oh no this will turn into a bit of a mess
+- ok actually nvm so currently it renders the top node then nodes around there then top to bottom
+- what if instead:
+- render every node, top to bottom
+- update the vertical offset and id and move the previously rendered nodes as needed (in case of eg: top/bottom of scroll)
+- add extras on the bottom if needed
+- add extras on the top if needed
