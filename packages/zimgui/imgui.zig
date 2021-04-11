@@ -604,9 +604,6 @@ pub const ImEvent = struct { // pinned?
         return !imev.frame.should_continue; // rendering is over, do not execute more frames this frame
     }
 
-    // TODO const ctx = imev.render(@src())
-    // defer ctx.pop();
-    // then it adds the source location to the hash thing automatically
     pub fn render(imev: *ImEvent, src: Src) RenderCtx {
         return RenderCtx.init(imev, imev.frame.id.pushFunction(src));
     }
@@ -791,6 +788,15 @@ pub const VLayoutManager = struct {
     }
 };
 
+pub fn renderBaseRoot(src: Src, imev: *ImEvent, isc: *IdStateCache, wh: WH, data: ExecData) RenderResult {
+    var ctx = imev.render(src);
+    defer ctx.pop();
+
+    ctx.place(data.rootFnGeneric(@src(), imev, isc, wh, data.root_fn_content), Point.origin);
+
+    return ctx.result();
+}
+
 pub fn renderFrame(cr: backend.Context, rr: backend.RerenderRequest, data: ExecData) void {
     const timer = std.time.Timer.start() catch @panic("bad timer");
     const imev = data.imev;
@@ -802,12 +808,12 @@ pub fn renderFrame(cr: backend.Context, rr: backend.RerenderRequest, data: ExecD
     while (true) {
         render_count += 1;
         imev.startFrame(cr, false) catch @panic("Start frame error");
-        if (imev.endFrame(data.rootFnGeneric(root_src, imev, root_state_cache, imev.persistent.screen_size, data.root_fn_content))) break;
+        if (imev.endFrame(renderBaseRoot(root_src, imev, root_state_cache, imev.persistent.screen_size, data))) break;
     }
 
     render_count += 1;
     imev.startFrame(cr, true) catch @panic("Start frame error");
-    imev.endFrameRender(data.rootFnGeneric(root_src, imev, root_state_cache, imev.persistent.screen_size, data.root_fn_content));
+    imev.endFrameRender(renderBaseRoot(root_src, imev, root_state_cache, imev.persistent.screen_size, data));
     root_state_cache.cleanupUnused(imev);
 
     // std.log.info("rerender×{} in {}ns", .{ render_count, timer.read() }); // max allowed time is 4ms
