@@ -794,53 +794,72 @@ pub const VirtualScrollHelper = struct {
             return ctx.result(); // TODO something
         }
 
-        var hnctx = imev.renderNoSrc();
+        // here's the new plan:
+        // 1. render every visible node, top to bottom, starting from y_offset
+        // 2. update the vertical offset and id and move the previously rendered nodes as needed (in case of eg: top/bottom of scroll)
+        // 3. add extras on the bottom if needed
+        // 4. add extras on the top if needed
 
-        var lowest_rendered_node_id = vsh.top_node;
-        var top_node_rendered = vsh.renderOneNode(renderInfo, imev, vsh.top_node);
-        hnctx.place(top_node_rendered.node, .{ .x = 0, .y = vsh.scroll_offset });
-        var lowest_rendered_node = top_node_rendered;
+        if (vsh.scroll_offset > 0) vsh.scroll_offset = 0; // assuming top_node is first node for now until new scroll logic
 
-        var here_offset: f64 = 0;
-
-        if (vsh.scroll_offset > 0) {
-            while (vsh.scroll_offset > 0) {
-                const above_node_id = renderInfo.getPreviousNode(vsh.top_node) orelse break; // TODO orelse make this the top of scrolling and reposition stuff
-                top_node_rendered = vsh.renderOneNode(renderInfo, imev, above_node_id);
-                vsh.top_node = above_node_id;
-                vsh.scroll_offset -= top_node_rendered.h;
-                hnctx.place(top_node_rendered.node, .{ .x = 0, .y = vsh.scroll_offset });
-            }
-            if (vsh.scroll_offset > 0) {
-                vsh.scroll_offset = 0;
-                // here_offset = -vsh.scroll_offset;
-            }
-        } else if (vsh.scroll_offset < -top_node_rendered.h) {
-            if (vsh.scroll_offset < -top_node_rendered.h) {
-                if (renderInfo.getNextNode(vsh.top_node)) |below_node_id| {
-                    vsh.top_node = below_node_id;
-                    vsh.scroll_offset += top_node_rendered.h;
-                    // TODO loop here like the >0 does. or don't, it doesn't really matter.
-                    // actually it does matter
-                } else {
-                    vsh.scroll_offset = -top_node_rendered.h;
-                    // here_offset = ???;
-                }
-            }
-        }
-
-        ctx.place(hnctx.result(), .{ .x = 0, .y = here_offset });
-
-        var current_y: f64 = vsh.scroll_offset + lowest_rendered_node.h;
-        var current_id = lowest_rendered_node_id;
+        var current_y: f64 = vsh.scroll_offset;
+        var current_id = vsh.top_node;
         while (current_y + placement_y_offset < height) {
-            current_id = renderInfo.getNextNode(current_id) orelse break;
             const rendered = vsh.renderOneNode(renderInfo, imev, current_id);
             ctx.place(rendered.node, .{ .x = 0, .y = current_y });
             current_y += rendered.h;
+            current_id = renderInfo.getNextNode(current_id) orelse break;
         }
 
         return ctx.result();
+
+        // var hnctx = imev.renderNoSrc();
+
+        // var lowest_rendered_node_id = vsh.top_node;
+        // var top_node_rendered = vsh.renderOneNode(renderInfo, imev, vsh.top_node);
+        // hnctx.place(top_node_rendered.node, .{ .x = 0, .y = vsh.scroll_offset });
+        // var lowest_rendered_node = top_node_rendered;
+
+        // var here_offset: f64 = 0;
+
+        // if (vsh.scroll_offset > 0) {
+        //     while (vsh.scroll_offset > 0) {
+        //         const above_node_id = renderInfo.getPreviousNode(vsh.top_node) orelse break; // TODO orelse make this the top of scrolling and reposition stuff
+        //         top_node_rendered = vsh.renderOneNode(renderInfo, imev, above_node_id);
+        //         vsh.top_node = above_node_id;
+        //         vsh.scroll_offset -= top_node_rendered.h;
+        //         hnctx.place(top_node_rendered.node, .{ .x = 0, .y = vsh.scroll_offset });
+        //     }
+        //     if (vsh.scroll_offset > 0) {
+        //         vsh.scroll_offset = 0;
+        //         // here_offset = -vsh.scroll_offset;
+        //     }
+        // } else if (vsh.scroll_offset < -top_node_rendered.h) {
+        //     if (vsh.scroll_offset < -top_node_rendered.h) {
+        //         if (renderInfo.getNextNode(vsh.top_node)) |below_node_id| {
+        //             vsh.top_node = below_node_id;
+        //             vsh.scroll_offset += top_node_rendered.h;
+        //             // TODO loop here like the >0 does. or don't, it doesn't really matter.
+        //             // actually it does matter
+        //         } else {
+        //             vsh.scroll_offset = -top_node_rendered.h;
+        //             // here_offset = ???;
+        //         }
+        //     }
+        // }
+
+        // ctx.place(hnctx.result(), .{ .x = 0, .y = here_offset });
+
+        // var current_y: f64 = vsh.scroll_offset + lowest_rendered_node.h;
+        // var current_id = lowest_rendered_node_id;
+        // while (current_y + placement_y_offset < height) {
+        //     current_id = renderInfo.getNextNode(current_id) orelse break;
+        //     const rendered = vsh.renderOneNode(renderInfo, imev, current_id);
+        //     ctx.place(rendered.node, .{ .x = 0, .y = current_y });
+        //     current_y += rendered.h;
+        // }
+
+        // return ctx.result();
     }
 
     // issues: if the top node to be rendered was deleted, there will be an issue.
