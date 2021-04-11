@@ -1,5 +1,15 @@
 const std = @import("std");
 
+const RenderBackend = enum {
+    cairo_gtk3,
+    windows,
+    pub fn defaultFor(target: std.zig.CrossTarget) ?RenderBackend {
+        if (target.isWindows()) return .windows;
+        if (target.isLinux()) return .cairo_gtk3;
+        return null;
+    }
+};
+
 pub fn build(b: *std.build.Builder) void {
     const target = b.standardTargetOptions(.{});
     const mode = b.standardReleaseOptions();
@@ -10,22 +20,31 @@ pub fn build(b: *std.build.Builder) void {
     // - set backend (defaults to cairo, only option is cairo)
     //   (in the future this would pick based on what platform you're building for)
 
+    const render_backend = b.option(RenderBackend, "renderer", "Set the render backend") orelse RenderBackend.defaultFor(target) orelse @panic("not supported for this target");
+
     const exe = b.addExecutable("threadimgui", "src/main.zig");
     exe.setTarget(target);
     exe.setBuildMode(mode);
 
-    exe.addPackagePath("imgui", "packages/zimgui/main.zig");
-    if (false) {
-        exe.linkLibC();
+    // exe.addPackage
+    exe.addBuildOption(RenderBackend, "render_backend", render_backend);
+    exe.addPackage(.{ .name = "imgui", .path = "packages/zimgui/main.zig", .dependencies = &[_]std.build.Pkg{
+        .{ .name = "build_options", .path = "zig-cache/threadimgui_build_options.zig" },
+    } }); // hack workaround. ideally some fn to make a custom build options thing and return a std.build.Pkg
+    switch (render_backend) {
+        .cairo_gtk3 => {
+            exe.linkLibC();
 
-        exe.linkSystemLibrary("cairo");
-        exe.linkSystemLibrary("gtk+-3.0");
-        exe.addIncludeDir("packages/zimgui/backends/cairo");
-        exe.addCSourceFile("packages/zimgui/backends/cairo/cairo_cbind.c", &[_][]const u8{});
-    } else {
-        exe.linkLibC();
-        exe.addIncludeDir("packages/zimgui/backends/windows");
-        exe.addCSourceFile("packages/zimgui/backends/windows/windows_cbind.c", &[_][]const u8{});
+            exe.linkSystemLibrary("cairo");
+            exe.linkSystemLibrary("gtk+-3.0");
+            exe.addIncludeDir("packages/zimgui/backends/cairo");
+            exe.addCSourceFile("packages/zimgui/backends/cairo/cairo_cbind.c", &[_][]const u8{});
+        },
+        .windows => {
+            exe.linkLibC();
+            exe.addIncludeDir("packages/zimgui/backends/windows");
+            exe.addCSourceFile("packages/zimgui/backends/windows/windows_cbind.c", &[_][]const u8{});
+        },
     }
 
     exe.addBuildOption(bool, "enable_tracy", tracy_enabled != null);

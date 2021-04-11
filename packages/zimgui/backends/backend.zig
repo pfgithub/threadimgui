@@ -1,6 +1,6 @@
-const backend = switch(false) {
-    true => @import("cairo/cairo.zig"),
-    false => @import("windows/windows.zig"),
+const backend = switch (@import("build_options").render_backend) {
+    .cairo_gtk3 => @import("cairo/cairo.zig"),
+    .windows => @import("windows/windows.zig"),
 };
 const structures = @import("../structures.zig");
 

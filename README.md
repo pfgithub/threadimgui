@@ -2,13 +2,20 @@
 
 download a latest master binary of zig from [here](https://ziglang.org/download/)
 
-available rendering backends:
+supported platforms:
 
-- cairo/gtk for linux x86_64: install these packages on your system: `cairo`, `gtk+-3.0`
+- linux
+- windows (wip)
+- (eventually) others
+
+if you are on windows, use `-Dtarget=native-native-gnu` otherwise you need to install some sdk or something
+
+if you are on linux, install these packages on your system: `cairo`, `gtk+-3.0`
 
 run the application with `zig build run`
 
 - open devtools with `f12`
+- running the windows version on linux: `zig build -Dtarget=x86_64-windows-gnu` `wine zig-cache/bin/threadimgui.exe`
 
 # overview
 
