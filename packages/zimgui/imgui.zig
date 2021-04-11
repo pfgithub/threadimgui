@@ -397,12 +397,14 @@ pub const ImEvent = struct { // pinned?
         arena_allocator: std.heap.ArenaAllocator,
         id: ID,
         cr: backend.Context,
-        cursor: CursorEnum,
+        cursor: CursorEnum = .default,
 
-        mouse_down: bool,
-        mouse_up: bool,
+        mouse_down: bool = false,
+        mouse_up: bool = false,
 
-        scroll_delta: Point,
+        scroll_delta: Point = Point.origin,
+
+        key_down: ?Key = null, // todo + modifiers // todo determine who to dispatch to based on focus
     },
 
     const ScrollFocused = struct {
@@ -466,12 +468,6 @@ pub const ImEvent = struct { // pinned?
             .arena_allocator = std.heap.ArenaAllocator.init(imev.persistent.real_allocator),
             .id = ID.init(imev.persistent.real_allocator),
             .cr = cr,
-            .cursor = .default,
-
-            .mouse_down = false,
-            .mouse_up = false,
-
-            .scroll_delta = Point.origin,
         };
         if (event == null) {
             var iter = imev.persistent.text_cache.iterator();
@@ -510,15 +506,16 @@ pub const ImEvent = struct { // pinned?
                 imev.frame.scroll_delta = .{ .x = sev.scroll_x, .y = sev.scroll_y };
             },
             .key => |key| {
-                std.log.info("key: {s}{s}{s}{s}{s}{s}{s}", .{
-                    (&[_][]const u8{ "↑", "↓" })[@boolToInt(key.down)],
-                    @tagName(key.key),
-                    (&[_][]const u8{ "", " ⌃" })[@boolToInt(key.modifiers.ctrl)],
-                    (&[_][]const u8{ "", " ⎇ " })[@boolToInt(key.modifiers.alt)],
-                    (&[_][]const u8{ "", " ⇧" })[@boolToInt(key.modifiers.shift)],
-                    (&[_][]const u8{ "", " ⌘" })[@boolToInt(key.modifiers.win)],
-                    "",
-                });
+                // std.log.info("key: {s}{s}{s}{s}{s}{s}{s}", .{
+                //     (&[_][]const u8{ "↑", "↓" })[@boolToInt(key.down)],
+                //     @tagName(key.key),
+                //     (&[_][]const u8{ "", " ⌃" })[@boolToInt(key.modifiers.ctrl)],
+                //     (&[_][]const u8{ "", " ⎇ " })[@boolToInt(key.modifiers.alt)],
+                //     (&[_][]const u8{ "", " ⇧" })[@boolToInt(key.modifiers.shift)],
+                //     (&[_][]const u8{ "", " ⌘" })[@boolToInt(key.modifiers.win)],
+                //     "",
+                // });
+                if (key.down) imev.frame.key_down = key.key;
             },
             else => {},
         };
@@ -788,11 +785,38 @@ pub const VLayoutManager = struct {
     }
 };
 
+pub const BaseRootState = struct {
+    devtools_open: bool = false,
+
+    pub fn init() BaseRootState {
+        return .{};
+    }
+};
+
 pub fn renderBaseRoot(src: Src, imev: *ImEvent, isc: *IdStateCache, wh: WH, data: ExecData) RenderResult {
     var ctx = imev.render(src);
     defer ctx.pop();
 
-    ctx.place(data.rootFnGeneric(@src(), imev, isc, wh, data.root_fn_content), Point.origin);
+    const state = isc.useState(@src(), imev, BaseRootState, BaseRootState.init);
+
+    const rootfn_src = @src();
+
+    // TODO imev.hotkey with dispatch based on focus and stuff
+    if (imev.frame.key_down) |kd| if (kd == .f12) {
+        state.devtools_open = !state.devtools_open;
+    };
+
+    if (state.devtools_open) {
+        // for devtools, must:
+        // get the size to render the root fn with
+        // render the root fn in the frame (but with an id belonging to this function)
+        // render the rest of devtools
+        const smaller_size: WH = .{ .w = @divFloor(wh.w, 2), .h = @divFloor(wh.h, 2) };
+        const ul: Point = .{ .x = @divFloor(wh.w, 4), .y = @divFloor(wh.h, 4) };
+        ctx.place(data.rootFnGeneric(rootfn_src, imev, isc, smaller_size, data.root_fn_content), ul);
+    } else {
+        ctx.place(data.rootFnGeneric(rootfn_src, imev, isc, wh, data.root_fn_content), Point.origin);
+    }
 
     return ctx.result();
 }
