@@ -765,6 +765,8 @@ pub const VirtualScrollHelper = struct {
         hnctx.place(top_node_rendered.node, .{ .x = 0, .y = vsh.scroll_offset });
         var lowest_rendered_node = top_node_rendered;
 
+        var here_offset: f64 = 0;
+
         if (vsh.scroll_offset > 0) {
             while (vsh.scroll_offset > 0) {
                 const above_node_id = renderInfo.getPreviousNode(vsh.top_node) orelse break; // TODO orelse make this the top of scrolling and reposition stuff
@@ -773,19 +775,25 @@ pub const VirtualScrollHelper = struct {
                 vsh.scroll_offset -= top_node_rendered.h;
                 hnctx.place(top_node_rendered.node, .{ .x = 0, .y = vsh.scroll_offset });
             }
+            if (vsh.scroll_offset > 0) {
+                vsh.scroll_offset = 0;
+                here_offset = -vsh.scroll_offset;
+            }
         } else if (vsh.scroll_offset < -top_node_rendered.h) {
             if (vsh.scroll_offset < -top_node_rendered.h) {
                 if (renderInfo.getNextNode(vsh.top_node)) |below_node_id| {
                     vsh.top_node = below_node_id;
                     vsh.scroll_offset += top_node_rendered.h;
                     // TODO loop here like the >0 does. or don't, it doesn't really matter.
+                    // actually it does matter
                 } else {
-                    // TODO restrict scroll
+                    vsh.scroll_offset = -top_node_rendered.h;
+                    // here_offset = ???;
                 }
             }
         }
 
-        ctx.place(hnctx.result(), Point.origin); // this is for fixing the position of those top rendered nodes if you eg try to scroll above 0
+        ctx.place(hnctx.result(), .{ .x = 0, .y = here_offset });
 
         var current_y: f64 = vsh.scroll_offset + lowest_rendered_node.h;
         var current_id = lowest_rendered_node_id;
