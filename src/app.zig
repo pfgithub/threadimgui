@@ -217,8 +217,11 @@ fn renderBody(src: Src, imev: *ImEvent, isc: *IdStateCache, body: generic.Body, 
 
     switch (body) {
         .none => {},
-        .array => {
-            layout.place(&ctx, .{ .gap = 4 }, primitives.textV(@src(), imev, layout.top_rect.w, .{ .color = .red, .size = .sm }, "TODO array"));
+        .array => |array| {
+            for (array) |array_item| {
+                if (array_item == .none) continue;
+                layout.place(&ctx, .{ .gap = 4 }, renderBody(src, imev, isc, array_item, width));
+            }
         },
         .richtext => {
             layout.place(&ctx, .{ .gap = 4 }, primitives.textV(@src(), imev, layout.top_rect.w, .{ .color = .red, .size = .sm }, "TODO richtext"));
