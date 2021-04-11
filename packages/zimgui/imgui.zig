@@ -3,6 +3,7 @@ const app = @import("app.zig");
 const backend = @import("backends/backend.zig");
 const ID = @import("id.zig").ID;
 pub usingnamespace @import("structures.zig");
+const build_opts = @import("build_options");
 
 pub fn range(max: usize) []const void {
     return @as([]const void, &[_]void{}).ptr[0..max];
@@ -922,7 +923,7 @@ pub fn renderBaseRoot(src: Src, imev: *ImEvent, isc: *IdStateCache, wh: WH, data
         state.devtools_open = !state.devtools_open;
     };
 
-    if (state.devtools_open) {
+    if (build_opts.devtools_enabled and state.devtools_open) {
         // for devtools, must:
         // get the size to render the root fn with
         // render the root fn in the frame (but with an id belonging to this function)

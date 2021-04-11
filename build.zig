@@ -22,12 +22,14 @@ pub fn build(b: *std.build.Builder) void {
 
     const render_backend = b.option(RenderBackend, "renderer", "Set the render backend") orelse RenderBackend.defaultFor(target) orelse @panic("not supported for this target");
 
+    const devtools_enabled = b.option(bool, "devtools", "Enable or disable devtools") orelse (mode == .Debug);
+
     const exe = b.addExecutable("threadimgui", "src/main.zig");
     exe.setTarget(target);
     exe.setBuildMode(mode);
 
-    // exe.addPackage
     exe.addBuildOption(RenderBackend, "render_backend", render_backend);
+    exe.addBuildOption(bool, "devtools_enabled", devtools_enabled);
     exe.addPackage(.{ .name = "imgui", .path = "packages/zimgui/main.zig", .dependencies = &[_]std.build.Pkg{
         .{ .name = "build_options", .path = "zig-cache/threadimgui_build_options.zig" },
     } }); // hack workaround. ideally some fn to make a custom build options thing and return a std.build.Pkg
