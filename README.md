@@ -123,3 +123,14 @@ eventually, this will be done automatically through one of: (node server | embed
 - update the vertical offset and id and move the previously rendered nodes as needed (in case of eg: top/bottom of scroll)
 - add extras on the bottom if needed
 - add extras on the top if needed
+
+# notes
+
+- !! decouple id push/pop from render ctx
+- there's no reason id push/pop should be in imev.render()
+- at the start of a function you _must_ id push/pop, but you should not be required to imev.render()
+- also: probably worth it to switch ids to `[]const u8` rather than `u64` that can collide
+- this allows two things:
+- pop() no longer needs a variable (zig doesn't enjoy that variable very much, it needs to be named and comes with no safety features to ensure you pop so what's the point)
+- the devtools can get like super detailed information about specific things. like "oh this was rendered by this function, here's the stacktrace" eg
+- I can stop being worried about id collisions
