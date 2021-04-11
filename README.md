@@ -1,3 +1,15 @@
+# building
+
+download a latest master binary of zig from [here](https://ziglang.org/download/)
+
+available rendering backends:
+
+- cairo/gtk for linux x86_64: install these packages on your system: `cairo`, `gtk+-3.0`
+
+run the application with `zig build run`
+
+- open devtools with `f12`
+
 # overview
 
 imgui rewrite of the threadreader frontend
