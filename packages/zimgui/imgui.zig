@@ -750,8 +750,8 @@ pub const VirtualScrollHelper = struct {
     ///     pub fn getNextNode(self: @This(), node_id: u64) ?u64 {}
     ///     pub fn getPreviousNode(self: @This(), node_id: u64) ?u64 {}
     /// }
-    pub fn render(vsh: *VirtualScrollHelper, imev: *ImEvent, renderInfo: anytype, height: f64) RenderResult {
-        var ctx = imev.render(@src());
+    pub fn render(vsh: *VirtualScrollHelper, src: Src, imev: *ImEvent, renderInfo: anytype, height: f64, placement_y_offset: f64) RenderResult {
+        var ctx = imev.render(src);
         defer ctx.pop();
 
         if (!renderInfo.existsNode(vsh.top_node)) {
@@ -789,7 +789,7 @@ pub const VirtualScrollHelper = struct {
 
         var current_y: f64 = vsh.scroll_offset + lowest_rendered_node.h;
         var current_id = lowest_rendered_node_id;
-        while (current_y < height) {
+        while (current_y + placement_y_offset < height) {
             current_id = renderInfo.getNextNode(current_id) orelse break;
             const rendered = vsh.renderOneNode(renderInfo, imev, current_id);
             ctx.place(rendered.node, .{ .x = 0, .y = current_y });
