@@ -381,6 +381,7 @@ pub const ImEvent = struct { // pinned?
         internal_screen_offset: Point,
         current_cursor: CursorEnum,
         allow_event_introspection: bool, // to set this a helper fn needs to be made. this must be set and then used next frame, not this frame.
+        is_first_frame: bool,
 
         mouse_position: Point,
         mouse_held: bool,
@@ -394,11 +395,11 @@ pub const ImEvent = struct { // pinned?
     /// structures that are only defined during a frame
     frame: struct {
         should_render: bool,
-        should_continue: bool,
         arena_allocator: std.heap.ArenaAllocator,
         id: ID,
         cr: backend.Context,
         cursor: CursorEnum = .default,
+        render_result: RenderResult = undefined,
 
         mouse_down: bool = false,
         mouse_up: bool = false,
@@ -415,6 +416,7 @@ pub const ImEvent = struct { // pinned?
     const MouseFocused = struct {
         id: u64,
         hover: bool,
+        mouse_up: bool,
     };
 
     pub fn arena(imev: *ImEvent) *std.mem.Allocator {
@@ -434,6 +436,7 @@ pub const ImEvent = struct { // pinned?
                 .internal_screen_offset = .{ .x = 0, .y = 0 },
                 .current_cursor = .default,
                 .allow_event_introspection = false,
+                .is_first_frame = true,
 
                 .mouse_position = .{ .x = -1, .y = -1 },
                 .mouse_held = false,
@@ -445,6 +448,8 @@ pub const ImEvent = struct { // pinned?
         };
     }
     pub fn deinit(imev: *ImEvent) void {
+        if (!imev.persistent.is_first_frame) imev.destroyFrame();
+
         while (imev.persistent.unprocessed_events.pop(imev.persistent.real_allocator)) |_| {}
 
         var iter = imev.persistent.text_cache.iterator();
@@ -460,81 +465,93 @@ pub const ImEvent = struct { // pinned?
         // TODO consolidate similar events
         try imev.persistent.unprocessed_events.push(imev.persistent.real_allocator, event);
     }
-    pub fn startFrame(imev: *ImEvent, cr: backend.Context, should_render: bool) !void {
-        const event: ?RawEvent = imev.persistent.unprocessed_events.pop(imev.persistent.real_allocator);
+    pub fn prerender(imev: *ImEvent) bool {
+        if (imev.persistent.is_first_frame) return true;
+        const unpr_evs = imev.persistent.unprocessed_events;
+        return !std.meta.eql(unpr_evs.start, unpr_evs.end); // AKA: unpr_evs.len >= 2
+    }
+    pub fn startFrame(imev: *ImEvent, cr: backend.Context, should_render: bool) void {
+        if (!imev.persistent.is_first_frame) if (imev.persistent.unprocessed_events.pop(imev.persistent.real_allocator)) |ev| {
+            switch (ev) {
+                .resize => |rsz| {
+                    imev.persistent.internal_screen_offset = .{
+                        .x = @intToFloat(f64, rsz.x),
+                        .y = @intToFloat(f64, rsz.y),
+                    };
+                    imev.persistent.screen_size = .{
+                        .w = @intToFloat(f64, rsz.w),
+                        .h = @intToFloat(f64, rsz.h),
+                    };
+                },
+                .mouse_click => |mclick| {
+                    imev.persistent.mouse_position = .{ .x = mclick.x, .y = mclick.y };
+                    if (mclick.button == 1) {
+                        if (mclick.down) {
+                            imev.frame.mouse_down = true;
+                            imev.persistent.mouse_held = true;
+                        } else {
+                            imev.frame.mouse_up = true;
+                            imev.persistent.mouse_held = false;
+                        }
+                    }
+                },
+                .mouse_move => |mmove| {
+                    imev.persistent.mouse_position = .{ .x = mmove.x, .y = mmove.y };
+                },
+                .scroll => |sev| {
+                    // imev.persistent.mouse_position = .{ .x = sev.mouse_x, .y = sev.mouse_y };
+                    imev.frame.scroll_delta = .{ .x = sev.scroll_x, .y = sev.scroll_y };
+                },
+                .key => |key| {
+                    // std.log.info("key: {s}{s}{s}{s}{s}{s}{s}", .{
+                    //     (&[_][]const u8{ "↑", "↓" })[@boolToInt(key.down)],
+                    //     @tagName(key.key),
+                    //     (&[_][]const u8{ "", " ⌃" })[@boolToInt(key.modifiers.ctrl)],
+                    //     (&[_][]const u8{ "", " ⎇ " })[@boolToInt(key.modifiers.alt)],
+                    //     (&[_][]const u8{ "", " ⇧" })[@boolToInt(key.modifiers.shift)],
+                    //     (&[_][]const u8{ "", " ⌘" })[@boolToInt(key.modifiers.win)],
+                    //     "",
+                    // });
+                    if (key.down) imev.frame.key_down = key.key;
+                },
+                else => {},
+            }
 
-        imev.frame = .{
-            .should_render = should_render,
-            .should_continue = event != null,
-            .arena_allocator = std.heap.ArenaAllocator.init(imev.persistent.real_allocator),
-            .id = ID.init(imev.persistent.real_allocator),
-            .cr = cr,
+            if (!imev.persistent.mouse_held and !imev.frame.mouse_up) {
+                imev.persistent.mouse_focused = null;
+            }
+            imev.persistent.scroll_focused = null;
+
+            imev.handleEvent(imev.frame.render_result, imev.persistent.internal_screen_offset);
         };
-        if (event == null) {
+
+        if (imev.persistent.is_first_frame) imev.persistent.is_first_frame = false //
+        else imev.destroyFrame();
+
+        if (should_render) {
             var iter = imev.persistent.text_cache.iterator();
             while (iter.next()) |entry| {
                 entry.value.used_in_this_render_frame = false;
             }
         }
-        if (event) |ev| switch (ev) {
-            .resize => |rsz| {
-                imev.persistent.internal_screen_offset = .{
-                    .x = @intToFloat(f64, rsz.x),
-                    .y = @intToFloat(f64, rsz.y),
-                };
-                imev.persistent.screen_size = .{
-                    .w = @intToFloat(f64, rsz.w),
-                    .h = @intToFloat(f64, rsz.h),
-                };
-            },
-            .mouse_click => |mclick| {
-                imev.persistent.mouse_position = .{ .x = mclick.x, .y = mclick.y };
-                if (mclick.button == 1) {
-                    if (mclick.down) {
-                        imev.frame.mouse_down = true;
-                        imev.persistent.mouse_held = true;
-                    } else {
-                        imev.frame.mouse_up = true;
-                        imev.persistent.mouse_held = false;
-                    }
-                }
-            },
-            .mouse_move => |mmove| {
-                imev.persistent.mouse_position = .{ .x = mmove.x, .y = mmove.y };
-            },
-            .scroll => |sev| {
-                // imev.persistent.mouse_position = .{ .x = sev.mouse_x, .y = sev.mouse_y };
-                imev.frame.scroll_delta = .{ .x = sev.scroll_x, .y = sev.scroll_y };
-            },
-            .key => |key| {
-                // std.log.info("key: {s}{s}{s}{s}{s}{s}{s}", .{
-                //     (&[_][]const u8{ "↑", "↓" })[@boolToInt(key.down)],
-                //     @tagName(key.key),
-                //     (&[_][]const u8{ "", " ⌃" })[@boolToInt(key.modifiers.ctrl)],
-                //     (&[_][]const u8{ "", " ⎇ " })[@boolToInt(key.modifiers.alt)],
-                //     (&[_][]const u8{ "", " ⇧" })[@boolToInt(key.modifiers.shift)],
-                //     (&[_][]const u8{ "", " ⌘" })[@boolToInt(key.modifiers.win)],
-                //     "",
-                // });
-                if (key.down) imev.frame.key_down = key.key;
-            },
-            else => {},
+
+        imev.frame = .{
+            .should_render = should_render,
+            .arena_allocator = std.heap.ArenaAllocator.init(imev.persistent.real_allocator),
+            .id = ID.init(imev.persistent.real_allocator),
+            .cr = cr,
         };
     }
-    pub fn internalRender(imev: *ImEvent, nodes: RenderResult, offset: Point, should_render: bool) void {
+    pub fn handleEvent(imev: *ImEvent, nodes: RenderResult, offset: Point) void {
         var nodeiter = nodes;
         const cr = imev.frame.cr;
         while (nodeiter) |node| {
             const rnode: RenderNode = node.value;
             switch (rnode.value) {
-                .rectangle => |rect| if (should_render) {
-                    cr.renderRectangle(rect.bg_color, .{ .x = offset.x, .y = offset.y, .w = rect.wh.w, .h = rect.wh.h }, rect.radius);
-                },
-                .text => |text| if (should_render) {
-                    cr.renderText(offset, text.layout, text.color);
-                },
+                .rectangle => {},
+                .text => {},
                 .place => |place| {
-                    imev.internalRender(place.node, .{ .x = offset.x + place.offset.x, .y = offset.y + place.offset.y }, should_render);
+                    imev.handleEvent(place.node, .{ .x = offset.x + place.offset.x, .y = offset.y + place.offset.y });
                 },
                 .clickable => |cable| {
                     const contains_point = offset.toRectBR(cable.wh).containsPoint(imev.persistent.mouse_position);
@@ -543,6 +560,7 @@ pub const ImEvent = struct { // pinned?
                         imev.persistent.mouse_focused = MouseFocused{
                             .id = cable.id,
                             .hover = contains_point,
+                            .mouse_up = imev.frame.mouse_up,
                         };
                     }
                 },
@@ -559,47 +577,64 @@ pub const ImEvent = struct { // pinned?
             nodeiter = node.next;
         }
     }
+    pub fn internalRender(imev: *ImEvent, nodes: RenderResult, offset: Point) void {
+        var nodeiter = nodes;
+        const cr = imev.frame.cr;
+        while (nodeiter) |node| {
+            const rnode: RenderNode = node.value;
+            switch (rnode.value) {
+                .rectangle => |rect| {
+                    cr.renderRectangle(rect.bg_color, .{ .x = offset.x, .y = offset.y, .w = rect.wh.w, .h = rect.wh.h }, rect.radius);
+                },
+                .text => |text| {
+                    cr.renderText(offset, text.layout, text.color);
+                },
+                .place => |place| {
+                    imev.internalRender(place.node, .{ .x = offset.x + place.offset.x, .y = offset.y + place.offset.y });
+                },
+                .clickable => {},
+                .scrollable => {},
+            }
+            nodeiter = node.next;
+        }
+    }
     pub fn endFrameRender(imev: *ImEvent, render_v: RenderResult) void {
         if (!imev.frame.should_render) unreachable;
 
-        var keys_to_remove = Queue(TextHashKey){};
-        var iter = imev.persistent.text_cache.iterator();
-        while (iter.next()) |entry| {
-            if (!entry.value.used_in_this_render_frame) {
-                keys_to_remove.push(imev.arena(), entry.key) catch @panic("oom");
-            }
-        }
-        while (keys_to_remove.pop(imev.arena())) |key| {
-            if (imev.persistent.text_cache.remove(key)) |v| {
-                v.value.layout.deinit();
-                imev.persistent.real_allocator.free(v.key.text);
-            } else unreachable;
-        }
+        imev.internalRender(render_v, imev.persistent.internal_screen_offset);
 
-        if (imev.frame.cursor != imev.persistent.current_cursor) {
-            imev.persistent.current_cursor = imev.frame.cursor;
-            imev.frame.cr.setCursor(imev.frame.cursor);
-        }
-
-        if (!imev.internalEndFrame(render_v)) unreachable; // a render frame indicated that there was more to do this tick; this is invalid
+        imev.frame.render_result = render_v;
     }
-    pub fn endFrame(imev: *ImEvent, render_v: RenderResult) bool {
+    pub fn endFrame(imev: *ImEvent, render_v: RenderResult) void {
         if (imev.frame.should_render) unreachable;
 
-        return imev.internalEndFrame(render_v);
+        imev.frame.render_result = render_v;
     }
-    pub fn internalEndFrame(imev: *ImEvent, render_v: RenderResult) bool {
-        if (!imev.persistent.mouse_held) {
-            imev.persistent.mouse_focused = null;
+    pub fn destroyFrame(imev: *ImEvent) void {
+        if (imev.frame.should_render) {
+            var keys_to_remove = Queue(TextHashKey){};
+            var iter = imev.persistent.text_cache.iterator();
+            while (iter.next()) |entry| {
+                if (!entry.value.used_in_this_render_frame) {
+                    keys_to_remove.push(imev.arena(), entry.key) catch @panic("oom");
+                }
+            }
+            while (keys_to_remove.pop(imev.arena())) |key| {
+                if (imev.persistent.text_cache.remove(key)) |v| {
+                    v.value.layout.deinit();
+                    imev.persistent.real_allocator.free(v.key.text);
+                } else unreachable;
+            }
+
+            if (imev.frame.cursor != imev.persistent.current_cursor) {
+                imev.persistent.current_cursor = imev.frame.cursor;
+                imev.frame.cr.setCursor(imev.frame.cursor);
+            }
         }
-        imev.persistent.scroll_focused = null;
-        imev.internalRender(render_v, imev.persistent.internal_screen_offset, imev.frame.should_render);
 
         imev.frame.arena_allocator.deinit();
         imev.frame.id.deinit();
         imev.frame.id = undefined;
-
-        return !imev.frame.should_continue; // rendering is over, do not execute more frames this frame
     }
 
     pub fn render(imev: *ImEvent, src: Src) RenderCtx {
@@ -640,7 +675,7 @@ pub const ImEvent = struct { // pinned?
         const id = imev.frame.id.forSrc(src);
         return ClickableState{ .key = .{ .id = id }, .focused = if (imev.persistent.mouse_focused) |mfx| if (mfx.id == id) ClickableState.Focused{
             .hover = mfx.hover,
-            .click = imev.frame.mouse_up and mfx.hover,
+            .click = mfx.mouse_up and mfx.hover,
         } else null else null };
     }
 
@@ -778,7 +813,7 @@ pub const VirtualScrollHelper = struct {
             }
             if (vsh.scroll_offset > 0) {
                 vsh.scroll_offset = 0;
-                here_offset = -vsh.scroll_offset;
+                // here_offset = -vsh.scroll_offset;
             }
         } else if (vsh.scroll_offset < -top_node_rendered.h) {
             if (vsh.scroll_offset < -top_node_rendered.h) {
@@ -946,16 +981,14 @@ pub fn renderFrame(cr: backend.Context, rr: backend.RerenderRequest, data: ExecD
     const root_src = @src();
 
     var render_count: usize = 0;
-    while (true) {
+    while (imev.prerender()) {
         render_count += 1;
-        imev.startFrame(cr, false) catch @panic("Start frame error");
-        if (imev.endFrame(renderBaseRoot(root_src, imev, root_state_cache, imev.persistent.screen_size, data))) break;
+        imev.startFrame(cr, false);
+        imev.endFrame(renderBaseRoot(root_src, imev, root_state_cache, imev.persistent.screen_size, data));
     }
-
     render_count += 1;
-    imev.startFrame(cr, true) catch @panic("Start frame error");
+    imev.startFrame(cr, true);
     imev.endFrameRender(renderBaseRoot(root_src, imev, root_state_cache, imev.persistent.screen_size, data));
-    root_state_cache.cleanupUnused(imev);
 
     // std.log.info("rerender×{} in {}ns", .{ render_count, timer.read() }); // max allowed time is 4ms
 }

@@ -280,10 +280,10 @@ fn renderPost(src: Src, imev: *ImEvent, isc: *IdStateCache, width: f64, node: ge
         var actions_lm = HLayoutManager.init(imev, .{ .max_w = layout.top_rect.w, .gap_x = 8, .gap_y = 0 });
 
         const btn_key = useButton(@src(), imev);
-        actions_lm.put(btn_key.render(@src(), imev, if (state.display_body) "Hide" else "Show")) orelse unreachable;
         if (btn_key.clicked) {
             state.display_body = !state.display_body;
         }
+        actions_lm.put(btn_key.render(@src(), imev, if (state.display_body) "Hide" else "Show")) orelse unreachable;
 
         actions_lm.overflow(renderExtraActionsMenu(@src(), imev, isc, node.actions));
         for (node.actions) |action, i| {
