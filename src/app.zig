@@ -1,3 +1,4 @@
+const std = @import("std");
 const ui = @import("imgui");
 const ImEvent = ui.ImEvent;
 const WH = ui.WH;
@@ -332,20 +333,66 @@ pub fn topLevelContainer(src: Src, imev: *ImEvent, width: f64, child: VLayoutMan
     };
 }
 
-// this is the state for a single navigation entry
-// the reason for not storing this in the element tree is because in the element tree it will be lost on:
-// - scrolling too far (nodes are virtual)
-// - navigating away (the entire page is no longer rendered anymore so any saved data will be dropped)
-// some things can be stored in the element tree:
-// - transitions. I'll make an imev.transition(@src(), current, 100, .easeinout)
-// : (src: Src, current: f64, duration: u64, easing: Easing): f64
+const AppNodeRenderer = struct {
+    page: *const generic.Page,
+    width: f64,
+    rounded: bool,
+
+    pub fn renderNode(anr: AppNodeRenderer, src: Src, imev: *ImEvent, isc: *IdStateCache, node_id: u64) VLayoutManager.Child {
+        var ctx = imev.render(src);
+        defer ctx.pop();
+
+        const page = anr.page;
+        if (page.body != .listing) @panic("todo");
+        const listing_items = page.body.listing.items;
+
+        const context_node = listing_items[@intCast(usize, node_id)];
+
+        const content_v = renderContextNode(@src(), imev, isc, anr.width, context_node);
+        const res_v = topLevelContainer(@src(), imev, anr.width, content_v, .{ .rounded = anr.rounded });
+        ctx.place(res_v.node, Point.origin);
+
+        return .{ .h = res_v.h + 8, .node = ctx.result() };
+    }
+    pub fn existsNode(anr: AppNodeRenderer, node_id: u64) bool {
+        const page = anr.page;
+        if (page.body != .listing) @panic("todo");
+        const listing_items = page.body.listing.items;
+
+        if (listing_items.len == 0) return false;
+        return true;
+    }
+    pub fn getNextNode(anr: AppNodeRenderer, node_id: u64) ?u64 {
+        const page = anr.page;
+        if (page.body != .listing) @panic("todo");
+        const listing_items = page.body.listing.items;
+
+        if (node_id + 1 == listing_items.len) return null;
+        return node_id + 1;
+    }
+    pub fn getPreviousNode(anr: AppNodeRenderer, node_id: u64) ?u64 {
+        if (node_id == 0) return null;
+        return node_id - 1;
+    }
+};
+
 pub const AppState = struct {
-    scroll: f64, // TODO this will store the current top node (body and sidebar) and the scroll offset of that node
-    // once virtual scrolling is implemented, this will have to storee off-screen IdStateCaches
-    // also, eventually virtual scrolling will have to work on : comment trees and : context nodes
-    // so basically this will have to do all the context node rendering
-    pub fn init() AppState {
-        return AppState{ .scroll = 0 };
+    content: ui.VirtualScrollHelper,
+    sidebar: ui.VirtualScrollHelper,
+
+    pub fn init(
+        alloc: *std.mem.Allocator,
+        top_content_node: u64,
+        top_sidebar_node: u64,
+    ) AppState {
+        return AppState{
+            .content = ui.VirtualScrollHelper.init(alloc, top_content_node),
+            .sidebar = ui.VirtualScrollHelper.init(alloc, top_sidebar_node),
+        };
+    }
+    pub fn deinit(astate: *AppState) void {
+        astate.content.deinit();
+        astate.sidebar.deinit();
     }
 };
 
@@ -353,7 +400,9 @@ pub fn renderApp(src: Src, imev: *ImEvent, isc: *IdStateCache, wh: WH, page: gen
     var ctx = imev.render(src);
     defer ctx.pop();
 
-    const state = isc.useState(@src(), imev, AppState, AppState.init); // |_| AppState.init()
+    const state_frame = isc.useStateCustomInit(@src(), imev, AppState);
+    if (!state_frame.initialized) state_frame.ptr.* = AppState.init(imev.persistentAlloc(), 0, 0);
+    const state = state_frame.ptr;
 
     ctx.place(primitives.rect(@src(), imev, wh, .{ .bg = .gray100 }), Point.origin);
 
@@ -365,65 +414,70 @@ pub fn renderApp(src: Src, imev: *ImEvent, isc: *IdStateCache, wh: WH, page: gen
     ctx.place(scrollable.key.node(imev, wh), Point.origin);
 
     if (scrollable.scrolling) |scrolling| {
-        state.scroll += scrolling.delta.y;
-    }
-    if (state.scroll <= 0) {
-        state.scroll = 0;
-    }
-    // TODO based on the maximum rendered height of all the items, limit the vertical scroll
-
-    var layout = VLayoutManager.fromWidth(wh.w);
-    if (wh.w > mobile_cutoff) layout.inset(20) //
-    else layout.insetY(20);
-
-    layout.top_rect.y -= state.scroll;
-
-    switch (page.display_mode) {
-        .fullscreen => {},
-        .centered => {
-            layout.maxWidth(1200, .center);
-        },
+        state.content.scroll(scrolling.delta.y);
+        state.sidebar.scroll(scrolling.delta.y);
+        // state.scroll += scrolling.delta.y;
     }
 
-    if (wh.w > 1000) {
-        var sidebar = layout.cutRight(.{ .w = sidebar_width, .gap = 20 });
+    // todo make it possible to put a, also virtualized, header thing above both scroll helpers somehow
 
-        for (page.sidebar) |sidebar_node, i| {
-            const v = imev.frame.id.pushIndex(@src(), i); // TODO once virtual scrolling is added this will have to no longer be pushIndex
-            defer v.pop();
-
-            const sidebar_widget = renderSidebarWidget(@src(), imev, isc, sidebar.top_rect.w, sidebar_node);
-
-            sidebar.place(&ctx, .{ .gap = 10 }, topLevelContainer(@src(), imev, sidebar.top_rect.w, sidebar_widget, .{ .rounded = true }));
-        }
-
-        // for ([_]f64{ 244, 66, 172, 332, 128, 356 }) |height, i| {
-        //     const v = imev.frame.id.pushIndex(@src(), i);
-        //     defer v.pop();
-
-        //     sidebar.place(&ctx, .{ .gap = 10 }, topLevelContainer(@src(), imev, sidebar.top_rect.w, VLayoutManager.Child{ .h = height, .node = null }, .{ .rounded = true }));
-        // }
+    {
+        const content_render = state.content.render(imev, AppNodeRenderer{ .page = &page, .width = wh.w, .rounded = true }, wh.h);
+        ctx.place(content_render, Point.origin);
     }
 
-    const rounded = wh.w > mobile_cutoff;
-    switch (page.body) {
-        .listing => |listing| {
-            for (listing.items) |context_node, i| {
-                const v = imev.frame.id.pushIndex(@src(), i); // TODO once virtual scrolling is added this will have to no longer be pushIndex
-                defer v.pop();
+    // var layout = VLayoutManager.fromWidth(wh.w);
+    // if (wh.w > mobile_cutoff) layout.inset(20) //
+    // else layout.insetY(20);
 
-                const context_widget = renderContextNode(@src(), imev, isc, layout.top_rect.w, context_node);
+    // layout.top_rect.y -= state.scroll;
 
-                layout.place(&ctx, .{ .gap = 10 }, topLevelContainer(@src(), imev, layout.top_rect.w, context_widget, .{ .rounded = rounded }));
-            }
-        },
-    }
-    // for (range(20)) |_, i| {
-    //     const v = imev.frame.id.pushIndex(@src(), i);
-    //     defer v.pop();
-
-    //     layout.place(&ctx, .{ .gap = 10 }, topLevelContainer(@src(), imev, layout.top_rect.w, VLayoutManager.Child{ .h = 92, .node = null }, .{ .rounded = rounded }));
+    // switch (page.display_mode) {
+    //     .fullscreen => {},
+    //     .centered => {
+    //         layout.maxWidth(1200, .center);
+    //     },
     // }
+
+    // if (wh.w > 1000) {
+    //     var sidebar = layout.cutRight(.{ .w = sidebar_width, .gap = 20 });
+
+    //     for (page.sidebar) |sidebar_node, i| {
+    //         const v = imev.frame.id.pushIndex(@src(), i); // TODO once virtual scrolling is added this will have to no longer be pushIndex
+    //         defer v.pop();
+
+    //         const sidebar_widget = renderSidebarWidget(@src(), imev, isc, sidebar.top_rect.w, sidebar_node);
+
+    //         sidebar.place(&ctx, .{ .gap = 10 }, topLevelContainer(@src(), imev, sidebar.top_rect.w, sidebar_widget, .{ .rounded = true }));
+    //     }
+
+    //     // for ([_]f64{ 244, 66, 172, 332, 128, 356 }) |height, i| {
+    //     //     const v = imev.frame.id.pushIndex(@src(), i);
+    //     //     defer v.pop();
+
+    //     //     sidebar.place(&ctx, .{ .gap = 10 }, topLevelContainer(@src(), imev, sidebar.top_rect.w, VLayoutManager.Child{ .h = height, .node = null }, .{ .rounded = true }));
+    //     // }
+    // }
+
+    // const rounded = wh.w > mobile_cutoff;
+    // switch (page.body) {
+    //     .listing => |listing| {
+    //         for (listing.items) |context_node, i| {
+    //             const v = imev.frame.id.pushIndex(@src(), i); // TODO once virtual scrolling is added this will have to no longer be pushIndex
+    //             defer v.pop();
+
+    //             const context_widget = renderContextNode(@src(), imev, isc, layout.top_rect.w, context_node);
+
+    //             layout.place(&ctx, .{ .gap = 10 }, topLevelContainer(@src(), imev, layout.top_rect.w, context_widget, .{ .rounded = rounded }));
+    //         }
+    //     },
+    // }
+    // // for (range(20)) |_, i| {
+    // //     const v = imev.frame.id.pushIndex(@src(), i);
+    // //     defer v.pop();
+
+    // //     layout.place(&ctx, .{ .gap = 10 }, topLevelContainer(@src(), imev, layout.top_rect.w, VLayoutManager.Child{ .h = 92, .node = null }, .{ .rounded = rounded }));
+    // // }
 
     return ctx.result();
 }

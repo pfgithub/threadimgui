@@ -281,7 +281,7 @@ const TextCacheHM = std.HashMap(
 pub const IdStateCache = struct {
     pub const Entry = struct {
         ptr: usize,
-        deinitFn: fn (entry: Entry, imev: *ImEvent) void,
+        deinitFn: fn (entry: Entry, alloc: *std.mem.Allocator) void,
         created_src_file: [*:0]const u8,
         created_src_line: u32,
         created_src_col: u32,
@@ -329,12 +329,12 @@ pub const IdStateCache = struct {
         hm_entry.entry.value = .{
             .ptr = @ptrToInt(item_ptr),
             .deinitFn = struct {
-                fn a(entry: Entry, imev_shadow: *ImEvent) void {
+                fn a(entry: Entry, alloc: *std.mem.Allocator) void {
                     const ptr_v = entry.readAs(src, Type);
                     if (@hasDecl(Type, "deinit")) {
-                        ptr_v.deinit(imev_shadow);
+                        ptr_v.deinit();
                     }
-                    imev_shadow.persistentAlloc().destroy(ptr_v);
+                    alloc.destroy(ptr_v);
                 }
             }.a,
             .created_src_file = src.file.ptr,
@@ -354,7 +354,7 @@ pub const IdStateCache = struct {
             if (ntry.value.used_this_frame) {
                 ntry.value.used_this_frame = false;
             } else {
-                ntry.value.deinitFn(ntry.value, imev);
+                ntry.value.deinitFn(ntry.value, imev.persistentAlloc());
                 unused.append(ntry.key) catch @panic("oom");
             }
         }
@@ -362,12 +362,12 @@ pub const IdStateCache = struct {
             isc.hm.removeAssertDiscard(key);
         }
     }
-    pub fn deinit(isc: *IdStateCache, imev: *ImEvent) void {
+    pub fn deinit(isc: *IdStateCache, alloc: *std.mem.Allocator) void {
         var iter = isc.hm.iterator();
         while (iter.next()) |ntry| {
-            ntry.value.deinitFn(ntry.value, imev);
+            ntry.value.deinitFn(ntry.value, alloc);
         }
-        isc.hm.deinit(imev.persistentAlloc());
+        isc.hm.deinit(alloc);
     }
 };
 pub const ImEvent = struct { // pinned?
@@ -623,7 +623,7 @@ pub const ImEvent = struct { // pinned?
 
             const cache_value: TextCacheValue = .{
                 .layout = layout,
-                .used_in_this_render_frame = false,
+                .used_in_this_render_frame = true,
             };
             const entry_key: TextHashKey = .{
                 .font_opts = key.font_opts,
@@ -693,6 +693,114 @@ pub const ScrollableState = struct {
     key: ScrollableKey,
 
     scrolling: ?Scrolling,
+};
+
+pub const VirtualScrollHelper = struct {
+    scroll_offset: f64,
+    top_node: u64, // unique id referring to the specific node
+    node_data_cache: std.AutoHashMap(u64, *IdStateCache),
+
+    pub fn init(alloc: *std.mem.Allocator, top_node: u64) VirtualScrollHelper {
+        return .{
+            .scroll_offset = 0,
+            .top_node = top_node,
+            .node_data_cache = std.AutoHashMap(u64, *IdStateCache).init(alloc),
+        };
+    }
+    pub fn deinit(vsh: *VirtualScrollHelper) void {
+        var iter = vsh.node_data_cache.iterator();
+        while (iter.next()) |entry| {
+            entry.value.deinit(vsh.node_data_cache.allocator);
+            vsh.node_data_cache.allocator.destroy(entry.value);
+        }
+        vsh.node_data_cache.deinit();
+    }
+
+    pub fn scroll(vsh: *VirtualScrollHelper, offset: f64) void {
+        vsh.scroll_offset -= offset;
+    }
+
+    // a use case for |_| macros
+
+    fn cacheForNode(vsh: *VirtualScrollHelper, node_id: u64) *IdStateCache {
+        var gop_res = vsh.node_data_cache.getOrPut(node_id) catch @panic("oom");
+        if (!gop_res.found_existing) {
+            const ptr = vsh.node_data_cache.allocator.create(IdStateCache) catch @panic("oom");
+            ptr.* = IdStateCache.init();
+            gop_res.entry.value = ptr;
+        }
+        return gop_res.entry.value;
+    }
+
+    fn renderOneNode(vsh: *VirtualScrollHelper, renderInfo: anytype, imev: *ImEvent, node_id: u64) VLayoutManager.Child {
+        const pindex = imev.frame.id.pushIndex(@src(), node_id);
+        defer pindex.pop();
+
+        const cache = vsh.cacheForNode(node_id);
+        const rres = renderInfo.renderNode(@src(), imev, cache, node_id);
+        cache.cleanupUnused(imev);
+        return rres;
+    }
+
+    /// renderInfo:
+    /// struct {
+    ///     … any fields you need
+    ///     pub fn renderNode(self: @This(), src: Src, imev: *ImEvent, isc: *IdStateCache, node_id: u64) VLayoutManager.Child {}
+    ///     pub fn existsNode(self: @This(), node_id: u64) bool {}
+    ///     pub fn getNextNode(self: @This(), node_id: u64) ?u64 {}
+    ///     pub fn getPreviousNode(self: @This(), node_id: u64) ?u64 {}
+    /// }
+    pub fn render(vsh: *VirtualScrollHelper, imev: *ImEvent, renderInfo: anytype, height: f64) RenderResult {
+        var ctx = imev.render(@src());
+        defer ctx.pop();
+
+        if (!renderInfo.existsNode(vsh.top_node)) {
+            return ctx.result(); // TODO something
+        }
+
+        var hnctx = imev.renderNoSrc();
+
+        var lowest_rendered_node_id = vsh.top_node;
+        var top_node_rendered = vsh.renderOneNode(renderInfo, imev, vsh.top_node);
+        hnctx.place(top_node_rendered.node, .{ .x = 0, .y = vsh.scroll_offset });
+        var lowest_rendered_node = top_node_rendered;
+
+        if (vsh.scroll_offset > 0) {
+            while (vsh.scroll_offset > 0) {
+                const above_node_id = renderInfo.getPreviousNode(vsh.top_node) orelse break; // TODO orelse make this the top of scrolling and reposition stuff
+                top_node_rendered = vsh.renderOneNode(renderInfo, imev, above_node_id);
+                vsh.top_node = above_node_id;
+                vsh.scroll_offset -= top_node_rendered.h;
+                hnctx.place(top_node_rendered.node, .{ .x = 0, .y = vsh.scroll_offset });
+            }
+        } else if (vsh.scroll_offset < -top_node_rendered.h) {
+            if (vsh.scroll_offset < -top_node_rendered.h) {
+                if (renderInfo.getNextNode(vsh.top_node)) |below_node_id| {
+                    vsh.top_node = below_node_id;
+                    vsh.scroll_offset += top_node_rendered.h;
+                    // TODO loop here like the >0 does. or don't, it doesn't really matter.
+                } else {
+                    // TODO restrict scroll
+                }
+            }
+        }
+
+        ctx.place(hnctx.result(), Point.origin); // this is for fixing the position of those top rendered nodes if you eg try to scroll above 0
+
+        var current_y: f64 = vsh.scroll_offset + lowest_rendered_node.h;
+        var current_id = lowest_rendered_node_id;
+        while (current_y < height) {
+            current_id = renderInfo.getNextNode(current_id) orelse break;
+            const rendered = vsh.renderOneNode(renderInfo, imev, current_id);
+            ctx.place(rendered.node, .{ .x = 0, .y = current_y });
+            current_y += rendered.h;
+        }
+
+        return ctx.result();
+    }
+
+    // issues: if the top node to be rendered was deleted, there will be an issue.
+    // TODO fix
 };
 
 pub const VLayoutManager = struct {
@@ -864,7 +972,7 @@ pub fn runUntilExit(alloc: *std.mem.Allocator, content: anytype, comptime render
     defer imevent.deinit();
 
     var root_state_cache = IdStateCache.init();
-    defer root_state_cache.deinit(&imevent);
+    defer root_state_cache.deinit(imevent.persistentAlloc());
 
     const root_fn_content = @ptrToInt(&content);
     comptime const RootFnContent = @TypeOf(&content);
