@@ -185,6 +185,30 @@ fn useButton(src: Src, imev: *ImEvent) ButtonKey {
     };
 }
 
+const RenderedSpan = union(enum) {
+    one_line: struct {
+        widget: Widget,
+    },
+    multi_line: struct {
+        first_line: Widget,
+        middle: Widget,
+        last_line: Widget,
+    },
+};
+
+fn renderRichtextSpan(src: Src, imev: *ImEvent, isc: *IdStateCache, span: generic.RichtextSpan, width: f64, start_offset: f64) RenderedSpan {
+    //
+}
+
+fn renderRichtextParagraph(src: Src, imev: *ImEvent, isc: *IdStateCache, paragraph: generic.RichtextParagraph, width: f64) VLayoutManager.Child {
+    switch (paragraph) {
+        .paragraph => |par| {
+            // render the richtext spans, a bit complicated
+        },
+        .unsupported => |unsup_msg| {},
+    }
+}
+
 fn renderBody(src: Src, imev: *ImEvent, isc: *IdStateCache, body: generic.Body, width: f64) VLayoutManager.Child {
     var ctx = imev.render(src);
     defer ctx.pop();
@@ -193,6 +217,9 @@ fn renderBody(src: Src, imev: *ImEvent, isc: *IdStateCache, body: generic.Body, 
 
     switch (body) {
         .none => {},
+        .array => {
+            layout.place(&ctx, .{ .gap = 4 }, primitives.textV(@src(), imev, layout.top_rect.w, .{ .color = .red, .size = .sm }, "TODO array"));
+        },
         .richtext => {
             layout.place(&ctx, .{ .gap = 4 }, primitives.textV(@src(), imev, layout.top_rect.w, .{ .color = .red, .size = .sm }, "TODO richtext"));
         },

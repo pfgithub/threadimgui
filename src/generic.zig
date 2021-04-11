@@ -32,7 +32,7 @@ const JsonHelper = struct {
     fn ReturnValueType(comptime fnc: anytype) type {
         return @typeInfo(@typeInfo(@TypeOf(fnc)).Fn.return_type orelse unreachable).ErrorUnion.payload;
     }
-    pub fn asArray(jh: JsonHelper, comptime fromJSON: anytype) ![]ReturnValueType(fromJSON) {
+    pub fn asArray(jh: JsonHelper, comptime fromJSON: anytype) error{ OutOfMemory, BadJSON }![]ReturnValueType(fromJSON) {
         return switch (jh.value orelse return error.BadJSON) {
             .Array => |arr| {
                 var res_array = try jh.alloc.alloc(ReturnValueType(fromJSON), arr.items.len);
@@ -43,7 +43,7 @@ const JsonHelper = struct {
         };
     }
     pub fn exists(jh: JsonHelper) bool {
-        return jh.value != null;
+        return jh.value != null and jh.value.? != .Null;
     }
     pub fn asBoolOpt(jh: JsonHelper) !?bool {
         return switch (jh.value orelse return null) {
@@ -138,12 +138,15 @@ pub const RichtextParagraph = union(enum) {
 };
 pub const Body = union(enum) {
     none: void,
+    array: []const Body,
     richtext: []const RichtextParagraph,
     unsupported: []const u8,
 
     pub fn fromJSON(jh: JsonHelper) !Body {
-        return switch (try jh.get("kind").asEnumDefaulted(enum { none, richtext, unsupported }, .unsupported)) {
+        if (!jh.exists()) return Body{ .none = {} };
+        return switch (try jh.get("kind").asEnumDefaulted(enum { none, array, richtext, unsupported }, .unsupported)) {
             .none => Body{ .none = {} },
+            .array => Body{ .array = try jh.get("body").asArray(Body.fromJSON) },
             .richtext => Body{ .richtext = try jh.get("content").asArray(RichtextParagraph.fromJSON) },
             .unsupported => Body{ .unsupported = try jh.get("kind").asString() },
         };
