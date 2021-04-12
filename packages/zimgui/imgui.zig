@@ -870,18 +870,20 @@ pub const VirtualScrollHelper = struct {
             if (renderInfo.getPreviousNode(vsh.top_node) != null) unreachable; // should have been handled above
             y_transform -= @floor(vsh.scroll_offset);
             vsh.scroll_offset = 0;
+
+            // render any missing nodes below that may have been forgotten because of the transform
+            while (current_y + placement_y_offset < height - y_transform) {
+                current_id = renderInfo.getNextNode(current_id) orelse break;
+                const rendered = vsh.renderOneNode(renderInfo, imev, current_id);
+                top_ctx.place(rendered.node, .{ .x = 0, .y = current_y });
+                current_y += rendered.h;
+            }
         }
+
+        // now the more difficult part
+        // if the bottom node wait a sec we have to do
 
         ctx.place(top_ctx.result(), .{ .x = 0, .y = y_transform });
-        current_y += y_transform;
-
-        // render any missing nodes below that may have been forgotten because of the transform
-        while (current_y + placement_y_offset < height) {
-            current_id = renderInfo.getNextNode(current_id) orelse break;
-            const rendered = vsh.renderOneNode(renderInfo, imev, current_id);
-            ctx.place(rendered.node, .{ .x = 0, .y = current_y });
-            current_y += rendered.h;
-        }
 
         return ctx.result();
     }
