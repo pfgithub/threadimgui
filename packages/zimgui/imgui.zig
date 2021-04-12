@@ -815,10 +815,17 @@ pub const VirtualScrollHelper = struct {
         }
 
         // here's the new plan:
-        // 1. render every visible node, top to bottom, starting from y_offset
-        // 2. update the vertical offset and id and move the previously rendered nodes as needed (in case of eg: top/bottom of scroll)
-        // 3. add extras on the bottom if needed
-        // 4. add extras on the top if needed
+        // part 1: render the top node
+        // part 2: if there are nodes above it, render those and update the top node
+        // part 3: if the highest node has whitespace above it (scroll_offset > 0), assert it is the first node
+        //         and transform all the previously rendered things, then place them on the screen.
+        // part 4: fill in nodes on the bottom. if the top node was above the screen, update the vsh.top_node and scroll to match
+        // part 5: determine if the bottom of the rendered stuff is <60% of the height. if so, more repositioning
+        //         is needed:
+        //         - reposition down to the bottom
+        //         - fill nodes up until reaching the top of the filled area.
+        //         - if the highest rendered node is still not at the top of the filled area: reposition everything
+        //           up to the top of the screen.
 
         var top_ctx = imev.renderNoSrc();
 
