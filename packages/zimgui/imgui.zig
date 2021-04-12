@@ -825,7 +825,7 @@ pub const VirtualScrollHelper = struct {
         var current_y: f64 = @floor(vsh.scroll_offset);
         var current_id = vsh.top_node;
 
-        const top_node_rendered = vsh.renderOneNode(renderInfo, imev, current_id);
+        var top_node_rendered = vsh.renderOneNode(renderInfo, imev, current_id);
         top_ctx.place(top_node_rendered.node, .{ .x = 0, .y = current_y });
         current_y += top_node_rendered.h;
 
@@ -855,14 +855,33 @@ pub const VirtualScrollHelper = struct {
         if (vsh.scroll_offset > -placement_y_offset) {
             while (vsh.scroll_offset > -placement_y_offset) {
                 const node_above_id = renderInfo.getPreviousNode(vsh.top_node) orelse break;
-                const rendered = vsh.renderOneNode(renderInfo, imev, node_above_id);
+                top_node_rendered = vsh.renderOneNode(renderInfo, imev, node_above_id);
                 vsh.top_node = node_above_id;
-                vsh.scroll_offset -= rendered.h;
-                top_ctx.place(rendered.node, .{ .x = 0, .y = vsh.scroll_offset });
+                vsh.scroll_offset -= top_node_rendered.h;
+                top_ctx.place(top_node_rendered.node, .{ .x = 0, .y = vsh.scroll_offset });
             }
         }
 
+        // now the difficult part:
+        // if the top node is the top node (there is no previous node) and the scroll offset < 0
+        // - scroll offset > 0
+        // - y transform = that - scrol
+        if (vsh.scroll_offset > 0) {
+            if (renderInfo.getPreviousNode(vsh.top_node) != null) unreachable; // should have been handled above
+            y_transform -= @floor(vsh.scroll_offset);
+            vsh.scroll_offset = 0;
+        }
+
         ctx.place(top_ctx.result(), .{ .x = 0, .y = y_transform });
+        current_y += y_transform;
+
+        // render any missing nodes below that may have been forgotten because of the transform
+        while (current_y + placement_y_offset < height) {
+            current_id = renderInfo.getNextNode(current_id) orelse break;
+            const rendered = vsh.renderOneNode(renderInfo, imev, current_id);
+            ctx.place(rendered.node, .{ .x = 0, .y = current_y });
+            current_y += rendered.h;
+        }
 
         return ctx.result();
     }
