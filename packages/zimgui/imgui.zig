@@ -387,6 +387,8 @@ pub const ImEvent = struct { // pinned?
         mouse_held: bool,
         mouse_focused: ?MouseFocused,
 
+        scroll_emulation_btn_held: bool,
+
         scroll_focused: ?ScrollFocused,
         // last_scroll_time: u64, // to prevent switching scroll focuses until «»ms of time without scrolling or similar
 
@@ -443,6 +445,8 @@ pub const ImEvent = struct { // pinned?
                 .mouse_held = false,
                 .mouse_focused = null,
 
+                .scroll_emulation_btn_held = false,
+
                 .scroll_focused = null,
             },
             .frame = undefined,
@@ -490,6 +494,7 @@ pub const ImEvent = struct { // pinned?
                 .resize => unreachable,
                 .mouse_click => |mclick| {
                     imev.persistent.mouse_position = .{ .x = mclick.x, .y = mclick.y };
+                    // TODO make this an enum for cross platform support
                     if (mclick.button == 1) {
                         if (mclick.down) {
                             imev.frame.mouse_down = true;
@@ -498,9 +503,16 @@ pub const ImEvent = struct { // pinned?
                             imev.frame.mouse_up = true;
                             imev.persistent.mouse_held = false;
                         }
+                    } else if (mclick.button == 2) {
+                        imev.persistent.scroll_emulation_btn_held = mclick.down;
                     }
                 },
                 .mouse_move => |mmove| {
+                    if (imev.persistent.scroll_emulation_btn_held) {
+                        const mdiff_x = mmove.x - imev.persistent.mouse_position.x;
+                        const mdiff_y = mmove.y - imev.persistent.mouse_position.y;
+                        imev.frame.scroll_delta = .{ .x = -mdiff_x, .y = -mdiff_y };
+                    }
                     imev.persistent.mouse_position = .{ .x = mmove.x, .y = mmove.y };
                 },
                 .scroll => |sev| {
