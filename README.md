@@ -135,20 +135,6 @@ eventually, this will be done automatically through one of: (node server | embed
 
 # notes
 
-- for the scroll thing - what about oh no this will turn into a bit of a mess
-- ok actually nvm so currently it renders the top node then nodes around there then top to bottom
-- what if instead:
-- render every node, top to bottom
-- update the vertical offset and id and move the previously rendered nodes as needed (in case of eg: top/bottom of scroll)
-- add extras on the bottom if needed
-- add extras on the top if needed
-
-# notes:
-
-- to help with scrolling, add smooth scroll emulation on middle mouse drag. mouse doesn't move but window scrolls
-
-# notes
-
 - !! decouple id push/pop from render ctx
 - there's no reason id push/pop should be in imev.render()
 - at the start of a function you _must_ id push/pop, but you should not be required to imev.render()
@@ -157,3 +143,14 @@ eventually, this will be done automatically through one of: (node server | embed
 - pop() no longer needs a variable (zig doesn't enjoy that variable very much, it needs to be named and comes with no safety features to ensure you pop so what's the point)
 - the devtools can get like super detailed information about specific things. like "oh this was rendered by this function, here's the stacktrace" eg
 - I can stop being worried about id collisions
+
+# notes
+
+- fix scrolling
+- how?
+- magic
+- it's possible to do, just annoying
+- have to
+  - render what's in frame
+  - update vertical offset and place the previous nodes where they should go
+  - _then_ render other stuff that should have been in frame
