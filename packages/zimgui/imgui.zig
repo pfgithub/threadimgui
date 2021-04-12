@@ -823,7 +823,7 @@ pub const VirtualScrollHelper = struct {
         var top_ctx = imev.renderNoSrc();
 
         var top_node_height: f64 = undefined;
-        var current_y: f64 = vsh.scroll_offset;
+        var current_y: f64 = @floor(vsh.scroll_offset);
         var current_id = vsh.top_node;
         while (current_y + placement_y_offset < height) {
             const rendered = vsh.renderOneNode(renderInfo, imev, current_id);
@@ -833,12 +833,12 @@ pub const VirtualScrollHelper = struct {
             current_id = renderInfo.getNextNode(current_id) orelse break;
         }
 
-        if (vsh.scroll_offset > 0) {
-            while (vsh.scroll_offset > 0) {
+        if (vsh.scroll_offset > -placement_y_offset) {
+            while (vsh.scroll_offset > -placement_y_offset) {
                 const node_above_id = renderInfo.getPreviousNode(vsh.top_node) orelse break;
                 const rendered = vsh.renderOneNode(renderInfo, imev, node_above_id);
                 vsh.top_node = node_above_id;
-                vsh.scroll_offset -= top_node_height;
+                vsh.scroll_offset -= rendered.h;
                 top_node_height = rendered.h;
                 top_ctx.place(rendered.node, .{ .x = 0, .y = vsh.scroll_offset });
             }
