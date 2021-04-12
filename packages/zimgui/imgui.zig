@@ -854,35 +854,35 @@ pub const VirtualScrollHelper = struct {
         // shift them all up
         // += scroll offset
 
-        var this_frame_offset: f64 = 0;
-        if (vsh.scroll_offset > 0) {
-            // std.log.info("scrolled above {d} {d}", .{ vsh.scroll_offset, -placement_y_offset });
-            this_frame_offset = -vsh.scroll_offset;
-            vsh.scroll_offset = 0;
-            // TODO render more
-        }
+        // var this_frame_offset: f64 = 0;
+        // if (vsh.scroll_offset > 0) {
+        //     // std.log.info("scrolled above {d} {d}", .{ vsh.scroll_offset, -placement_y_offset });
+        //     this_frame_offset = -vsh.scroll_offset;
+        //     vsh.scroll_offset = 0;
+        //     // TODO render more
+        // }
 
-        var bottom_60p = @floor(height * 0.60);
-        if (current_y < bottom_60p) {
+        // var bottom_60p = @floor(height * 0.60);
+        // if (current_y < bottom_60p) {
 
-            // this_frame_offset = -vsh.scroll_offset
-            const so_start = vsh.scroll_offset;
-            vsh.scroll_offset -= current_y - bottom_60p;
-            this_frame_offset = bottom_60p - current_y;
+        //     // this_frame_offset = -vsh.scroll_offset
+        //     const so_start = vsh.scroll_offset;
+        //     vsh.scroll_offset -= current_y - bottom_60p;
+        //     this_frame_offset = bottom_60p - current_y;
 
-            if (vsh.scroll_offset > 0) {
-                // std.log.info("scrolled above {d} {d}", .{ vsh.scroll_offset, -placement_y_offset });
-                this_frame_offset += -vsh.scroll_offset;
-                vsh.scroll_offset = 0;
-                // TODO render more
-            }
-        }
+        //     if (vsh.scroll_offset > 0) {
+        //         // std.log.info("scrolled above {d} {d}", .{ vsh.scroll_offset, -placement_y_offset });
+        //         this_frame_offset += -vsh.scroll_offset;
+        //         vsh.scroll_offset = 0;
+        //         // TODO render more
+        //     }
+        // }
 
         // if the bottom rendered node's bottom is <60% of screen height
         // shift them all down
         // += scroll offset
 
-        ctx.place(top_ctx.result(), .{ .x = 0, .y = @floor(this_frame_offset) });
+        ctx.place(top_ctx.result(), .{ .x = 0, .y = 0 });
 
         return ctx.result();
     }
