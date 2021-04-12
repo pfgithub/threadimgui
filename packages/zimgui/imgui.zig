@@ -825,7 +825,8 @@ pub const VirtualScrollHelper = struct {
         var current_y: f64 = @floor(vsh.scroll_offset);
         var current_id = vsh.top_node;
 
-        var top_node_rendered = vsh.renderOneNode(renderInfo, imev, current_id);
+        var top_node_rendered_id = current_id;
+        var top_node_rendered = vsh.renderOneNode(renderInfo, imev, top_node_rendered_id);
         top_ctx.place(top_node_rendered.node, .{ .x = 0, .y = current_y });
         current_y += top_node_rendered.h;
 
@@ -852,36 +853,73 @@ pub const VirtualScrollHelper = struct {
         // - while the top node has nodes above it and offset >0:
         //   - devance the top node
         //   - render the top node
-        if (vsh.scroll_offset > -placement_y_offset) {
-            while (vsh.scroll_offset > -placement_y_offset) {
-                const node_above_id = renderInfo.getPreviousNode(vsh.top_node) orelse break;
-                top_node_rendered = vsh.renderOneNode(renderInfo, imev, node_above_id);
-                vsh.top_node = node_above_id;
-                vsh.scroll_offset -= top_node_rendered.h;
-                top_ctx.place(top_node_rendered.node, .{ .x = 0, .y = vsh.scroll_offset });
-            }
+        while (vsh.scroll_offset > -placement_y_offset) {
+            top_node_rendered_id = renderInfo.getPreviousNode(top_node_rendered_id) orelse break;
+            top_node_rendered = vsh.renderOneNode(renderInfo, imev, top_node_rendered_id);
+            vsh.top_node = top_node_rendered_id;
+            vsh.scroll_offset -= top_node_rendered.h;
+            top_ctx.place(top_node_rendered.node, .{ .x = 0, .y = vsh.scroll_offset });
         }
 
-        // now the difficult part:
-        // if the top node is the top node (there is no previous node) and the scroll offset < 0
-        // - scroll offset > 0
-        // - y transform = that - scrol
-        if (vsh.scroll_offset > 0) {
-            if (renderInfo.getPreviousNode(vsh.top_node) != null) unreachable; // should have been handled above
-            y_transform -= @floor(vsh.scroll_offset);
-            vsh.scroll_offset = 0;
+        // // now the more difficult part
+        // // if the bottom node wait a sec we have to do
+        // // ok get the bottom 60%
 
-            // render any missing nodes below that may have been forgotten because of the transform
-            while (current_y + placement_y_offset < height - y_transform) {
-                current_id = renderInfo.getNextNode(current_id) orelse break;
-                const rendered = vsh.renderOneNode(renderInfo, imev, current_id);
-                top_ctx.place(rendered.node, .{ .x = 0, .y = current_y });
-                current_y += rendered.h;
-            }
-        }
+        // const bottom_60p = @floor(height * 0.60);
+        // // if the current y + placement y offset < bottom_60%
+        // // figure out why:
+        // // -
+        // if (current_y < bottom_60p - placement_y_offset) {
+        //     std.log.info("scrolled too low. distance: {d}", .{current_y - (bottom_60p - placement_y_offset)});
+        //     // push all the nodes down so the bottom is at the 60% line
+        //     // *unless* (what condition?)
+        //     // if uuh
+        //     // oh : if pushing the nodes down causes the top node to be above the 0 line
+        //     // then realign
+        //     // so actually : we'll push no matter what and vv will fix it if it ends up too far down
 
-        // now the more difficult part
-        // if the bottom node wait a sec we have to do
+        //     // so this occurs if it is too low ; which means we may need to add nodes above
+
+        //     // ok the transformation that needs to occur:
+        //     // just += the scroll offset by the distance and (?-)= the y transform by the same amount
+
+        //     vsh.scroll_offset -= current_y - (bottom_60p - placement_y_offset);
+        //     y_transform -= current_y - (bottom_60p - placement_y_offset);
+        //     current_y -= current_y - (bottom_60p - placement_y_offset);
+        // }
+
+        // // this may have caused new nodes to be revealed that have not been rendered yet. these must be rendered now.
+        // while (vsh.scroll_offset > -placement_y_offset) {
+        //     top_node_rendered_id = renderInfo.getPreviousNode(top_node_rendered_id) orelse break;
+        //     top_node_rendered = vsh.renderOneNode(renderInfo, imev, top_node_rendered_id);
+        //     vsh.top_node = top_node_rendered_id;
+        //     vsh.scroll_offset -= top_node_rendered.h;
+        //     top_ctx.place(top_node_rendered.node, .{ .x = 0, .y = vsh.scroll_offset });
+        // }
+
+        // // ah! there's a chance the top_node_rendered_id != the vsh.top_node
+        // // in this case:
+        // // update the vsh.top_node because the y transform matters
+        // // why can it be trhe that vsh.top_node != top node rendered
+        // // : in case of bad
+
+        // // now the difficult part:
+        // // if the top node is the top node (there is no previous node) and the scroll offset < 0
+        // // - scroll offset > 0
+        // // - y transform = that - scrol
+        // if (vsh.scroll_offset > 0) {
+        //     if (renderInfo.getPreviousNode(vsh.top_node) != null) unreachable; // should have been handled above
+        //     y_transform -= @floor(vsh.scroll_offset);
+        //     vsh.scroll_offset = 0;
+        // }
+
+        // // render any missing nodes below that may have been forgotten because of the transform
+        // while (current_y + placement_y_offset < height - y_transform) {
+        //     current_id = renderInfo.getNextNode(current_id) orelse break;
+        //     const rendered = vsh.renderOneNode(renderInfo, imev, current_id);
+        //     top_ctx.place(rendered.node, .{ .x = 0, .y = current_y });
+        //     current_y += rendered.h;
+        // }
 
         ctx.place(top_ctx.result(), .{ .x = 0, .y = y_transform });
 
