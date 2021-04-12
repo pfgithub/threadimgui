@@ -135,6 +135,13 @@ eventually, this will be done automatically through one of: (node server | embed
 
 # notes
 
+- add a scrollbar?
+- a fake scrollbar like you can drag it up and down but it just moves the page and not the scrollbar
+- and you can click to like pagedown and stuff
+- (that might reveal a minor, easily fixable bug with the scrolling system but that's probably fine)
+
+# notes
+
 - !! decouple id push/pop from render ctx
 - there's no reason id push/pop should be in imev.render()
 - at the start of a function you _must_ id push/pop, but you should not be required to imev.render()
