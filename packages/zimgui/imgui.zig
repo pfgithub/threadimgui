@@ -788,8 +788,8 @@ pub const VirtualScrollHelper = struct {
         return gop_res.entry.value;
     }
 
-    fn renderOneNode(vsh: *VirtualScrollHelper, renderInfo: anytype, imev: *ImEvent, node_id: u64) VLayoutManager.Child {
-        const pindex = imev.frame.id.pushIndex(@src(), node_id);
+    fn renderOneNode(vsh: *VirtualScrollHelper, src: Src, renderInfo: anytype, imev: *ImEvent, node_id: u64) VLayoutManager.Child {
+        const pindex = imev.frame.id.pushIndex(src, node_id);
         defer pindex.pop();
 
         const cache = vsh.cacheForNode(node_id);
@@ -826,7 +826,7 @@ pub const VirtualScrollHelper = struct {
         var current_y: f64 = @floor(vsh.scroll_offset);
         var current_id = vsh.top_node;
         while (current_y + placement_y_offset < height) {
-            const rendered = vsh.renderOneNode(renderInfo, imev, current_id);
+            const rendered = vsh.renderOneNode(@src(), renderInfo, imev, current_id);
             top_ctx.place(rendered.node, .{ .x = 0, .y = current_y });
             if (current_id == vsh.top_node) top_node_height = rendered.h;
             current_y += rendered.h;
@@ -836,7 +836,7 @@ pub const VirtualScrollHelper = struct {
         if (vsh.scroll_offset > -placement_y_offset) {
             while (vsh.scroll_offset > -placement_y_offset) {
                 const node_above_id = renderInfo.getPreviousNode(vsh.top_node) orelse break;
-                const rendered = vsh.renderOneNode(renderInfo, imev, node_above_id);
+                const rendered = vsh.renderOneNode(@src(), renderInfo, imev, node_above_id);
                 vsh.top_node = node_above_id;
                 vsh.scroll_offset -= rendered.h;
                 top_node_height = rendered.h;
@@ -854,11 +854,35 @@ pub const VirtualScrollHelper = struct {
         // shift them all up
         // += scroll offset
 
+        var this_frame_offset: f64 = 0;
+        if (vsh.scroll_offset > 0) {
+            // std.log.info("scrolled above {d} {d}", .{ vsh.scroll_offset, -placement_y_offset });
+            this_frame_offset = -vsh.scroll_offset;
+            vsh.scroll_offset = 0;
+            // TODO render more
+        }
+
+        var bottom_60p = @floor(height * 0.60);
+        if (current_y < bottom_60p) {
+
+            // this_frame_offset = -vsh.scroll_offset
+            const so_start = vsh.scroll_offset;
+            vsh.scroll_offset -= current_y - bottom_60p;
+            this_frame_offset = bottom_60p - current_y;
+
+            if (vsh.scroll_offset > 0) {
+                // std.log.info("scrolled above {d} {d}", .{ vsh.scroll_offset, -placement_y_offset });
+                this_frame_offset += -vsh.scroll_offset;
+                vsh.scroll_offset = 0;
+                // TODO render more
+            }
+        }
+
         // if the bottom rendered node's bottom is <60% of screen height
         // shift them all down
         // += scroll offset
 
-        ctx.place(top_ctx.result(), .{ .x = 0, .y = 0 });
+        ctx.place(top_ctx.result(), .{ .x = 0, .y = @floor(this_frame_offset) });
 
         return ctx.result();
     }
