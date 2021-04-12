@@ -143,6 +143,10 @@ eventually, this will be done automatically through one of: (node server | embed
 - pop() no longer needs a variable (zig doesn't enjoy that variable very much, it needs to be named and comes with no safety features to ensure you pop so what's the point)
 - the devtools can get like super detailed information about specific things. like "oh this was rendered by this function, here's the stacktrace" eg
 - I can stop being worried about id collisions
+- :
+- maybe make it clearer what the `@src()` does
+- like imev.descend(@src()) and then the function defer calls ascend
+- or something
 
 # notes
 
