@@ -847,10 +847,16 @@ pub const VirtualScrollHelper = struct {
             if (renderInfo.getNextNode(vsh.top_node)) |below_node_id| {
                 vsh.top_node = below_node_id;
                 vsh.scroll_offset += top_node_height;
-            } else {
-                //
             }
         }
+
+        // if the top rendered node is > 0,
+        // shift them all up
+        // += scroll offset
+
+        // if the bottom rendered node's bottom is <60% of screen height
+        // shift them all down
+        // += scroll offset
 
         ctx.place(top_ctx.result(), .{ .x = 0, .y = 0 });
 
