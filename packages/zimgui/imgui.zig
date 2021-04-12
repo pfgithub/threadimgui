@@ -833,22 +833,22 @@ pub const VirtualScrollHelper = struct {
             current_id = renderInfo.getNextNode(current_id) orelse break;
         }
 
-        if (vsh.scroll_offset > -placement_y_offset) {
-            while (vsh.scroll_offset > -placement_y_offset) {
-                const node_above_id = renderInfo.getPreviousNode(vsh.top_node) orelse break;
-                const rendered = vsh.renderOneNode(@src(), renderInfo, imev, node_above_id);
-                vsh.top_node = node_above_id;
-                vsh.scroll_offset -= rendered.h;
-                top_node_height = rendered.h;
-                top_ctx.place(rendered.node, .{ .x = 0, .y = vsh.scroll_offset });
-            }
-        }
-        if (vsh.scroll_offset < -top_node_height) {
-            if (renderInfo.getNextNode(vsh.top_node)) |below_node_id| {
-                vsh.top_node = below_node_id;
-                vsh.scroll_offset += top_node_height;
-            }
-        }
+        // if (vsh.scroll_offset > -placement_y_offset) {
+        //     while (vsh.scroll_offset > -placement_y_offset) {
+        //         const node_above_id = renderInfo.getPreviousNode(vsh.top_node) orelse break;
+        //         const rendered = vsh.renderOneNode(@src(), renderInfo, imev, node_above_id);
+        //         vsh.top_node = node_above_id;
+        //         vsh.scroll_offset -= rendered.h;
+        //         top_node_height = rendered.h;
+        //         top_ctx.place(rendered.node, .{ .x = 0, .y = vsh.scroll_offset });
+        //     }
+        // }
+        // if (vsh.scroll_offset < -top_node_height) {
+        //     if (renderInfo.getNextNode(vsh.top_node)) |below_node_id| {
+        //         vsh.top_node = below_node_id;
+        //         vsh.scroll_offset += top_node_height;
+        //     }
+        // }
 
         // if the top rendered node is > 0,
         // shift them all up
