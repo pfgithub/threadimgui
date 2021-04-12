@@ -147,14 +147,7 @@ eventually, this will be done automatically through one of: (node server | embed
 - maybe make it clearer what the `@src()` does
 - like imev.descend(@src()) and then the function defer calls ascend
 - or something
-
-# notes
-
-- fix scrolling
-- how?
-- magic
-- it's possible to do, just annoying
-- have to
-  - render what's in frame
-  - update vertical offset and place the previous nodes where they should go
-  - _then_ render other stuff that should have been in frame
+- adding onto this, it would make it easier to put keys on things
+- or about the same actually
+- but like either on the individual thing renderThing(imev.descendId(@src(), index))
+- or scoped {imev.descendId(@src(), index) defer undescend}
