@@ -688,7 +688,7 @@ pub const ImEvent = struct { // pinned?
             return cached_value.value.layout;
         } else {
             const text_dupe = imev.persistent.real_allocator.dupe(u8, key.text) catch @panic("oom");
-            const font_str = std.fmt.allocPrint0(imev.arena(), "\u{200b}{}", .{key.font_opts}) catch @panic("oom");
+            const font_str = std.fmt.allocPrint0(imev.arena(), "{}", .{key.font_opts}) catch @panic("oom");
 
             // create an attr list
             // const attr_list = imev.frame.cr.newAttrList();
@@ -701,9 +701,8 @@ pub const ImEvent = struct { // pinned?
             // can ignore this
 
             const attrs = backend.TextAttrList.new();
-            if (key.font_opts.left_offset != 0) attrs.addRange(0, 1, .{ .width = .{ .w = key.font_opts.left_offset } });
-            if (key.font_opts.underline) attrs.addRange(1, text_dupe.len, .underline);
-            const layout = imev.frame.cr.layoutText(font_str.ptr, text_dupe, .{ .width = key.width }, attrs);
+            if (key.font_opts.underline) attrs.addRange(0, 0 + text_dupe.len, .underline);
+            const layout = imev.frame.cr.layoutText(font_str.ptr, text_dupe, .{ .width = key.width, .left_offset = key.font_opts.left_offset }, attrs);
 
             const cache_value: TextCacheValue = .{
                 .layout = layout,

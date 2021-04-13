@@ -8,6 +8,9 @@ pub const TextAttrList = struct {
     const BackendValue = if (@hasDecl(backend, "TextAttrList")) backend.TextAttrList else void;
     value: BackendValue,
     pub fn new() TextAttrList {
+        // TODO warn once if void
+        // var warned_things = std.EnumArray(enum{things to warn about})
+        // also option to comptime error instead of runtime warn
         if (BackendValue != void) return .{ .value = BackendValue.new() };
         return .{ .value = {} };
     }
@@ -42,9 +45,10 @@ pub const Context = struct {
     pub const TextLayoutOpts = struct {
         /// pango scaled
         width: ?c_int,
+        left_offset: ?c_int = null,
     };
     pub fn layoutText(ctx: Context, font: [*:0]const u8, text: []const u8, opts: TextLayoutOpts, attrs: TextAttrList) TextLayout {
-        return .{ .value = ctx.value.layoutText(font, text, opts.width, attrs.value) };
+        return .{ .value = ctx.value.layoutText(font, text, opts.width, opts.left_offset orelse 0, attrs.value) };
     }
 };
 pub const RerenderRequest = struct {

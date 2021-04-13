@@ -201,23 +201,19 @@ pub fn cursorString(cursor: CursorEnum) [:0]const u8 {
     };
 }
 
+const shape_indent_char = "\u{200b}";
+
 pub const TextAttrList = struct {
     attr_list: *PangoAttrList,
     pub fn new() TextAttrList {
         return .{ .attr_list = pango_attr_list_new().? };
     }
     pub fn addRange(al: TextAttrList, start_usz: usize, end_usz: usize, format: TextAttr) void {
-        const start = @intCast(guint, start_usz);
-        const end = @intCast(guint, end_usz);
+        const start = @intCast(guint, start_usz + shape_indent_char.len);
+        const end = @intCast(guint, end_usz + shape_indent_char.len);
         switch (format) {
             .underline => {
                 const attr = pango_attr_underline_new(.PANGO_UNDERLINE_SINGLE);
-                attribute_set_range(attr, start, end);
-                pango_attr_list_insert(al.attr_list, attr);
-            },
-            .width => |w| {
-                const rect = PangoRectangle{ .x = 0, .y = 0, .width = w.w, .height = 1 };
-                const attr = pango_attr_shape_new(&rect, &rect);
                 attribute_set_range(attr, start, end);
                 pango_attr_list_insert(al.attr_list, attr);
             },
@@ -254,7 +250,7 @@ pub const Context = struct {
         pango_cairo_show_layout(cr, text.layout);
         cairo_restore(cr);
     }
-    pub fn layoutText(ctx: Context, font: [*:0]const u8, text: []const u8, width: ?c_int, attrs: TextAttrList) TextLayout {
+    pub fn layoutText(ctx: Context, font: [*:0]const u8, text: []const u8, width: ?c_int, left_offset: c_int, attrs: TextAttrList) TextLayout {
         const cr = ctx.cr;
         // if (layout == null) {
         const layout = pango_cairo_create_layout(cr) orelse @panic("no layout"); // ?*PangoLayout, g_object_unref(layout)
@@ -264,8 +260,19 @@ pub const Context = struct {
             defer pango_font_description_free(description);
             pango_layout_set_font_description(layout, description);
         }
-        pango_layout_set_text(layout, text.ptr, @intCast(gint, text.len));
-        pango_layout_set_attributes(layout, attrs.attr_list); // TODO unref the attr list maybe?
+        const text_dupe = std.fmt.allocPrint(std.heap.c_allocator, shape_indent_char ++ "{s}", .{text}) catch @panic("oom");
+        pango_layout_set_text(layout, text_dupe.ptr, @intCast(gint, text_dupe.len));
+
+        const attr_l_dupe = pango_attr_list_copy(attrs.attr_list);
+        defer pango_attr_list_unref(attr_l_dupe);
+
+        if (left_offset != 0) {
+            const rect = PangoRectangle{ .x = 0, .y = 0, .width = left_offset, .height = 1 };
+            const attr = pango_attr_shape_new(&rect, &rect);
+            attribute_set_range(attr, 0, shape_indent_char.len);
+            pango_attr_list_insert(attr_l_dupe, attr);
+        }
+        pango_layout_set_attributes(layout, attr_l_dupe); // TODO unref the attr list maybe?
 
         if (width) |w| pango_layout_set_width(layout, w);
         pango_layout_set_wrap(layout, .PANGO_WRAP_WORD_CHAR);
