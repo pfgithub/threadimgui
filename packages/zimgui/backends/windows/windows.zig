@@ -29,7 +29,7 @@ pub const Context = struct {
     pub fn renderText(ctx: Context, point: Point, text: TextLayout, color: Color) void {
         // TODO
     }
-    pub fn layoutText(ctx: Context, font: [*:0]const u8, text: []const u8, width: ?c_int) TextLayout {
+    pub fn layoutText(ctx: Context, font: [*:0]const u8, text: []const u8, width: ?c_int, attrs: void) TextLayout {
         // TODO
         return TextLayout{};
     }
@@ -46,6 +46,6 @@ pub fn pangoScale(float: f64) c_int {
     return @floatToInt(c_int, float * 1000);
 }
 
-pub fn start(data_ptr: *const backend.OpaquePtrData) error{Failure}!void {
+pub fn startBackend(data_ptr: *const backend.OpaquePtrData) error{Failure}!void {
     if (startCv2("Demo", 500, 500, data_ptr) != 0) return error.Failure;
 }

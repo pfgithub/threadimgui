@@ -73,6 +73,11 @@ void extract_key_event_fields(GdkEventKey* event, GdkEventType* out_event_type, 
 	*out_modifiers = event->state;
 })
 
+void attribute_set_range(PangoAttribute* attr, guint start, guint end) IMPL({
+	attr->start_index = start;
+	attr->end_index = end;
+})
+
 IMPLONLY(
 
 typedef struct {

@@ -4,6 +4,18 @@ const backend = switch (@import("build_options").render_backend) {
 };
 const structures = @import("../structures.zig");
 
+pub const TextAttrList = struct {
+    const BackendValue = if (@hasDecl(backend, "TextAttrList")) backend.TextAttrList else void;
+    value: BackendValue,
+    pub fn new() TextAttrList {
+        if (BackendValue != void) return .{ .value = BackendValue.new() };
+        return .{ .value = {} };
+    }
+    pub fn addRange(a: TextAttrList, start: usize, end: usize, format: structures.TextAttr) void {
+        if (BackendValue != void) a.value.addRange(start, end, format);
+    }
+};
+
 pub const TextLayout = struct {
     value: backend.TextLayout,
     pub fn deinit(layout: TextLayout) void {
@@ -31,8 +43,8 @@ pub const Context = struct {
         /// pango scaled
         width: ?c_int,
     };
-    pub fn layoutText(ctx: Context, font: [*:0]const u8, text: []const u8, opts: TextLayoutOpts) TextLayout {
-        return .{ .value = ctx.value.layoutText(font, text, opts.width) };
+    pub fn layoutText(ctx: Context, font: [*:0]const u8, text: []const u8, opts: TextLayoutOpts, attrs: TextAttrList) TextLayout {
+        return .{ .value = ctx.value.layoutText(font, text, opts.width, attrs.value) };
     }
 };
 pub const RerenderRequest = struct {
@@ -69,6 +81,6 @@ pub fn runUntilExit(
         }.a,
     };
 
-    try backend.start(&opaque_ptr_data);
+    try backend.startBackend(&opaque_ptr_data);
     // fn(data_ptr: *const OpaquePtrData) error{Failure}!void
 }

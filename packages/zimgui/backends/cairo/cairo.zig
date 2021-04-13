@@ -201,6 +201,22 @@ pub fn cursorString(cursor: CursorEnum) [:0]const u8 {
     };
 }
 
+pub const TextAttrList = struct {
+    attr_list: *PangoAttrList,
+    pub fn new() TextAttrList {
+        return .{ .attr_list = pango_attr_list_new().? };
+    }
+    pub fn addRange(al: TextAttrList, start: usize, end: usize, format: TextAttr) void {
+        switch (format) {
+            .underline => {
+                const attr = pango_attr_underline_new(.PANGO_UNDERLINE_SINGLE);
+                attribute_set_range(attr, @intCast(guint, start), @intCast(guint, end));
+                pango_attr_list_insert(al.attr_list, attr);
+            },
+        }
+    }
+};
+
 pub const Context = struct {
     cr: *cairo_t,
     widget: *GtkWidget,
@@ -230,7 +246,7 @@ pub const Context = struct {
         pango_cairo_show_layout(cr, text.layout);
         cairo_restore(cr);
     }
-    pub fn layoutText(ctx: Context, font: [*:0]const u8, text: []const u8, width: ?c_int) TextLayout {
+    pub fn layoutText(ctx: Context, font: [*:0]const u8, text: []const u8, width: ?c_int, attrs: TextAttrList) TextLayout {
         const cr = ctx.cr;
         // if (layout == null) {
         const layout = pango_cairo_create_layout(cr) orelse @panic("no layout"); // ?*PangoLayout, g_object_unref(layout)
@@ -241,6 +257,7 @@ pub const Context = struct {
             pango_layout_set_font_description(layout, description);
         }
         pango_layout_set_text(layout, text.ptr, @intCast(gint, text.len));
+        pango_layout_set_attributes(layout, attrs.attr_list); // TODO unref the attr list maybe?
 
         if (width) |w| pango_layout_set_width(layout, w);
         pango_layout_set_wrap(layout, .PANGO_WRAP_WORD_CHAR);
@@ -264,6 +281,6 @@ pub fn pangoScale(float: f64) c_int {
     return @floatToInt(gint, float * @intToFloat(f64, PANGO_SCALE));
 }
 
-pub fn start(data_ptr: *const backend.OpaquePtrData) error{Failure}!void {
+pub fn startBackend(data_ptr: *const backend.OpaquePtrData) error{Failure}!void {
     if (start_gtk(0, undefined, @intToPtr(*c_int, @ptrToInt(data_ptr))) != 0) return error.Failure;
 }

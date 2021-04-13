@@ -233,6 +233,22 @@ fn renderBody(src: Src, imev: *ImEvent, isc: *IdStateCache, body: generic.Body, 
 
     switch (body) {
         .none => {},
+        .link => |link| {
+            // render a link → a RenderedSpan
+            // render the span with the spanrenderer thing
+            // layout.place(&ctx, .{.gap = 8}); // place the rendered span
+            const clicked = imev.clickable(@src());
+            const hovering = if (clicked.focused) |fc| fc.hover else false;
+            if (clicked.focused) |fc| if (fc.hover) fc.setCursor(imev, .pointer);
+            const text = primitives.textV(@src(), imev, layout.top_rect.w, .{ .size = .sm, .color = .blue500, .underline = hovering }, link.url);
+
+            const area = layout.take(.{ .h = text.h, .gap = 8 });
+            ctx.place(text.node, area.ul());
+            ctx.place(clicked.key.node(imev, area.wh()), area.ul());
+            // layout.place(&ctx, .{ .gap = 8 }, text);
+
+            // TODO display preview body using the preview client
+        },
         .array => |array| {
             for (array) |array_item, i| {
                 const scope_index = imev.frame.id.pushIndex(@src(), i);

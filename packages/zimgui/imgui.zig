@@ -55,6 +55,7 @@ pub const ThemeColor = enum {
     gray700,
     white,
     red,
+    blue500,
     pub fn getColor(col: ThemeColor) Color {
         return switch (col) {
             .black => Color.hex(0x000000),
@@ -64,6 +65,7 @@ pub const ThemeColor = enum {
             .gray700 => Color.rgb(55, 65, 81),
             .white => Color.hex(0xFFFFFF),
             .red => Color.hex(0xFF3333),
+            .blue500 => Color.rgb(59, 130, 246),
         };
     }
 };
@@ -108,6 +110,7 @@ const AllFontOpts = struct {
     size: FontSize,
     family: FontFamily,
     weight: FontWeight,
+    underline: bool,
     pub fn format(value: AllFontOpts, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
         try writer.print("{s} {s} {s}", .{ value.family.getString(), value.weight.getString(), value.size.getString() });
     }
@@ -187,10 +190,11 @@ pub const primitives = struct {
     const FontOpts = struct {
         family: FontFamily = .sans_serif,
         weight: FontWeight = .normal,
+        underline: bool = false,
         size: FontSize,
         color: ThemeColor,
         pub fn all(opts: FontOpts) AllFontOpts {
-            return AllFontOpts{ .size = opts.size, .family = opts.family, .weight = opts.weight };
+            return AllFontOpts{ .size = opts.size, .family = opts.family, .weight = opts.weight, .underline = opts.underline };
         }
     };
     pub fn textV(src: Src, imev: *ImEvent, width: f64, opts: FontOpts, text_val: []const u8) VLayoutManager.Child {
@@ -232,6 +236,8 @@ pub const primitives = struct {
             .node = ctx.result(),
         };
     }
+    // advanced text:
+    // https://docs.gtk.org/Pango/struct.AttrList.html
 };
 
 fn Queue(comptime T: type) type {
@@ -675,7 +681,16 @@ pub const ImEvent = struct { // pinned?
         } else {
             const text_dupe = imev.persistent.real_allocator.dupe(u8, key.text) catch @panic("oom");
             const font_str = std.fmt.allocPrint0(imev.arena(), "{}", .{key.font_opts}) catch @panic("oom");
-            const layout = imev.frame.cr.layoutText(font_str.ptr, text_dupe, .{ .width = key.width });
+
+            // create an attr list
+            // const attr_list = imev.frame.cr.newAttrList();
+            // attr_list.addRange(0, font_str.len, .underline);
+            // (in c, this is created using pango_attr_underline_new(.PANGO_UNDERLINE_SINGLE) and then set the attr)
+            // start index and end index
+
+            const attrs = backend.TextAttrList.new();
+            if (key.font_opts.underline) attrs.addRange(0, text_dupe.len, .underline);
+            const layout = imev.frame.cr.layoutText(font_str.ptr, text_dupe, .{ .width = key.width }, attrs);
 
             const cache_value: TextCacheValue = .{
                 .layout = layout,

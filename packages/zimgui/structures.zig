@@ -114,3 +114,7 @@ pub const CursorEnum = enum {
     nesw_resize,
     nwse_resize,
 };
+
+pub const TextAttr = union(enum) {
+    underline,
+};
