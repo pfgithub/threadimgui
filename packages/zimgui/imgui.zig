@@ -111,6 +111,7 @@ const AllFontOpts = struct {
     family: FontFamily,
     weight: FontWeight,
     underline: bool,
+    left_offset: c_int,
     pub fn format(value: AllFontOpts, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
         try writer.print("{s} {s} {s}", .{ value.family.getString(), value.weight.getString(), value.size.getString() });
     }
@@ -193,8 +194,15 @@ pub const primitives = struct {
         underline: bool = false,
         size: FontSize,
         color: ThemeColor,
+        left_offset: f64 = 0,
         pub fn all(opts: FontOpts) AllFontOpts {
-            return AllFontOpts{ .size = opts.size, .family = opts.family, .weight = opts.weight, .underline = opts.underline };
+            return AllFontOpts{
+                .size = opts.size,
+                .family = opts.family,
+                .weight = opts.weight,
+                .underline = opts.underline,
+                .left_offset = backend.pangoScale(opts.left_offset),
+            };
         }
     };
     pub fn textV(src: Src, imev: *ImEvent, width: f64, opts: FontOpts, text_val: []const u8) VLayoutManager.Child {
@@ -680,7 +688,7 @@ pub const ImEvent = struct { // pinned?
             return cached_value.value.layout;
         } else {
             const text_dupe = imev.persistent.real_allocator.dupe(u8, key.text) catch @panic("oom");
-            const font_str = std.fmt.allocPrint0(imev.arena(), "{}", .{key.font_opts}) catch @panic("oom");
+            const font_str = std.fmt.allocPrint0(imev.arena(), "\u{200b}{}", .{key.font_opts}) catch @panic("oom");
 
             // create an attr list
             // const attr_list = imev.frame.cr.newAttrList();
@@ -688,8 +696,13 @@ pub const ImEvent = struct { // pinned?
             // (in c, this is created using pango_attr_underline_new(.PANGO_UNDERLINE_SINGLE) and then set the attr)
             // start index and end index
 
+            // it appears the way AttrShape works in pango, a \u200b is required at the start of the text for no good reason.
+            // TODO move this to something the backend automatically handles so other platforms with better support
+            // can ignore this
+
             const attrs = backend.TextAttrList.new();
-            if (key.font_opts.underline) attrs.addRange(0, text_dupe.len, .underline);
+            if (key.font_opts.left_offset != 0) attrs.addRange(0, 1, .{ .width = .{ .w = key.font_opts.left_offset } });
+            if (key.font_opts.underline) attrs.addRange(1, text_dupe.len, .underline);
             const layout = imev.frame.cr.layoutText(font_str.ptr, text_dupe, .{ .width = key.width }, attrs);
 
             const cache_value: TextCacheValue = .{

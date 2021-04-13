@@ -206,11 +206,19 @@ pub const TextAttrList = struct {
     pub fn new() TextAttrList {
         return .{ .attr_list = pango_attr_list_new().? };
     }
-    pub fn addRange(al: TextAttrList, start: usize, end: usize, format: TextAttr) void {
+    pub fn addRange(al: TextAttrList, start_usz: usize, end_usz: usize, format: TextAttr) void {
+        const start = @intCast(guint, start_usz);
+        const end = @intCast(guint, end_usz);
         switch (format) {
             .underline => {
                 const attr = pango_attr_underline_new(.PANGO_UNDERLINE_SINGLE);
-                attribute_set_range(attr, @intCast(guint, start), @intCast(guint, end));
+                attribute_set_range(attr, start, end);
+                pango_attr_list_insert(al.attr_list, attr);
+            },
+            .width => |w| {
+                const rect = PangoRectangle{ .x = 0, .y = 0, .width = w.w, .height = 1 };
+                const attr = pango_attr_shape_new(&rect, &rect);
+                attribute_set_range(attr, start, end);
                 pango_attr_list_insert(al.attr_list, attr);
             },
         }

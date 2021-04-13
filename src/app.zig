@@ -187,7 +187,7 @@ fn useButton(src: Src, imev: *ImEvent) ButtonKey {
 }
 
 const RenderedSpan = union(enum) {
-    one_line: struct {
+    inline_value: struct {
         widget: Widget,
     },
     multi_line: struct {
@@ -209,7 +209,8 @@ fn renderRichtextParagraph(src: Src, imev: *ImEvent, isc: *IdStateCache, paragra
         .paragraph => |par| {
             // render the richtext spans, a bit complicated
             if (par.len == 1 and par[0] == .text) {
-                const widget = primitives.textV(@src(), imev, width, .{ .color = .white, .size = .sm }, par[0].text.str);
+                ctx.place(primitives.rect(@src(), imev, .{ .w = 25, .h = 5 }, .{ .bg = .red }), Point.origin);
+                const widget = primitives.textV(@src(), imev, width, .{ .color = .white, .size = .sm, .left_offset = 25 }, par[0].text.str);
                 ctx.place(widget.node, Point.origin);
                 return .{ .h = widget.h, .node = ctx.result() };
             }
