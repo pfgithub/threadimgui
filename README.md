@@ -158,3 +158,13 @@ eventually, this will be done automatically through one of: (node server | embed
 - or about the same actually
 - but like either on the individual thing renderThing(imev.descendId(@src(), index))
 - or scoped {imev.descendId(@src(), index) defer undescend}
+
+# notes
+
+- go back to double-rendering frames. just make sure things all work when single rendering
+- I guess a frame delay could be used rather than a same frame double render, but that's more expensive
+- why : specific issues
+- click in a clickable area. drag to another clickable area. release the mouse. clicking now does nothing because there was no time for the
+  click focus to be removed (the click focus is removed one frame after the mouse up)
+- scroll down one tick. click focus is unchanged.
+- stuff like that
