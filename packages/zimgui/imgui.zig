@@ -244,6 +244,16 @@ pub const primitives = struct {
             .node = ctx.result(),
         };
     }
+    pub fn textLayout(imev: *ImEvent, width: f64, opts: FontOpts, text_val: []const u8) backend.TextLayout {
+        var ctx = imev.render(src);
+        defer ctx.pop();
+
+        const all_font_opts = opts.all();
+        const w_int = backend.pangoScale(width);
+        const layout = imev.layoutText(.{ .font_opts = all_font_opts, .width = w_int, .text = text_val });
+
+        return layout;
+    }
     // advanced text:
     // https://docs.gtk.org/Pango/struct.AttrList.html
 };

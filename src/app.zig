@@ -187,6 +187,7 @@ fn useButton(src: Src, imev: *ImEvent) ButtonKey {
 }
 
 const RenderedSpan = union(enum) {
+    empty: void,
     inline_value: struct {
         widget: Widget,
     },
@@ -199,6 +200,44 @@ const RenderedSpan = union(enum) {
 
 fn renderRichtextSpan(src: Src, imev: *ImEvent, isc: *IdStateCache, span: generic.RichtextSpan, width: f64, start_offset: f64) RenderedSpan {
     //
+    // rendering text:
+    // 1: layout the text with the specified start offset
+    //    (imev.layoutText(…) so it caches)
+    // 2: check the line count. 1 line: return an inline value. 2+ lines:
+    // lines = pango_layout_get_lines_readonly()
+    // then render the first one into one renderresult as first line, last one as last_line, and all the rest as middle
+    // the PangoLayoutLine structure has some info
+    // and there's pango_layout_line_get_height()
+    // I'm not sure how to make it place things at the right place
+    // might have to switch to pango line height(0) which disables baseline-to-baseline heights
+    // or I'll have to make spans understand baselines
+    // probably better to make spans understand baselines
+
+    switch (span) {
+        .text => |txt| {
+            const placed_text = primitives.textLayout(imev, width, .{ .color = .red, .size = .sm, .left_offset = start_offset }, txt.str);
+            // get lines
+            // pango_cairo_show_layout_line https://docs.gtk.org/PangoCairo/func.show_layout_line.html
+            const lines = placed_text.lines();
+            var lines_iter = lines.iter();
+            // place the first line (0 - start_offset, 0, w - start_offset, h)
+            // if there are no more lines, return an inline value
+
+            const first_line = lines_iter.next() orelse return .empty;
+
+            //if(!lines_iter.hasNext()) return inline_value
+
+            // var cline = lines_iter.next() orelse unreachable
+            // while (lines_iter.hasNext()) : (cline = lines_iter.next()) {
+            // }
+            // const last_line =
+            // uuh how do you do this control flow properly this isn't it
+
+            // gslist is just {ptr data, next}
+            // so an iter is really easy to make
+        },
+        .unsupported => {},
+    }
 }
 
 fn renderRichtextParagraph(src: Src, imev: *ImEvent, isc: *IdStateCache, paragraph: generic.RichtextParagraph, width: f64) VLayoutManager.Child {

@@ -1,3 +1,5 @@
+// https://docs.gtk.org/Pango
+
 usingnamespace @cImport({
     @cInclude("cairo_cbind.h");
 });
@@ -258,7 +260,7 @@ pub const Context = struct {
         {
             const description = pango_font_description_from_string(font);
             defer pango_font_description_free(description);
-            pango_layout_set_font_description(layout, description);
+            pango_layout_set_font_description(layout, description); // there is also a font description attribute, todo use this
         }
         const text_dupe = std.fmt.allocPrint(std.heap.c_allocator, shape_indent_char ++ "{s}", .{text}) catch @panic("oom");
         pango_layout_set_text(layout, text_dupe.ptr, @intCast(gint, text_dupe.len));
