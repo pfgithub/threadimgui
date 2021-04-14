@@ -19,6 +19,10 @@ pub const RenderNode = struct { value: union(enum) {
         layout: backend.TextLayout,
         color: Color,
     },
+    text_line: struct {
+        line: backend.TextLayoutLine,
+        color: Color,
+    },
     place: struct {
         node: ?*Queue(RenderNode).Node,
         offset: Point,
@@ -245,22 +249,30 @@ pub const primitives = struct {
         };
     }
     pub fn textLayout(imev: *ImEvent, width: f64, opts: FontOpts, text_val: []const u8) backend.TextLayout {
-        var ctx = imev.render(src);
-        defer ctx.pop();
-
         const all_font_opts = opts.all();
         const w_int = backend.pangoScale(width);
         const layout = imev.layoutText(.{ .font_opts = all_font_opts, .width = w_int, .text = text_val });
 
         return layout;
     }
+    pub fn textLine(src: Src, imev: *ImEvent, text_line: backend.TextLayoutLine, color: ThemeColor) RenderResult {
+        var ctx = imev.render(src);
+        defer ctx.pop();
+
+        ctx.putRenderNode(RenderNode{ .value = .{ .text_line = .{
+            .line = text_line,
+            .color = color.getColor(),
+        } } });
+
+        return ctx.result();
+    }
     // advanced text:
     // https://docs.gtk.org/Pango/struct.AttrList.html
 };
 
-fn Queue(comptime T: type) type {
+pub fn Queue(comptime T: type) type {
     return struct {
-        const Node = struct {
+        pub const Node = struct {
             next: ?*Node,
             value: T,
         };
@@ -281,7 +293,7 @@ fn Queue(comptime T: type) type {
                 list.end = node;
             }
         }
-        pub fn pop(list: *This, alloc: *std.mem.Allocator) ?T {
+        pub fn shift(list: *This, alloc: *std.mem.Allocator) ?T {
             if (list.start) |startn| {
                 const res = startn.value;
                 list.start = startn.next;
@@ -479,7 +491,7 @@ pub const ImEvent = struct { // pinned?
     pub fn deinit(imev: *ImEvent) void {
         if (!imev.persistent.is_first_frame) imev.destroyFrame();
 
-        while (imev.persistent.unprocessed_events.pop(imev.persistent.real_allocator)) |_| {}
+        while (imev.persistent.unprocessed_events.shift(imev.persistent.real_allocator)) |_| {}
 
         var iter = imev.persistent.text_cache.iterator();
         while (iter.next()) |entry| {
@@ -513,7 +525,7 @@ pub const ImEvent = struct { // pinned?
         return !std.meta.eql(unpr_evs.start, unpr_evs.end); // AKA: unpr_evs.len >= 2
     }
     pub fn startFrame(imev: *ImEvent, cr: backend.Context, should_render: bool) void {
-        if (!imev.persistent.is_first_frame) if (imev.persistent.unprocessed_events.pop(imev.persistent.real_allocator)) |ev| {
+        if (!imev.persistent.is_first_frame) if (imev.persistent.unprocessed_events.shift(imev.persistent.real_allocator)) |ev| {
             switch (ev) {
                 .resize => unreachable,
                 .mouse_click => |mclick| {
@@ -594,6 +606,7 @@ pub const ImEvent = struct { // pinned?
             switch (rnode.value) {
                 .rectangle => {},
                 .text => {},
+                .text_line => {},
                 .place => |place| {
                     imev.handleEvent(place.node, .{ .x = offset.x + place.offset.x, .y = offset.y + place.offset.y });
                 },
@@ -633,6 +646,9 @@ pub const ImEvent = struct { // pinned?
                 .text => |text| {
                     cr.renderText(offset, text.layout, text.color);
                 },
+                .text_line => |tl| {
+                    cr.renderTextLine(offset, tl.line, tl.color);
+                },
                 .place => |place| {
                     imev.internalRender(place.node, .{ .x = offset.x + place.offset.x, .y = offset.y + place.offset.y });
                 },
@@ -663,7 +679,7 @@ pub const ImEvent = struct { // pinned?
                     keys_to_remove.push(imev.arena(), entry.key) catch @panic("oom");
                 }
             }
-            while (keys_to_remove.pop(imev.arena())) |key| {
+            while (keys_to_remove.shift(imev.arena())) |key| {
                 if (imev.persistent.text_cache.remove(key)) |v| {
                     v.value.layout.deinit();
                     imev.persistent.real_allocator.free(v.key.text);

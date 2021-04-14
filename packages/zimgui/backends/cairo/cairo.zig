@@ -155,7 +155,31 @@ pub const TextLayout = struct {
         var w: c_int = 0;
         var h: c_int = 0;
         pango_layout_get_size(layout.layout, &w, &h);
-        return .{ .w = @intToFloat(f64, w) / @intToFloat(f64, PANGO_SCALE), .h = @intToFloat(f64, h) / @intToFloat(f64, PANGO_SCALE) };
+        return .{ .w = cairoScale(w), .h = cairoScale(h) };
+    }
+    pub fn lines(layout: TextLayout) TextLayoutLinesIter {
+        return .{ .node = pango_layout_get_lines_readonly(layout.layout) };
+    }
+};
+pub const TextLayoutLinesIter = struct {
+    node: ?*GSList,
+    pub fn next(this: *@This()) ?TextLayoutLine {
+        const res = this.node orelse return null;
+        this.node = g_slist_next_c(this.node);
+        return TextLayoutLine{ .line = @intToPtr(*PangoLayoutLine, @ptrToInt(res.data)) };
+    }
+    pub fn hasNext(this: @This()) bool {
+        return g_slist_next_c(this.node orelse return false) != null;
+    }
+};
+pub const TextLayoutLine = struct {
+    line: *PangoLayoutLine,
+    pub fn getSize(this: @This()) WH {
+        var ink_rect: PangoRectangle = undefined;
+        var logical_rect: PangoRectangle = undefined;
+        pango_layout_line_get_extents(this.line, &ink_rect, &logical_rect);
+        // origin is at (h_origin, baseline)
+        return .{ .w = cairoScale(logical_rect.width), .h = cairoScale(logical_rect.height) };
     }
 };
 
@@ -252,6 +276,14 @@ pub const Context = struct {
         pango_cairo_show_layout(cr, text.layout);
         cairo_restore(cr);
     }
+    pub fn renderTextLine(ctx: Context, point: Point, text: TextLayoutLine, color: Color) void {
+        const cr = ctx.cr;
+        ctx.setRgba(color);
+        cairo_save(cr);
+        cairo_move_to(cr, point.x, point.y);
+        pango_cairo_show_layout_line(cr, text.line);
+        cairo_restore(cr);
+    }
     pub fn layoutText(ctx: Context, font: [*:0]const u8, text: []const u8, width: ?c_int, left_offset: c_int, attrs: TextAttrList) TextLayout {
         const cr = ctx.cr;
         // if (layout == null) {
@@ -296,6 +328,9 @@ const OpaqueData = extern struct {
 
 pub fn pangoScale(float: f64) c_int {
     return @floatToInt(gint, float * @intToFloat(f64, PANGO_SCALE));
+}
+pub fn cairoScale(int: c_int) f64 {
+    return @intToFloat(f64, int) / @intToFloat(f64, PANGO_SCALE);
 }
 
 pub fn startBackend(data_ptr: *const backend.OpaquePtrData) error{Failure}!void {

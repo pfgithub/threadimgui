@@ -198,7 +198,80 @@ const RenderedSpan = union(enum) {
     },
 };
 
-fn renderRichtextSpan(src: Src, imev: *ImEvent, isc: *IdStateCache, span: generic.RichtextSpan, width: f64, start_offset: f64) RenderedSpan {
+const SpanPlacer = struct {
+    ctx: RenderCtx,
+    current_x: f64 = 0,
+    current_y: f64 = 0,
+    max_width: f64,
+    current_line_height: f64 = 0,
+    current_line_widgets: ui.Queue(Widget),
+    // TODO baseline maybe?
+
+    pub fn init(imev: *ImEvent, max_w: f64) SpanPlacer {
+        const alloc = imev.arena();
+        return .{
+            .ctx = imev.renderNoSrc(),
+            .max_width = max_w,
+            .current_line_widgets = ui.Queue(Widget){},
+        };
+    }
+
+    pub fn getArgs(sp: SpanPlacer) Args {
+        return .{ .width = sp.max_width, .start_offset = sp.current_x };
+    }
+    pub fn endLine(sp: *SpanPlacer) void {
+        const alloc = sp.ctx.imev.arena();
+        var ox: f64 = 0;
+        while (sp.current_line_widgets.shift(alloc)) |widget| {
+            sp.ctx.place(widget.node, .{ .x = ox, .y = sp.current_y });
+            ox += widget.wh.w;
+        }
+
+        sp.current_x = 0;
+        sp.current_y += sp.current_line_height;
+        sp.current_line_height = 0;
+    }
+    pub fn placeInlineNoOverflow(sp: *SpanPlacer, widget: Widget) void {
+        const alloc = sp.ctx.imev.arena();
+        if (widget.wh.w + sp.current_x > sp.max_width and sp.current_x != 0) {
+            sp.endLine();
+        }
+        sp.current_line_widgets.push(alloc, widget) catch @panic("oom");
+        sp.current_x += widget.wh.w;
+        if (widget.wh.h > sp.current_line_height) {
+            sp.current_line_height = widget.wh.h;
+        }
+    }
+    pub fn place(sp: *SpanPlacer, span: RenderedSpan) void {
+        const alloc = sp.ctx.imev.arena();
+        switch (span) {
+            .empty => {},
+            .inline_value => |ilspan| {
+                if (ilspan.widget.wh.w + sp.current_x > sp.max_width and sp.current_x != 0) {
+                    sp.endLine();
+                }
+                sp.placeInlineNoOverflow(ilspan.widget);
+            },
+            .multi_line => |mlspan| {
+                sp.placeInlineNoOverflow(mlspan.first_line);
+                sp.endLine();
+                sp.ctx.place(mlspan.middle.node, .{ .x = 0, .y = sp.current_y });
+                sp.current_y += mlspan.middle.wh.h;
+                sp.placeInlineNoOverflow(mlspan.last_line);
+            },
+        }
+    }
+    pub fn finish(sp: *SpanPlacer) VLayoutManager.Child {
+        sp.endLine();
+        return .{ .node = sp.ctx.result(), .h = sp.current_y };
+    }
+
+    const Args = struct { width: f64, start_offset: f64 };
+};
+
+fn renderRichtextSpan(src: Src, imev: *ImEvent, isc: *IdStateCache, span: generic.RichtextSpan, args: SpanPlacer.Args) RenderedSpan {
+    var ctx = imev.render(src);
+    defer ctx.pop();
     //
     // rendering text:
     // 1: layout the text with the specified start offset
@@ -215,20 +288,43 @@ fn renderRichtextSpan(src: Src, imev: *ImEvent, isc: *IdStateCache, span: generi
 
     switch (span) {
         .text => |txt| {
-            const placed_text = primitives.textLayout(imev, width, .{ .color = .red, .size = .sm, .left_offset = start_offset }, txt.str);
+            const placed_text = primitives.textLayout(imev, args.width, .{ .color = .red, .size = .sm, .left_offset = args.start_offset }, txt.str);
             // get lines
             // pango_cairo_show_layout_line https://docs.gtk.org/PangoCairo/func.show_layout_line.html
-            const lines = placed_text.lines();
-            var lines_iter = lines.iter();
-            // place the first line (0 - start_offset, 0, w - start_offset, h)
+            var lines_iter = placed_text.lines();
+            // place the first line (0 - args.start_offset, 0, w - args.start_offset, h)
             // if there are no more lines, return an inline value
 
             const first_line = lines_iter.next() orelse return .empty;
+            var fl_ctx = imev.renderNoSrc();
+            const fl_size = first_line.getSize();
+            const res_wh: WH = .{ .w = fl_size.w - args.start_offset, .h = fl_size.h };
+            {
+                const hov = imev.clickable(@src());
+                fl_ctx.place(primitives.rect(@src(), imev, res_wh, .{ .bg = if (hov.focused) |_| .white else .red }), .{ .x = 0, .y = 0 });
+                fl_ctx.place(hov.key.node(imev, res_wh), .{ .x = 0, .y = 0 });
+                fl_ctx.place(primitives.rect(@src(), imev, .{ .w = res_wh.w - 2, .h = res_wh.h - 2 }, .{ .bg = .black }), .{ .x = 1, .y = 1 });
+                fl_ctx.place(primitives.textLine(@src(), imev, first_line, if (hov.focused) |_| .red else .white), .{ .x = -args.start_offset, .y = 0 });
+                // text lines appear to render from the baseline rather than the upper left logical extent
+            }
+            const fl_widget = Widget{
+                .wh = res_wh,
+                .node = fl_ctx.result(),
+            };
+
+            if (!lines_iter.hasNext()) return .{
+                .inline_value = .{ .widget = fl_widget },
+            };
+
+            return .{
+                .inline_value = .{ .widget = fl_widget }, // TODO multi_line
+            };
 
             //if(!lines_iter.hasNext()) return inline_value
 
             // var cline = lines_iter.next() orelse unreachable
             // while (lines_iter.hasNext()) : (cline = lines_iter.next()) {
+            //     pushIndex(@src(), index)
             // }
             // const last_line =
             // uuh how do you do this control flow properly this isn't it
@@ -236,7 +332,11 @@ fn renderRichtextSpan(src: Src, imev: *ImEvent, isc: *IdStateCache, span: generi
             // gslist is just {ptr data, next}
             // so an iter is really easy to make
         },
-        .unsupported => {},
+        .unsupported => |unsup| {
+            const res = useButton(@src(), imev);
+            const btn_text = std.fmt.allocPrint(imev.arena(), "TODO {s}", .{unsup}) catch @panic("oom");
+            return .{ .inline_value = .{ .widget = res.render(@src(), imev, btn_text) } };
+        },
     }
 }
 
@@ -246,16 +346,17 @@ fn renderRichtextParagraph(src: Src, imev: *ImEvent, isc: *IdStateCache, paragra
 
     switch (paragraph) {
         .paragraph => |par| {
-            // render the richtext spans, a bit complicated
-            if (par.len == 1 and par[0] == .text) {
-                ctx.place(primitives.rect(@src(), imev, .{ .w = 25, .h = 5 }, .{ .bg = .red }), Point.origin);
-                const widget = primitives.textV(@src(), imev, width, .{ .color = .white, .size = .sm, .left_offset = 25 }, par[0].text.str);
-                ctx.place(widget.node, Point.origin);
-                return .{ .h = widget.h, .node = ctx.result() };
+            // check "zig not working on mac" for a sample of everything being bad and broken
+            var span_placer = SpanPlacer.init(imev, width);
+            for (par) |span, i| {
+                const pushed = imev.frame.id.pushIndex(@src(), i);
+                defer pushed.pop();
+
+                span_placer.place(renderRichtextSpan(@src(), imev, isc, span, span_placer.getArgs()));
             }
-            const widget = primitives.textV(@src(), imev, width, .{ .color = .red, .size = .sm }, "TODO non-text | multi-span paragraph");
-            ctx.place(widget.node, Point.origin);
-            return .{ .h = widget.h, .node = ctx.result() };
+            const res = span_placer.finish();
+            ctx.place(res.node, Point.origin);
+            return .{ .h = res.h, .node = ctx.result() };
         },
         .unsupported => |unsup_msg| {
             const widget = primitives.textV(@src(), imev, width, .{ .color = .red, .size = .sm }, "TODO richtext");

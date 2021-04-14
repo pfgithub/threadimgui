@@ -1,31 +1,90 @@
-const backend = switch (@import("build_options").render_backend) {
+const std = @import("std");
+const build_opts = @import("build_options");
+const backend = switch (build_opts.render_backend) {
     .cairo_gtk3 => @import("cairo/cairo.zig"),
     .windows => @import("windows/windows.zig"),
+    // huh a "runtime backend" could be made that calls functions from a vtable
 };
 const structures = @import("../structures.zig");
 
+const warn = struct {
+    const WarnedMap = std.HashMap(
+        std.builtin.SourceLocation,
+        void,
+        sourceLocationHash,
+        sourceLocationEql,
+        std.hash_map.default_max_load_percentage,
+    );
+    const logger = std.log.scoped(.backend);
+    var warned_map: ?WarnedMap = null;
+    fn warnOnce(src: std.builtin.SourceLocation, label: []const u8) void {
+        // if(!build_opts.allow_missing_backend_functionality) @panic("error")
+        if (warned_map == null) warned_map = WarnedMap.init(std.heap.page_allocator);
+        const wm = warned_map orelse unreachable;
+        if ((wm.getOrPut(src) catch .{ .entry = undefined, .found_existing = true }).found_existing) return;
+        logger.warn("Missing {s} implementation for {s}", .{ @tagName(build_opts.render_backend), label });
+    }
+};
+
 pub const TextAttrList = struct {
-    const BackendValue = if (@hasDecl(backend, "TextAttrList")) backend.TextAttrList else void;
+    const FakeTextAttrList = struct {
+        pub fn new() FakeTextAttrList {
+            warn.once(@src(), "TextAttrList.new");
+            return .{};
+        }
+        pub fn addRange(a: FakeTextAttrList, start: usize, end: usize, format: structures.TextAttr) void {
+            warn.once(@src(), "TextAttrList.addRange");
+        }
+    };
+    const BackendValue = if (@hasDecl(backend, "TextAttrList")) backend.TextAttrList else FakeTextAttrList;
     value: BackendValue,
     pub fn new() TextAttrList {
-        // TODO warn once if void
-        // var warned_things = std.EnumArray(enum{things to warn about})
-        // also option to comptime error instead of runtime warn
-        if (BackendValue != void) return .{ .value = BackendValue.new() };
-        return .{ .value = {} };
+        return .{ .value = BackendValue.new() };
     }
     pub fn addRange(a: TextAttrList, start: usize, end: usize, format: structures.TextAttr) void {
-        if (BackendValue != void) a.value.addRange(start, end, format);
+        a.value.addRange(start, end, format);
     }
 };
 
 pub const TextLayout = struct {
-    value: backend.TextLayout,
+    const FakeTextLayout = struct {
+        size: structures.WH,
+        pub fn deinit() void {
+            warn.once(@src(), "FakeTextLayout.deinit");
+        }
+        pub fn getSize(ftl: FakeTextLayout) structures.WH {
+            warn.once(@src(), "FakeTextLayout.getSize");
+            return ftl.size;
+        }
+    };
+    const BackendValue = if (@hasDecl(backend, "TextLayout")) backend.TextLayout else FakeTextLayout;
+    value: BackendValue,
     pub fn deinit(layout: TextLayout) void {
-        layout.value.deinit();
+        if (BackendValue != void) layout.value.deinit();
     }
     pub fn getSize(layout: TextLayout) structures.WH {
+        // TODO a fake backend rather than void
         return layout.value.getSize();
+    }
+    pub fn lines(layout: TextLayout) TextLayoutLinesIter {
+        return .{ .value = layout.value.lines() };
+    }
+};
+pub const TextLayoutLinesIter = struct {
+    const BackendValue = if (@hasDecl(backend, "TextLayoutLinesIter")) backend.TextLayoutLinesIter else FakeTextLayoutLinesIter;
+    value: BackendValue,
+    pub fn next(tlli: *TextLayoutLinesIter) ?TextLayoutLine {
+        return TextLayoutLine{ .value = tlli.value.next() orelse return null };
+    }
+    pub fn hasNext(tlli: TextLayoutLinesIter) bool {
+        return tlli.value.hasNext();
+    }
+};
+pub const TextLayoutLine = struct {
+    const BackendValue = if (@hasDecl(backend, "TextLayoutLine")) backend.TextLayoutLine else FakeTextLayoutLine;
+    value: BackendValue,
+    pub fn getSize(this: TextLayoutLine) structures.WH {
+        return this.value.getSize();
     }
 };
 pub fn pangoScale(float: f64) c_int {
@@ -41,6 +100,9 @@ pub const Context = struct {
     }
     pub fn renderText(ctx: Context, point: structures.Point, text: TextLayout, color: structures.Color) void {
         ctx.value.renderText(point, text.value, color);
+    }
+    pub fn renderTextLine(ctx: Context, point: structures.Point, text: TextLayoutLine, color: structures.Color) void {
+        ctx.value.renderTextLine(point, text.value, color);
     }
     pub const TextLayoutOpts = struct {
         /// pango scaled
