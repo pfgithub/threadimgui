@@ -15,7 +15,7 @@ if you are on linux, install these packages on your system: `cairo`, `gtk+-3.0`
 run the application with `zig build run`
 
 - open devtools with `f12`
-- running the windows version on linux: `zig build -Dtarget=x86_64-windows-gnu` `wine zig-cache/bin/threadimgui.exe`
+- running the windows version on linux: `zig build run -Dtarget=x86_64-windows-gnu`
 
 # overview
 

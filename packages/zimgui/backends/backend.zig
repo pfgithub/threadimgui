@@ -8,6 +8,16 @@ const backend = switch (build_opts.render_backend) {
 const structures = @import("../structures.zig");
 
 const warn = struct {
+    fn sourceLocationEql(a: std.builtin.SourceLocation, b: std.builtin.SourceLocation) bool {
+        return std.meta.eql(a.line, b.line) and std.meta.eql(a.column, b.column) and std.mem.eql(u8, a.file, b.file);
+    }
+    fn sourceLocationHash(key: std.builtin.SourceLocation) u64 {
+        var hasher = std.hash.Wyhash.init(0);
+        std.hash.autoHash(&hasher, key.line);
+        std.hash.autoHash(&hasher, key.column);
+        hasher.update(key.file);
+        return hasher.final();
+    }
     const WarnedMap = std.HashMap(
         std.builtin.SourceLocation,
         void,
@@ -17,11 +27,11 @@ const warn = struct {
     );
     const logger = std.log.scoped(.backend);
     var warned_map: ?WarnedMap = null;
-    fn warnOnce(src: std.builtin.SourceLocation, label: []const u8) void {
+    fn once(src: std.builtin.SourceLocation, label: []const u8) void {
         // if(!build_opts.allow_missing_backend_functionality) @panic("error")
         if (warned_map == null) warned_map = WarnedMap.init(std.heap.page_allocator);
-        const wm = warned_map orelse unreachable;
-        if ((wm.getOrPut(src) catch .{ .entry = undefined, .found_existing = true }).found_existing) return;
+        const wm = &(warned_map orelse unreachable);
+        if ((wm.getOrPut(src) catch WarnedMap.GetOrPutResult{ .entry = undefined, .found_existing = true }).found_existing) return;
         logger.warn("Missing {s} implementation for {s}", .{ @tagName(build_opts.render_backend), label });
     }
 };
@@ -50,10 +60,10 @@ pub const TextLayout = struct {
     const FakeTextLayout = struct {
         size: structures.WH,
         pub fn deinit() void {
-            warn.once(@src(), "FakeTextLayout.deinit");
+            warn.once(@src(), "TextLayout.deinit");
         }
         pub fn getSize(ftl: FakeTextLayout) structures.WH {
-            warn.once(@src(), "FakeTextLayout.getSize");
+            warn.once(@src(), "TextLayout.getSize");
             return ftl.size;
         }
     };
@@ -67,10 +77,21 @@ pub const TextLayout = struct {
         return layout.value.getSize();
     }
     pub fn lines(layout: TextLayout) TextLayoutLinesIter {
+        if (!@hasDecl(BackendValue, "lines")) return .{ .value = .{} };
         return .{ .value = layout.value.lines() };
     }
 };
 pub const TextLayoutLinesIter = struct {
+    const FakeTextLayoutLinesIter = struct {
+        pub fn next(this: *@This()) ?TextLayoutLine.FakeTextLayoutLine {
+            warn.once(@src(), "TextLayoutLinesIter.next");
+            return null;
+        }
+        pub fn hasNext(this: @This()) bool {
+            warn.once(@src(), "TextLayoutLinesIter.hasNext");
+            return false;
+        }
+    };
     const BackendValue = if (@hasDecl(backend, "TextLayoutLinesIter")) backend.TextLayoutLinesIter else FakeTextLayoutLinesIter;
     value: BackendValue,
     pub fn next(tlli: *TextLayoutLinesIter) ?TextLayoutLine {
@@ -81,6 +102,11 @@ pub const TextLayoutLinesIter = struct {
     }
 };
 pub const TextLayoutLine = struct {
+    const FakeTextLayoutLine = struct {
+        pub fn getSize(this: @This()) structures.BlWH {
+            @panic("no");
+        }
+    };
     const BackendValue = if (@hasDecl(backend, "TextLayoutLine")) backend.TextLayoutLine else FakeTextLayoutLine;
     value: BackendValue,
     pub fn getSize(this: TextLayoutLine) structures.BlWH {
@@ -102,7 +128,9 @@ pub const Context = struct {
         ctx.value.renderText(point, text.value, color);
     }
     pub fn renderTextLine(ctx: Context, point: structures.Point, text: TextLayoutLine, color: structures.Color) void {
-        ctx.value.renderTextLine(point, text.value, color);
+        if (@hasDecl(backend.Context, "renderTextLine")) {
+            ctx.value.renderTextLine(point, text.value, color);
+        } else warn.once(@src(), "Context.renderTextLine");
     }
     pub const TextLayoutOpts = struct {
         /// pango scaled
@@ -110,7 +138,13 @@ pub const Context = struct {
         left_offset: ?c_int = null,
     };
     pub fn layoutText(ctx: Context, font: [*:0]const u8, text: []const u8, opts: TextLayoutOpts, attrs: TextAttrList) TextLayout {
-        return .{ .value = ctx.value.layoutText(font, text, opts.width, opts.left_offset orelse 0, attrs.value) };
+        return .{ .value = ctx.value.layoutText(
+            font,
+            text,
+            opts.width,
+            opts.left_offset orelse 0,
+            if (TextAttrList.BackendValue == TextAttrList.FakeTextAttrList) {} else attrs.value,
+        ) };
     }
 };
 pub const RerenderRequest = struct {
