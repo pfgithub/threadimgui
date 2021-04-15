@@ -44,6 +44,7 @@ pub fn build(b: *std.build.Builder) void {
         },
         .windows => {
             exe.linkLibC();
+            exe.linkSystemLibrary("gdi32");
             exe.addIncludeDir("packages/zimgui/backends/windows");
             exe.addCSourceFile("packages/zimgui/backends/windows/windows_cbind.c", &[_][]const u8{});
         },
