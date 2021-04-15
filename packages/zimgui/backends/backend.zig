@@ -83,7 +83,7 @@ pub const TextLayoutLinesIter = struct {
 pub const TextLayoutLine = struct {
     const BackendValue = if (@hasDecl(backend, "TextLayoutLine")) backend.TextLayoutLine else FakeTextLayoutLine;
     value: BackendValue,
-    pub fn getSize(this: TextLayoutLine) structures.WH {
+    pub fn getSize(this: TextLayoutLine) structures.BlWH {
         return this.value.getSize();
     }
 };

@@ -290,17 +290,17 @@ fn renderRichtextSpan(src: Src, imev: *ImEvent, isc: *IdStateCache, span: generi
             const first_line = lines_iter.next() orelse return .empty;
             var fl_ctx = imev.renderNoSrc();
             const fl_size = first_line.getSize();
-            const res_wh: WH = .{ .w = fl_size.w - args.start_offset, .h = fl_size.h };
+            const fl_wh: WH = .{ .w = fl_size.w - args.start_offset, .h = fl_size.h };
             {
-                const hov = imev.clickable(@src());
-                fl_ctx.place(primitives.rect(@src(), imev, res_wh, .{ .bg = if (hov.focused) |_| .white else .red }), .{ .x = 0, .y = 0 });
-                fl_ctx.place(primitives.rect(@src(), imev, .{ .w = res_wh.w - 2, .h = res_wh.h - 2 }, .{ .bg = .black }), .{ .x = 1, .y = 1 });
-                fl_ctx.place(primitives.textLine(@src(), imev, first_line, if (hov.focused) |_| .red else .white), .{ .x = -args.start_offset, .y = 0 });
-                fl_ctx.place(hov.key.node(imev, res_wh), .{ .x = 0, .y = 0 });
+                // const hov = imev.clickable(@src());
+                // fl_ctx.place(hov.key.node(imev, fl_wh), .{ .x = 0, .y = 0 });
+                // fl_ctx.place(primitives.rect(@src(), imev, fl_wh, .{ .bg = if (hov.focused) |_| .white else .red }), .{ .x = 0, .y = 0 });
+                // fl_ctx.place(primitives.rect(@src(), imev, .{ .w = fl_wh.w - 2, .h = fl_wh.h - 2 }, .{ .bg = .black }), .{ .x = 1, .y = 1 });
+                fl_ctx.place(primitives.textLine(@src(), imev, first_line, .white), .{ .x = -args.start_offset, .y = fl_size.bl });
                 // text lines appear to render from the baseline rather than the upper left logical extent
             }
             const fl_widget = Widget{
-                .wh = res_wh,
+                .wh = fl_wh,
                 .node = fl_ctx.result(),
             };
 
@@ -324,7 +324,7 @@ fn renderRichtextSpan(src: Src, imev: *ImEvent, isc: *IdStateCache, span: generi
                 // I think that's needed, along with span support for baselines
 
                 const cl_size = line.getSize();
-                cl_ctx.place(primitives.textLine(@src(), imev, line, .white), .{ .x = 0, .y = cy });
+                cl_ctx.place(primitives.textLine(@src(), imev, line, .white), .{ .x = 0, .y = cy + cl_size.bl });
                 cy += cl_size.h;
             } else unreachable;
 
@@ -335,11 +335,11 @@ fn renderRichtextSpan(src: Src, imev: *ImEvent, isc: *IdStateCache, span: generi
 
             var ll_ctx = imev.renderNoSrc();
             const ll_size = last_line.getSize();
-            ll_ctx.place(primitives.rect(@src(), imev, ll_size, .{ .bg = .red }), .{ .x = 0, .y = 0 });
-            ll_ctx.place(primitives.rect(@src(), imev, .{ .w = ll_size.w - 2, .h = ll_size.h - 2 }, .{ .bg = .black }), .{ .x = 1, .y = 1 });
-            ll_ctx.place(primitives.textLine(@src(), imev, last_line, .white), .{ .x = 0, .y = 0 });
+            // ll_ctx.place(primitives.rect(@src(), imev, .{ .w = ll_size.w, .h = ll_size.h }, .{ .bg = .red }), .{ .x = 0, .y = 0 });
+            // ll_ctx.place(primitives.rect(@src(), imev, .{ .w = ll_size.w - 2, .h = ll_size.h - 2 }, .{ .bg = .black }), .{ .x = 1, .y = 1 });
+            ll_ctx.place(primitives.textLine(@src(), imev, last_line, .white), .{ .x = 0, .y = ll_size.bl });
             const ll_widget = Widget{
-                .wh = ll_size,
+                .wh = .{ .w = ll_size.w, .h = ll_size.h },
                 .node = ll_ctx.result(),
             };
 

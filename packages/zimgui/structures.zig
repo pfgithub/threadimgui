@@ -45,6 +45,12 @@ pub const WH = struct {
     h: f64,
     // should this be float or int?
 };
+/// represents a rectangle with its upper left at the origin with a baseline
+pub const BlWH = struct {
+    bl: f64,
+    w: f64,
+    h: f64,
+};
 
 pub const Point = struct {
     x: f64,

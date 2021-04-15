@@ -175,12 +175,12 @@ pub const TextLayoutLinesIter = struct {
 };
 pub const TextLayoutLine = struct {
     line: *PangoLayoutLine,
-    pub fn getSize(this: @This()) WH {
+    pub fn getSize(this: @This()) BlWH {
         var ink_rect: PangoRectangle = undefined;
         var logical_rect: PangoRectangle = undefined;
         pango_layout_line_get_extents(this.line, &ink_rect, &logical_rect);
         // origin is at (h_origin, baseline)
-        return .{ .w = cairoScale(logical_rect.width), .h = cairoScale(logical_rect.height) };
+        return .{ .bl = -cairoScale(logical_rect.y), .w = cairoScale(logical_rect.width), .h = cairoScale(logical_rect.height) };
     }
 };
 
