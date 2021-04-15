@@ -390,7 +390,8 @@ fn renderRichtextParagraph(src: Src, imev: *ImEvent, isc: *IdStateCache, paragra
             return .{ .h = res.h, .node = ctx.result() };
         },
         .unsupported => |unsup_msg| {
-            const widget = primitives.textV(@src(), imev, width, .{ .color = .red, .size = .sm }, "TODO richtext");
+            const rt_component = std.fmt.allocPrint(imev.arena(), "TODO Paragraph.{s}", .{unsup_msg}) catch @panic("oom");
+            const widget = primitives.textV(@src(), imev, width, .{ .color = .red, .size = .sm }, rt_component);
             ctx.place(widget.node, Point.origin);
             return .{ .h = widget.h, .node = ctx.result() };
         },
