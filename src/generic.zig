@@ -127,11 +127,13 @@ pub const RichtextSpan = union(enum) {
 };
 pub const RichtextParagraph = union(enum) {
     paragraph: []const RichtextSpan,
+    code_block: []const u8,
     unsupported: []const u8,
 
     pub fn fromJSON(jh: JsonHelper) !RichtextParagraph {
-        return switch (try jh.get("kind").asEnumDefaulted(enum { paragraph, unsupported }, .unsupported)) {
+        return switch (try jh.get("kind").asEnumDefaulted(enum { paragraph, code_block, unsupported }, .unsupported)) {
             .paragraph => RichtextParagraph{ .paragraph = try jh.get("children").asArray(RichtextSpan.fromJSON) },
+            .code_block => RichtextParagraph{ .code_block = try jh.get("text").asString() },
             .unsupported => RichtextParagraph{ .unsupported = try jh.get("kind").asString() },
         };
     }

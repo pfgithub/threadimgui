@@ -55,6 +55,7 @@ pub const ThemeColor = enum {
     black,
     gray100,
     gray200,
+    gray300,
     gray500,
     gray700,
     white,
@@ -65,6 +66,7 @@ pub const ThemeColor = enum {
             .black => Color.hex(0x000000),
             .gray100 => Color.hex(0x131516),
             .gray200 => Color.hex(0x181a1b),
+            .gray300 => Color.hex(0x242729),
             .gray500 => Color.hex(0x9ca3af),
             .gray700 => Color.rgb(55, 65, 81),
             .white => Color.hex(0xFFFFFF),
@@ -93,10 +95,10 @@ pub const FontFamily = enum {
             // TODO ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
             // "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
             // "Segoe UI Symbol", "Noto Color Emoji"
-            .sans_serif => "ui-sans-serif,system-ui",
+            .sans_serif => "system-ui",
             // TODO ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
             // "Courier New", monospace
-            .monospace => "ui-monospace",
+            .monospace => "monospace",
         };
     }
 };

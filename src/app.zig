@@ -389,6 +389,15 @@ fn renderRichtextParagraph(src: Src, imev: *ImEvent, isc: *IdStateCache, paragra
             ctx.place(res.node, Point.origin);
             return .{ .h = res.h, .node = ctx.result() };
         },
+        .code_block => |cb| {
+            const is_thin = width < 600;
+            const w_inset_size: f64 = if (width < 600) 0 else 8;
+            const text = primitives.textV(@src(), imev, width - (w_inset_size * 2), .{ .size = .sm, .family = .monospace, .color = .white }, cb);
+            const inset_size: WH = .{ .w = if (is_thin) width + 16 else width, .h = text.h + 16 };
+            ctx.place(primitives.rect(@src(), imev, inset_size, .{ .bg = .gray300, .rounded = if (is_thin) .none else .sm }), .{ .x = if (is_thin) -8 else 0, .y = 0 });
+            ctx.place(text.node, .{ .x = w_inset_size, .y = 8 });
+            return .{ .h = @floor(inset_size.h), .node = ctx.result() };
+        },
         .unsupported => |unsup_msg| {
             const rt_component = std.fmt.allocPrint(imev.arena(), "TODO Paragraph.{s}", .{unsup_msg}) catch @panic("oom");
             const widget = primitives.textV(@src(), imev, width, .{ .color = .red, .size = .sm }, rt_component);
@@ -495,7 +504,7 @@ fn renderContextNode(src: Src, imev: *ImEvent, isc: *IdStateCache, width: f64, n
     defer ctx.pop();
 
     var layout = VLayoutManager.fromWidth(width);
-    layout.inset(10);
+    layout.inset(8);
 
     for (node.parents) |post| {
         layout.place(&ctx, .{ .gap = 8 }, renderPost(@src(), imev, isc, layout.top_rect.w, post));
