@@ -168,3 +168,8 @@ eventually, this will be done automatically through one of: (node server | embed
   click focus to be removed (the click focus is removed one frame after the mouse up)
 - scroll down one tick. click focus is unchanged.
 - stuff like that
+
+# notes
+
+- it's _possible_ to multithread some rendering calculations. not the rendering itself, but widget functions can be called
+  on different threads when there are things to render that are passed a width/height.
