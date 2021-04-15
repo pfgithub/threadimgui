@@ -78,10 +78,6 @@ void attribute_set_range(PangoAttribute* attr, guint start, guint end) IMPL({
 	attr->end_index = end;
 })
 
-GSList* g_slist_next_c(GSList* slist) IMPL({
-	return slist->next;
-})
-
 IMPLONLY(
 
 typedef struct {

@@ -165,11 +165,12 @@ pub const TextLayoutLinesIter = struct {
     node: ?*GSList,
     pub fn next(this: *@This()) ?TextLayoutLine {
         const res = this.node orelse return null;
-        this.node = g_slist_next_c(this.node);
+        this.node = res.next;
         return TextLayoutLine{ .line = @intToPtr(*PangoLayoutLine, @ptrToInt(res.data)) };
     }
+    extern fn g_slist_next_c(slist: *GSList) ?*GSList;
     pub fn hasNext(this: @This()) bool {
-        return g_slist_next_c(this.node orelse return false) != null;
+        return this.node != null;
     }
 };
 pub const TextLayoutLine = struct {

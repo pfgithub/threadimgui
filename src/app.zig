@@ -272,19 +272,11 @@ const SpanPlacer = struct {
 fn renderRichtextSpan(src: Src, imev: *ImEvent, isc: *IdStateCache, span: generic.RichtextSpan, args: SpanPlacer.Args) RenderedSpan {
     var ctx = imev.render(src);
     defer ctx.pop();
+    // TODO:
+    // baseline support.
+    // render lines centered at their baseline
+    // tell the span placer how far apart to place them (pango_layout_get_height)
     //
-    // rendering text:
-    // 1: layout the text with the specified start offset
-    //    (imev.layoutText(…) so it caches)
-    // 2: check the line count. 1 line: return an inline value. 2+ lines:
-    // lines = pango_layout_get_lines_readonly()
-    // then render the first one into one renderresult as first line, last one as last_line, and all the rest as middle
-    // the PangoLayoutLine structure has some info
-    // and there's pango_layout_line_get_height()
-    // I'm not sure how to make it place things at the right place
-    // might have to switch to pango line height(0) which disables baseline-to-baseline heights
-    // or I'll have to make spans understand baselines
-    // probably better to make spans understand baselines
 
     switch (span) {
         .text => |txt| {
@@ -302,9 +294,9 @@ fn renderRichtextSpan(src: Src, imev: *ImEvent, isc: *IdStateCache, span: generi
             {
                 const hov = imev.clickable(@src());
                 fl_ctx.place(primitives.rect(@src(), imev, res_wh, .{ .bg = if (hov.focused) |_| .white else .red }), .{ .x = 0, .y = 0 });
-                fl_ctx.place(hov.key.node(imev, res_wh), .{ .x = 0, .y = 0 });
                 fl_ctx.place(primitives.rect(@src(), imev, .{ .w = res_wh.w - 2, .h = res_wh.h - 2 }, .{ .bg = .black }), .{ .x = 1, .y = 1 });
                 fl_ctx.place(primitives.textLine(@src(), imev, first_line, if (hov.focused) |_| .red else .white), .{ .x = -args.start_offset, .y = 0 });
+                fl_ctx.place(hov.key.node(imev, res_wh), .{ .x = 0, .y = 0 });
                 // text lines appear to render from the baseline rather than the upper left logical extent
             }
             const fl_widget = Widget{
@@ -316,8 +308,47 @@ fn renderRichtextSpan(src: Src, imev: *ImEvent, isc: *IdStateCache, span: generi
                 .inline_value = .{ .widget = fl_widget },
             };
 
+            var cy: f64 = 0;
+            var cl_ctx = imev.renderNoSrc();
+            var line_index: usize = 0;
+
+            const last_line = while (lines_iter.next()) |line| : (line_index += 1) {
+                if (!lines_iter.hasNext()) break line;
+
+                const lindex = imev.frame.id.pushIndex(@src(), line_index);
+                defer lindex.pop();
+
+                //
+                // pango_layout_get_height(PangoLayoutLine* line, &height)
+                // "Computes the height of the line, i.e. the distance between this and the previous lines baseline"
+                // I think that's needed, along with span support for baselines
+
+                const cl_size = line.getSize();
+                cl_ctx.place(primitives.textLine(@src(), imev, line, .white), .{ .x = 0, .y = cy });
+                cy += cl_size.h;
+            } else unreachable;
+
+            const cl_widget = Widget{
+                .wh = .{ .w = args.width, .h = cy },
+                .node = cl_ctx.result(),
+            };
+
+            var ll_ctx = imev.renderNoSrc();
+            const ll_size = last_line.getSize();
+            ll_ctx.place(primitives.rect(@src(), imev, ll_size, .{ .bg = .red }), .{ .x = 0, .y = 0 });
+            ll_ctx.place(primitives.rect(@src(), imev, .{ .w = ll_size.w - 2, .h = ll_size.h - 2 }, .{ .bg = .black }), .{ .x = 1, .y = 1 });
+            ll_ctx.place(primitives.textLine(@src(), imev, last_line, .white), .{ .x = 0, .y = 0 });
+            const ll_widget = Widget{
+                .wh = ll_size,
+                .node = ll_ctx.result(),
+            };
+
             return .{
-                .inline_value = .{ .widget = fl_widget }, // TODO multi_line
+                .multi_line = .{
+                    .first_line = fl_widget,
+                    .middle = cl_widget,
+                    .last_line = ll_widget,
+                }, // TODO multi_line
             };
 
             //if(!lines_iter.hasNext()) return inline_value
