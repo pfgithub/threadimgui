@@ -86,6 +86,8 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             PAINTSTRUCT ps;
             HDC hdc = BeginPaint(hwnd, &ps);
 
+            // use GDI+ for SetSmoothingMode
+
             FillRect(hdc, &ps.rcPaint, (HBRUSH) (COLOR_WINDOW+1));
 
             SelectObject(hdc, GetStockObject(GRAY_BRUSH));
