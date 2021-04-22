@@ -334,8 +334,8 @@ pub const IdStateCache = struct {
     // this is where |these| {things} would be useful:
     // ` cache.state(@src(), imev, struct{x: f64}, |_| .{.x = 25});
     // unfortunately, not yet
-    pub fn useState(isc: *IdStateCache, id: ID, imev: *ImEvent, comptime Type: type, comptime initFn: fn () Type) *Type {
-        var res = isc.useStateCustomInit(id, imev, Type);
+    pub fn useState(isc: *IdStateCache, id_arg: ID.Arg, imev: *ImEvent, comptime Type: type, comptime initFn: fn () Type) *Type {
+        var res = isc.useStateCustomInit(id_arg, imev, Type);
         if (!res.initialized) res.ptr.* = initFn();
         return res.ptr;
     }
@@ -345,8 +345,8 @@ pub const IdStateCache = struct {
             initialized: bool,
         };
     }
-    pub fn useStateCustomInit(isc: *IdStateCache, id_val: ID, imev: *ImEvent, comptime Type: type) StateRes(Type) {
-        const id = id_val.forSrc(@src());
+    pub fn useStateCustomInit(isc: *IdStateCache, id_val: ID.Arg, imev: *ImEvent, comptime Type: type) StateRes(Type) {
+        const id = id_val.id.forSrc(@src());
 
         const hm_entry = isc.hm.getOrPut(imev.persistentAlloc(), id) catch @panic("oom");
         if (hm_entry.found_existing) {
@@ -725,16 +725,16 @@ pub const ImEvent = struct { // pinned?
         }
     }
 
-    pub fn clickable(imev: *ImEvent, id_h: ID) ClickableState {
-        const id = id_h.forSrc(@src());
+    pub fn clickable(imev: *ImEvent, id_h: ID.Arg) ClickableState {
+        const id = id_h.id.forSrc(@src());
         return ClickableState{ .key = .{ .id = id }, .focused = if (imev.persistent.mouse_focused) |mfx| if (mfx.id == id) ClickableState.Focused{
             .hover = mfx.hover,
             .click = mfx.mouse_up and mfx.hover,
         } else null else null };
     }
 
-    pub fn scrollable(imev: *ImEvent, id_h: ID) ScrollableState {
-        const id = id_h.forSrc(@src());
+    pub fn scrollable(imev: *ImEvent, id_h: ID.Arg) ScrollableState {
+        const id = id_h.id.forSrc(@src());
         return ScrollableState{ .key = .{ .id = id }, .scrolling = if (imev.persistent.scroll_focused) |scr| if (scr.id == id) ScrollableState.Scrolling{
             .delta = scr.delta,
         } else null else null };
@@ -839,7 +839,8 @@ pub const VirtualScrollHelper = struct {
     ///     pub fn getNextNode(self: @This(), node_id: u64) ?u64 {}
     ///     pub fn getPreviousNode(self: @This(), node_id: u64) ?u64 {}
     /// }
-    pub fn render(vsh: *VirtualScrollHelper, id: ID, imev: *ImEvent, render_info: anytype, height: f64, placement_y_offset: f64) RenderResult {
+    pub fn render(vsh: *VirtualScrollHelper, id_arg: ID.Arg, imev: *ImEvent, render_info: anytype, height: f64, placement_y_offset: f64) RenderResult {
+        const id = id_arg.id;
         var ctx_outer = imev.render();
 
         if (!render_info.existsNode(vsh.top_node)) {
@@ -1119,7 +1120,7 @@ const ExecData = struct {
 };
 
 fn RenderRootFn(comptime Content: type) type {
-    return fn (id: ID, imev: *ImEvent, isc: *IdStateCache, wh: WH, content: Content) RenderResult;
+    return fn (id_arg: ID.Arg, imev: *ImEvent, isc: *IdStateCache, wh: WH, content: Content) RenderResult;
 }
 pub fn runUntilExit(alloc: *std.mem.Allocator, content: anytype, comptime renderRoot: RenderRootFn(@TypeOf(content))) !void {
     var imevent = ImEvent.init(alloc);
@@ -1133,8 +1134,8 @@ pub fn runUntilExit(alloc: *std.mem.Allocator, content: anytype, comptime render
     var exec_data = ExecData{
         .root_fn_content = root_fn_content,
         .rootFnGeneric = (struct {
-            fn a(id: ID, imev: *ImEvent, isc: *IdStateCache, wh: WH, content_ptr: usize) RenderResult {
-                return renderRoot(id, imev, isc, wh, @intToPtr(RootFnContent, content_ptr).*);
+            fn a(id_arg: ID.Arg, imev: *ImEvent, isc: *IdStateCache, wh: WH, content_ptr: usize) RenderResult {
+                return renderRoot(id_arg, imev, isc, wh, @intToPtr(RootFnContent, content_ptr).*);
             }
         }).a,
         .imev = &imevent,

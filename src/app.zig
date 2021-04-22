@@ -20,7 +20,8 @@ const generic = @import("generic.zig");
 // VLayoutManager.Child : when only W is specified to the function you're calling
 // HLayoutManager.Child : when only H is specified to the function you're calling
 
-fn renderSidebarWidget(id: ID, imev: *ImEvent, isc: *IdStateCache, width: f64, node: generic.SidebarNode) VLayoutManager.Child {
+fn renderSidebarWidget(id_arg: ID.Arg, imev: *ImEvent, isc: *IdStateCache, width: f64, node: generic.SidebarNode) VLayoutManager.Child {
+    const id = id_arg.id;
     var ctx = imev.render();
 
     switch (node) {
@@ -36,7 +37,8 @@ fn renderSidebarWidget(id: ID, imev: *ImEvent, isc: *IdStateCache, width: f64, n
     }
 }
 
-fn inset(id: ID, imev: *ImEvent, inset_v: f64, widget: Widget) Widget {
+fn inset(id_arg: ID.Arg, imev: *ImEvent, inset_v: f64, widget: Widget) Widget {
+    const id = id_arg.id;
     var ctx = imev.render();
 
     ctx.place(widget.node, .{ .x = inset_v, .y = inset_v });
@@ -45,7 +47,8 @@ fn inset(id: ID, imev: *ImEvent, inset_v: f64, widget: Widget) Widget {
         .node = ctx.result(),
     };
 }
-fn vinset(id: ID, imev: *ImEvent, inset_v: f64, widget: VLayoutManager.Child) VLayoutManager.Child {
+fn vinset(id_arg: ID.Arg, imev: *ImEvent, inset_v: f64, widget: VLayoutManager.Child) VLayoutManager.Child {
+    const id = id_arg.id;
     var ctx = imev.render();
 
     ctx.place(widget.node, .{ .x = 0, .y = inset_v });
@@ -54,7 +57,8 @@ fn vinset(id: ID, imev: *ImEvent, inset_v: f64, widget: VLayoutManager.Child) VL
         .node = ctx.result(),
     };
 }
-fn renderAction(id: ID, imev: *ImEvent, isc: *IdStateCache, action: generic.Action) Widget {
+fn renderAction(id_arg: ID.Arg, imev: *ImEvent, isc: *IdStateCache, action: generic.Action) Widget {
+    const id = id_arg.id;
     var ctx = imev.render();
 
     // gray-700: rgba(55, 65, 81)
@@ -88,7 +92,8 @@ fn renderAction(id: ID, imev: *ImEvent, isc: *IdStateCache, action: generic.Acti
         .node = ctx.result(),
     };
 }
-fn renderExtraActionsMenu(id: ID, imev: *ImEvent, isc: *IdStateCache, actions: []const generic.Action) Widget {
+fn renderExtraActionsMenu(id_arg: ID.Arg, imev: *ImEvent, isc: *IdStateCache, actions: []const generic.Action) Widget {
+    const id = id_arg.id;
     var ctx = imev.render();
 
     const text = primitives.text(imev, .{ .size = .sm, .color = .white }, "…");
@@ -151,7 +156,8 @@ pub const ButtonKey = struct {
     hover: bool,
     clicked: bool,
     key: ui.ClickableState,
-    pub fn render(key: ButtonKey, id: ID, imev: *ImEvent, text: []const u8) Widget {
+    pub fn render(key: ButtonKey, id_arg: ID.Arg, imev: *ImEvent, text: []const u8) Widget {
+        const id = id_arg.id;
         var ctx = imev.render();
 
         const btn_widget = inset(id.push(@src()), imev, 4, primitives.text(imev, .{ .size = .sm, .color = .white }, text));
@@ -169,8 +175,9 @@ pub const ButtonKey = struct {
     }
 };
 
-fn useButton(id: ID, imev: *ImEvent) ButtonKey {
-    const clicked_state = imev.clickable(id);
+fn useButton(id_arg: ID.Arg, imev: *ImEvent) ButtonKey {
+    const id = id_arg.id;
+    const clicked_state = imev.clickable(id.push(@src()));
     return .{
         .hover = if (clicked_state.focused) |fxd| fxd.hover else false,
         .clicked = if (clicked_state.focused) |fxd| fxd.click else false,
@@ -261,7 +268,8 @@ const SpanPlacer = struct {
     const Args = struct { width: f64, start_offset: f64 };
 };
 
-fn renderRichtextSpan(id: ID, imev: *ImEvent, isc: *IdStateCache, span: generic.RichtextSpan, args: SpanPlacer.Args) RenderedSpan {
+fn renderRichtextSpan(id_arg: ID.Arg, imev: *ImEvent, isc: *IdStateCache, span: generic.RichtextSpan, args: SpanPlacer.Args) RenderedSpan {
+    const id = id_arg.id;
     var ctx = imev.render();
 
     // TODO:
@@ -362,7 +370,8 @@ fn renderRichtextSpan(id: ID, imev: *ImEvent, isc: *IdStateCache, span: generic.
     }
 }
 
-fn renderRichtextParagraph(id: ID, imev: *ImEvent, isc: *IdStateCache, paragraph: generic.RichtextParagraph, width: f64) VLayoutManager.Child {
+fn renderRichtextParagraph(id_arg: ID.Arg, imev: *ImEvent, isc: *IdStateCache, paragraph: generic.RichtextParagraph, width: f64) VLayoutManager.Child {
+    const id = id_arg.id;
     var ctx = imev.render();
 
     switch (paragraph) {
@@ -396,7 +405,8 @@ fn renderRichtextParagraph(id: ID, imev: *ImEvent, isc: *IdStateCache, paragraph
     }
 }
 
-fn renderBody(id: ID, imev: *ImEvent, isc: *IdStateCache, body: generic.Body, width: f64) VLayoutManager.Child {
+fn renderBody(id_arg: ID.Arg, imev: *ImEvent, isc: *IdStateCache, body: generic.Body, width: f64) VLayoutManager.Child {
+    const id = id_arg.id;
     var ctx = imev.render();
 
     var layout = VLayoutManager.fromWidth(width);
@@ -451,7 +461,8 @@ const PostState = struct {
     }
 };
 
-fn renderPost(id: ID, imev: *ImEvent, isc: *IdStateCache, width: f64, node: generic.Post) VLayoutManager.Child {
+fn renderPost(id_arg: ID.Arg, imev: *ImEvent, isc: *IdStateCache, width: f64, node: generic.Post) VLayoutManager.Child {
+    const id = id_arg.id;
     var ctx = imev.render();
 
     const state = isc.useState(id.push(@src()), imev, PostState, PostState.init); // |_| .{.display_body = node.default_open}
@@ -484,7 +495,8 @@ fn renderPost(id: ID, imev: *ImEvent, isc: *IdStateCache, width: f64, node: gene
     return layout.result(&ctx);
 }
 
-fn renderContextNode(id: ID, imev: *ImEvent, isc: *IdStateCache, width: f64, node: generic.PostContext) VLayoutManager.Child {
+fn renderContextNode(id_arg: ID.Arg, imev: *ImEvent, isc: *IdStateCache, width: f64, node: generic.PostContext) VLayoutManager.Child {
+    const id = id_arg.id;
     var ctx = imev.render();
 
     var layout = VLayoutManager.fromWidth(width);
@@ -497,10 +509,11 @@ fn renderContextNode(id: ID, imev: *ImEvent, isc: *IdStateCache, width: f64, nod
     return layout.result(&ctx);
 }
 
-pub fn topLevelContainer(id: ID, imev: *ImEvent, width: f64, child: VLayoutManager.Child, opts: struct { rounded: bool }) VLayoutManager.Child {
+pub fn topLevelContainer(id_arg: ID.Arg, imev: *ImEvent, width: f64, child: VLayoutManager.Child, opts: struct { rounded: bool }) VLayoutManager.Child {
     // return rectEncapsulating(rounding, .bg = .gray200,
     //    child
     // )
+    const id = id_arg.id;
     var ctx = imev.render();
 
     const rounding: RoundedStyle = if (opts.rounded) .md else .none;
@@ -519,7 +532,8 @@ const AppNodeRenderer = struct {
     width: f64,
     rounded: bool,
 
-    pub fn renderNode(anr: @This(), id: ID, imev: *ImEvent, isc: *IdStateCache, node_id: u64) VLayoutManager.Child {
+    pub fn renderNode(anr: @This(), id_arg: ID.Arg, imev: *ImEvent, isc: *IdStateCache, node_id: u64) VLayoutManager.Child {
+        const id = id_arg.id;
         var ctx = imev.render();
 
         const page = anr.page;
@@ -561,7 +575,8 @@ const AppSidebarRender = struct {
     width: f64,
     rounded: bool,
 
-    pub fn renderNode(anr: @This(), id: ID, imev: *ImEvent, isc: *IdStateCache, node_id: u64) VLayoutManager.Child {
+    pub fn renderNode(anr: @This(), id_arg: ID.Arg, imev: *ImEvent, isc: *IdStateCache, node_id: u64) VLayoutManager.Child {
+        const id = id_arg.id;
         var ctx = imev.render();
 
         const sidebar_node = anr.sidebar[@intCast(usize, node_id)];
@@ -606,7 +621,8 @@ pub const AppState = struct {
     }
 };
 
-pub fn renderApp(id: ID, imev: *ImEvent, isc: *IdStateCache, wh: WH, page: generic.Page) RenderResult {
+pub fn renderApp(id_arg: ID.Arg, imev: *ImEvent, isc: *IdStateCache, wh: WH, page: generic.Page) RenderResult {
+    const id = id_arg.id;
     var ctx = imev.render();
 
     const state_frame = isc.useStateCustomInit(id.push(@src()), imev, AppState);
@@ -659,6 +675,7 @@ pub fn renderApp(id: ID, imev: *ImEvent, isc: *IdStateCache, wh: WH, page: gener
     return ctx.result();
 }
 
-pub fn renderRoot(id: ID, imev: *ImEvent, isc: *IdStateCache, wh: WH, content: generic.Page) RenderResult {
+pub fn renderRoot(id_arg: ID.Arg, imev: *ImEvent, isc: *IdStateCache, wh: WH, content: generic.Page) RenderResult {
+    const id = id_arg.id;
     return renderApp(id.push(@src()), imev, isc, wh, content);
 }

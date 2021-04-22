@@ -97,11 +97,12 @@ pub const ID = struct {
     pub fn pushIndex(id: ID, src: std.builtin.SourceLocation, index: usize) ID {
         return id.pushSrc(src, std.mem.asBytes(&index));
     }
-    // what if there was an IDArg struct that push() returned?
-    // and then the top line of a function const id = id_arg.value;
-    // might be nice as a way to enforce .push()
-    pub fn push(id: ID, src: std.builtin.SourceLocation) ID {
-        return id.pushSrc(src, "");
+    pub const Arg = struct {
+        /// get this at the top of your fn.
+        id: ID,
+    };
+    pub fn push(id: ID, src: std.builtin.SourceLocation) Arg {
+        return .{ .id = id.pushSrc(src, "") };
     }
     // src: comptime std.builtin.SourceLocation? so that `@ptrToInt(&src)` can be used to get a unique id for any source code line?
     // seems nice
