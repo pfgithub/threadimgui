@@ -91,28 +91,33 @@ pub const ID = struct {
             id.debug_safety.destroy();
         }
     }
-    pub fn pushString(id: ID, src: std.builtin.SourceLocation, str: []const u8) ID {
-        return id.pushSrc(src, str);
+    // this is a place where custom arg handlers would be nice. src would be runtime but
+    // when the argument is passed in, casted to usize. eg:
+    //
+    // src: Src
+    //
+    // fn Src(comptime in_src: std.builtin.SourceLocation) usize { return @ptrToInt(comptime &src); }
+    pub fn pushString(id: ID, comptime src: std.builtin.SourceLocation, str: []const u8) ID {
+        return id.pushSrc(srcToUsize(src), str);
     }
-    pub fn pushIndex(id: ID, src: std.builtin.SourceLocation, index: usize) ID {
-        return id.pushSrc(src, std.mem.asBytes(&index));
+    pub fn pushIndex(id: ID, comptime src: std.builtin.SourceLocation, index: usize) ID {
+        return id.pushSrc(srcToUsize(src), std.mem.asBytes(&index));
     }
     pub const Arg = struct {
         /// get this at the top of your fn.
         id: ID,
     };
-    pub fn push(id: ID, src: std.builtin.SourceLocation) Arg {
-        return .{ .id = id.pushSrc(src, "") };
+    pub fn push(id: ID, comptime src: std.builtin.SourceLocation) Arg {
+        return .{ .id = id.pushSrc(srcToUsize(src), "") };
     }
-    // src: comptime std.builtin.SourceLocation? so that `@ptrToInt(&src)` can be used to get a unique id for any source code line?
-    // seems nice
-    fn pushSrc(id: ID, src: std.builtin.SourceLocation, slice: []const u8) ID {
+    fn srcToUsize(comptime src: std.builtin.SourceLocation) usize {
+        return @ptrToInt(comptime &src);
+    }
+    fn pushSrc(id: ID, src: usize, slice: []const u8) ID {
         const seed_start = id.seed;
 
         var hasher = std.hash.Wyhash.init(id.seed);
-        std.hash.autoHash(&hasher, src.line);
-        std.hash.autoHash(&hasher, src.column);
-        hasher.update(src.file);
+        std.hash.autoHash(&hasher, src);
         hasher.update("#");
         hasher.update(slice);
         const seed = hasher.final();
