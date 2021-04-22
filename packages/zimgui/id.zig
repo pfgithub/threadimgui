@@ -1,19 +1,48 @@
 const std = @import("std");
 const main = @import("main.zig");
 
+const safety_enabled = switch (std.builtin.mode) {
+    .Debug => true,
+    else => false,
+};
+
+pub const ID2 = struct {
+    root: *Root,
+    prefix: []const []const u8,
+    pub const Root = struct {
+        const DebugSafety = struct {
+            // seen: HashMap([]const []const u8)
+            // // check if things are equal based on the pointers.
+            // actually don't do that because if the same key is added
+            // twice this won't find out. and that's the whole point. nvm.
+        };
+        alloc: *std.mem.Allocator,
+        debug_safety: if (safety_enabled) *DebugSafety else void,
+    };
+    // fn key() []const u8 : returns the id string or something.
+    // this is used in imev for keys. (a duplicate must be made usually)
+
+    // fn push(…) ID2 {} returns a new ID2 with the value pushed.
+    // shadowing is kinda needed here uuh…
+
+    // use case: variable shadowing
+    // {
+    //    const id = id.push();
+    //    for(range(25)) |_| {const id = id.push();}
+    // }
+};
+
 pub const ID = struct {
     pub const Src = std.builtin.SourceLocation;
     const DebugSafety = struct {
         alloc: *std.mem.Allocator,
         seen: std.AutoHashMap(u64, void),
-        push_count: usize,
         pub fn create(alloc: *std.mem.Allocator) *DebugSafety {
             //
             var dbs = alloc.create(DebugSafety) catch @panic("oom");
             dbs.* = .{
                 .alloc = alloc,
                 .seen = std.AutoHashMap(u64, void).init(alloc),
-                .push_count = 0,
             };
             return dbs;
         }
@@ -37,13 +66,6 @@ pub const ID = struct {
         // check if the current map key has that source location already
         // if it does, @panic("id.pushString() is required in loops to prevent reusing IDs");
 
-        // what you should do:
-        // loop {
-        //     const pushed = id.key(«key»);
-        //     defer pushed.pop();
-        //     now you can do stuff
-        // }
-
         // for now though I'm just keeping which ids have been generated before
         // this has a chance of false positives so it is disabled in release modes, even release-safe
         // chance: for 5 million ids (probably wouldn't be able to render in any resonable amount of time)
@@ -53,10 +75,6 @@ pub const ID = struct {
 
         // also this likely uses wyhash wrong (wyhash seems to have up to 32 bytes of data + a u64 for the
         // past data while this only has a u64 for the past data)
-    };
-    const safety_enabled = switch (std.builtin.mode) {
-        .Debug => true,
-        else => false,
     };
     // this probably isn't how you use wyhash
     // there might be something else better for this use case / a correct way to use wyhash here
@@ -68,33 +86,26 @@ pub const ID = struct {
             .debug_safety = if (safety_enabled) DebugSafety.create(alloc) else {},
         };
     }
-    pub fn deinit(id: *ID) void {
+    pub fn deinit(id: ID) void {
         if (safety_enabled) {
-            if (id.debug_safety.push_count != 0) unreachable;
             id.debug_safety.destroy();
         }
     }
-    pub const PopID = struct {
-        id: *ID,
-        seed: u64,
-        // TODO track and make sure all of these are popped
-        // because there is currently no way to check that in
-        // the zig type system
-        pub fn pop(popid: PopID) void {
-            if (safety_enabled) popid.id.debug_safety.push_count -= 1;
-            popid.id.seed = popid.seed;
-        }
-    };
-    pub fn pushString(id: *ID, src: std.builtin.SourceLocation, str: []const u8) PopID {
+    pub fn pushString(id: ID, src: std.builtin.SourceLocation, str: []const u8) ID {
         return id.pushSrc(src, str);
     }
-    pub fn pushIndex(id: *ID, src: std.builtin.SourceLocation, index: usize) PopID {
+    pub fn pushIndex(id: ID, src: std.builtin.SourceLocation, index: usize) ID {
         return id.pushSrc(src, std.mem.asBytes(&index));
     }
-    pub fn pushFunction(id: *ID, src: std.builtin.SourceLocation) PopID {
+    // what if there was an IDArg struct that push() returned?
+    // and then the top line of a function const id = id_arg.value;
+    // might be nice as a way to enforce .push()
+    pub fn push(id: ID, src: std.builtin.SourceLocation) ID {
         return id.pushSrc(src, "");
     }
-    fn pushSrc(id: *ID, src: std.builtin.SourceLocation, slice: []const u8) PopID {
+    // src: comptime std.builtin.SourceLocation? so that `@ptrToInt(&src)` can be used to get a unique id for any source code line?
+    // seems nice
+    fn pushSrc(id: ID, src: std.builtin.SourceLocation, slice: []const u8) ID {
         const seed_start = id.seed;
 
         var hasher = std.hash.Wyhash.init(id.seed);
@@ -103,20 +114,17 @@ pub const ID = struct {
         hasher.update(src.file);
         hasher.update("#");
         hasher.update(slice);
-        id.seed = hasher.final();
+        const seed = hasher.final();
         if (safety_enabled) {
-            id.debug_safety.push_count += 1;
-            id.debug_safety.seenID(id.seed) catch |e| @panic(
+            id.debug_safety.seenID(seed) catch |e| @panic(
                 \\The same ID was generated twice for the same source location and scope.
                 \\Make sure to use id.push in loops and at the start and end of functions.
             );
         }
 
-        return PopID{ .id = id, .seed = seed_start };
+        return .{ .seed = seed, .debug_safety = id.debug_safety };
     }
-    // if nextid is called twice from the same seed with the same source location, error
-    // "id.push…(…) is required in loops"
-    pub fn forSrc(id: *ID, src: std.builtin.SourceLocation) u64 {
+    pub fn forSrc(id: ID, src: std.builtin.SourceLocation) u64 {
         var hasher = std.hash.Wyhash.init(id.seed);
 
         std.hash.autoHash(&hasher, src.line);

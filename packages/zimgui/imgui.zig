@@ -1,7 +1,7 @@
 const std = @import("std");
 const app = @import("app.zig");
 const backend = @import("backends/backend.zig");
-const ID = @import("id.zig").ID;
+pub const ID = @import("id.zig").ID;
 pub usingnamespace @import("structures.zig");
 const build_opts = @import("build_options");
 
@@ -142,12 +142,10 @@ const TextHashKey = struct {
 pub const RenderCtx = struct {
     imev: *ImEvent,
     nodes: Queue(RenderNode),
-    pop_id: ?ID.PopID,
-    pub fn init(imev: *ImEvent, pop_id: ?ID.PopID) RenderCtx {
+    pub fn init(imev: *ImEvent) RenderCtx {
         return RenderCtx{
             .imev = imev,
             .nodes = Queue(RenderNode){},
-            .pop_id = pop_id,
         };
     }
     // maybe .result() can do this instead?
@@ -155,9 +153,6 @@ pub const RenderCtx = struct {
     // uh oh renderctx is only for rendering fixed positioned things
     // if you return inset(…)
     // this needs a bit of a redo
-    pub fn pop(ctx: *RenderCtx) void {
-        if (ctx.pop_id) |pid| pid.pop();
-    }
     pub fn putRenderNode(ctx: *RenderCtx, node: RenderNode) void {
         ctx.nodes.push(ctx.imev.arena(), node) catch @panic("oom");
     }
@@ -183,9 +178,8 @@ pub const primitives = struct {
         rounded: RoundedStyle = .none,
         bg: ThemeColor,
     };
-    pub fn rect(src: Src, imev: *ImEvent, size: WH, opts: RectOpts) RenderResult {
-        var ctx = imev.render(src);
-        defer ctx.pop();
+    pub fn rect(imev: *ImEvent, size: WH, opts: RectOpts) RenderResult {
+        var ctx = imev.render();
 
         ctx.putRenderNode(RenderNode{ .value = .{ .rectangle = .{
             .wh = size,
@@ -211,9 +205,8 @@ pub const primitives = struct {
             };
         }
     };
-    pub fn textV(src: Src, imev: *ImEvent, width: f64, opts: FontOpts, text_val: []const u8) VLayoutManager.Child {
-        var ctx = imev.render(src);
-        defer ctx.pop();
+    pub fn textV(imev: *ImEvent, width: f64, opts: FontOpts, text_val: []const u8) VLayoutManager.Child {
+        var ctx = imev.render();
 
         const all_font_opts = opts.all();
         const w_int = backend.pangoScale(width);
@@ -231,9 +224,8 @@ pub const primitives = struct {
             .node = ctx.result(),
         };
     }
-    pub fn text(src: Src, imev: *ImEvent, opts: FontOpts, text_val: []const u8) Widget {
-        var ctx = imev.render(src);
-        defer ctx.pop();
+    pub fn text(imev: *ImEvent, opts: FontOpts, text_val: []const u8) Widget {
+        var ctx = imev.render();
 
         const all_font_opts = opts.all();
         const layout = imev.layoutText(.{ .font_opts = all_font_opts, .width = null, .text = text_val });
@@ -257,9 +249,8 @@ pub const primitives = struct {
 
         return layout;
     }
-    pub fn textLine(src: Src, imev: *ImEvent, text_line: backend.TextLayoutLine, color: ThemeColor) RenderResult {
-        var ctx = imev.render(src);
-        defer ctx.pop();
+    pub fn textLine(imev: *ImEvent, text_line: backend.TextLayoutLine, color: ThemeColor) RenderResult {
+        var ctx = imev.render();
 
         ctx.putRenderNode(RenderNode{ .value = .{ .text_line = .{
             .line = text_line,
@@ -321,16 +312,14 @@ pub const IdStateCache = struct {
     pub const Entry = struct {
         ptr: usize,
         deinitFn: fn (entry: Entry, alloc: *std.mem.Allocator) void,
-        created_src_file: [*:0]const u8,
-        created_src_line: u32,
-        created_src_col: u32,
+        // I think the point was for this{fyl,lyn,col} to be a value representing
+        // the source location where useState was called so that if useState ends
+        // up somehow with the same ID asking for different data, an error can be
+        // made.
 
         used_this_frame: bool,
 
-        pub fn readAs(value: Entry, comptime src: Src, comptime Type: type) *Type {
-            if (value.created_src_line != src.line or value.created_src_col != src.column or value.created_src_file != src.file.ptr) {
-                @panic("random crash. TODO fix.");
-            }
+        pub fn readAs(value: Entry, comptime Type: type) *Type {
             return @intToPtr(*Type, value.ptr);
         }
     };
@@ -345,8 +334,8 @@ pub const IdStateCache = struct {
     // this is where |these| {things} would be useful:
     // ` cache.state(@src(), imev, struct{x: f64}, |_| .{.x = 25});
     // unfortunately, not yet
-    pub fn useState(isc: *IdStateCache, comptime src: Src, imev: *ImEvent, comptime Type: type, comptime initFn: fn () Type) *Type {
-        var res = isc.useStateCustomInit(src, imev, Type);
+    pub fn useState(isc: *IdStateCache, id: ID, imev: *ImEvent, comptime Type: type, comptime initFn: fn () Type) *Type {
+        var res = isc.useStateCustomInit(id, imev, Type);
         if (!res.initialized) res.ptr.* = initFn();
         return res.ptr;
     }
@@ -356,29 +345,26 @@ pub const IdStateCache = struct {
             initialized: bool,
         };
     }
-    pub fn useStateCustomInit(isc: *IdStateCache, comptime src: Src, imev: *ImEvent, comptime Type: type) StateRes(Type) {
-        const id = imev.frame.id.forSrc(src);
+    pub fn useStateCustomInit(isc: *IdStateCache, id_val: ID, imev: *ImEvent, comptime Type: type) StateRes(Type) {
+        const id = id_val.forSrc(@src());
 
         const hm_entry = isc.hm.getOrPut(imev.persistentAlloc(), id) catch @panic("oom");
         if (hm_entry.found_existing) {
             hm_entry.entry.value.used_this_frame = true;
-            return .{ .ptr = hm_entry.entry.value.readAs(src, Type), .initialized = true };
+            return .{ .ptr = hm_entry.entry.value.readAs(Type), .initialized = true };
         }
         var item_ptr: *Type = imev.persistentAlloc().create(Type) catch @panic("oom");
         hm_entry.entry.value = .{
             .ptr = @ptrToInt(item_ptr),
             .deinitFn = struct {
                 fn a(entry: Entry, alloc: *std.mem.Allocator) void {
-                    const ptr_v = entry.readAs(src, Type);
+                    const ptr_v = entry.readAs(Type);
                     if (@hasDecl(Type, "deinit")) {
                         ptr_v.deinit();
                     }
                     alloc.destroy(ptr_v);
                 }
             }.a,
-            .created_src_file = src.file.ptr,
-            .created_src_line = src.line,
-            .created_src_col = src.column,
             .used_this_frame = true,
         };
         return .{ .ptr = item_ptr, .initialized = false };
@@ -437,7 +423,6 @@ pub const ImEvent = struct { // pinned?
     frame: struct {
         should_render: bool,
         arena_allocator: std.heap.ArenaAllocator,
-        id: ID,
         cr: backend.Context,
         cursor: CursorEnum = .default,
         render_result: RenderResult = undefined,
@@ -596,7 +581,6 @@ pub const ImEvent = struct { // pinned?
         imev.frame = .{
             .should_render = should_render,
             .arena_allocator = std.heap.ArenaAllocator.init(imev.persistent.real_allocator),
-            .id = ID.init(imev.persistent.real_allocator),
             .cr = cr,
         };
     }
@@ -695,15 +679,10 @@ pub const ImEvent = struct { // pinned?
         }
 
         imev.frame.arena_allocator.deinit();
-        imev.frame.id.deinit();
-        imev.frame.id = undefined;
     }
 
-    pub fn render(imev: *ImEvent, src: Src) RenderCtx {
-        return RenderCtx.init(imev, imev.frame.id.pushFunction(src));
-    }
-    pub fn renderNoSrc(imev: *ImEvent) RenderCtx {
-        return RenderCtx.init(imev, null);
+    pub fn render(imev: *ImEvent) RenderCtx {
+        return RenderCtx.init(imev);
     }
 
     pub fn isRenderFrame(imev: *ImEvent) bool {
@@ -746,16 +725,16 @@ pub const ImEvent = struct { // pinned?
         }
     }
 
-    pub fn clickable(imev: *ImEvent, src: Src) ClickableState {
-        const id = imev.frame.id.forSrc(src);
+    pub fn clickable(imev: *ImEvent, id_h: ID) ClickableState {
+        const id = id_h.forSrc(@src());
         return ClickableState{ .key = .{ .id = id }, .focused = if (imev.persistent.mouse_focused) |mfx| if (mfx.id == id) ClickableState.Focused{
             .hover = mfx.hover,
             .click = mfx.mouse_up and mfx.hover,
         } else null else null };
     }
 
-    pub fn scrollable(imev: *ImEvent, src: Src) ScrollableState {
-        const id = imev.frame.id.forSrc(src);
+    pub fn scrollable(imev: *ImEvent, id_h: ID) ScrollableState {
+        const id = id_h.forSrc(@src());
         return ScrollableState{ .key = .{ .id = id }, .scrolling = if (imev.persistent.scroll_focused) |scr| if (scr.id == id) ScrollableState.Scrolling{
             .delta = scr.delta,
         } else null else null };
@@ -766,7 +745,7 @@ pub const Src = ID.Src;
 pub const ClickableKey = struct {
     id: u64,
     pub fn node(key: ClickableKey, imev: *ImEvent, wh: WH) RenderResult {
-        var ctx = imev.renderNoSrc();
+        var ctx = imev.render();
         ctx.putRenderNode(.{ .value = .{ .clickable = .{ .id = key.id, .wh = wh } } });
         return ctx.result();
     }
@@ -792,7 +771,7 @@ pub const ClickableState = struct {
 pub const ScrollableKey = struct {
     id: u64,
     pub fn node(key: ScrollableKey, imev: *ImEvent, wh: WH) RenderResult {
-        var ctx = imev.renderNoSrc();
+        var ctx = imev.render();
         ctx.putRenderNode(.{ .value = .{ .scrollable = .{ .id = key.id, .wh = wh } } });
         return ctx.result();
     }
@@ -843,12 +822,11 @@ pub const VirtualScrollHelper = struct {
         return gop_res.entry.value;
     }
 
-    fn renderOneNode(vsh: *VirtualScrollHelper, renderInfo: anytype, imev: *ImEvent, node_id: u64) VLayoutManager.Child {
-        const pindex = imev.frame.id.pushIndex(@src(), node_id); // if this errors, it means the same node is being rendered twice. src should *not* be passed as a fn arg here.
-        defer pindex.pop();
+    fn renderOneNode(vsh: *VirtualScrollHelper, renderInfo: anytype, id_root: ID, imev: *ImEvent, node_id: u64) VLayoutManager.Child {
+        const id = id_root.pushIndex(@src(), node_id); // if this errors, it means the same node is being rendered twice. id_root should *not* be .push(@src())'d
 
         const cache = vsh.cacheForNode(node_id);
-        const rres = renderInfo.renderNode(@src(), imev, cache, node_id);
+        const rres = renderInfo.renderNode(id.push(@src()), imev, cache, node_id);
         cache.cleanupUnused(imev);
         return rres;
     }
@@ -861,9 +839,8 @@ pub const VirtualScrollHelper = struct {
     ///     pub fn getNextNode(self: @This(), node_id: u64) ?u64 {}
     ///     pub fn getPreviousNode(self: @This(), node_id: u64) ?u64 {}
     /// }
-    pub fn render(vsh: *VirtualScrollHelper, src: Src, imev: *ImEvent, render_info: anytype, height: f64, placement_y_offset: f64) RenderResult {
-        var ctx_outer = imev.render(src);
-        defer ctx_outer.pop();
+    pub fn render(vsh: *VirtualScrollHelper, id: ID, imev: *ImEvent, render_info: anytype, height: f64, placement_y_offset: f64) RenderResult {
+        var ctx_outer = imev.render();
 
         if (!render_info.existsNode(vsh.top_node)) {
             return ctx_outer.result(); // TODO something
@@ -873,11 +850,11 @@ pub const VirtualScrollHelper = struct {
 
         // here's the new plan:
 
-        var ctx = imev.renderNoSrc();
+        var ctx = imev.render();
 
         // part 1: render the top node
         var top_node_id = vsh.top_node;
-        var top_node_rendered = vsh.renderOneNode(render_info, imev, top_node_id);
+        var top_node_rendered = vsh.renderOneNode(render_info, id, imev, top_node_id);
         ctx.place(top_node_rendered.node, .{ .x = 0, .y = @floor(vsh.scroll_offset) });
 
         var current_y: f64 = @floor(vsh.scroll_offset) + top_node_rendered.h;
@@ -887,7 +864,7 @@ pub const VirtualScrollHelper = struct {
         // part 2: if there are nodes above it, render those and update the top node
         while (vsh.scroll_offset > 0 - placement_y_offset) {
             top_node_id = render_info.getPreviousNode(top_node_id) orelse break;
-            top_node_rendered = vsh.renderOneNode(render_info, imev, top_node_id);
+            top_node_rendered = vsh.renderOneNode(render_info, id, imev, top_node_id);
             vsh.top_node = top_node_id;
             vsh.scroll_offset -= top_node_rendered.h;
             ctx.place(top_node_rendered.node, .{ .x = 0, .y = @floor(vsh.scroll_offset) });
@@ -903,7 +880,7 @@ pub const VirtualScrollHelper = struct {
             vsh.scroll_offset = 0;
 
             ctx = blk: {
-                var new_ctx = imev.renderNoSrc();
+                var new_ctx = imev.render();
                 new_ctx.place(ctx.result(), .{ .x = 0, .y = transform_dist });
                 current_y += transform_dist;
                 break :blk new_ctx;
@@ -919,7 +896,7 @@ pub const VirtualScrollHelper = struct {
             vsh.top_node = lowest_rendered_id;
             vsh.scroll_offset += lowest_rendered_node.h;
 
-            lowest_rendered_node = vsh.renderOneNode(render_info, imev, lowest_rendered_id);
+            lowest_rendered_node = vsh.renderOneNode(render_info, id, imev, lowest_rendered_id);
             ctx.place(lowest_rendered_node.node, .{ .x = 0, .y = current_y });
             current_y += lowest_rendered_node.h;
         }
@@ -927,7 +904,7 @@ pub const VirtualScrollHelper = struct {
         // part 4b: fill in nodes on the bottom. if the top node is above the screen, update the vsh.top_node and scroll to match
         while (current_y < height - placement_y_offset) {
             lowest_rendered_id = render_info.getNextNode(lowest_rendered_id) orelse break;
-            const rendered_node = vsh.renderOneNode(render_info, imev, lowest_rendered_id);
+            const rendered_node = vsh.renderOneNode(render_info, id, imev, lowest_rendered_id);
             ctx.place(rendered_node.node, .{ .x = 0, .y = current_y });
             current_y += rendered_node.h;
         }
@@ -942,7 +919,7 @@ pub const VirtualScrollHelper = struct {
             // 5a. reposition down to the bottom
 
             ctx = blk: {
-                var new_ctx = imev.renderNoSrc();
+                var new_ctx = imev.render();
                 new_ctx.place(ctx.result(), .{ .x = 0, .y = -push_down_dist });
                 current_y += -push_down_dist;
                 break :blk new_ctx;
@@ -963,7 +940,7 @@ pub const VirtualScrollHelper = struct {
             if (vsh.scroll_offset > 0) {
                 const push_up_dist = -@floor(vsh.scroll_offset);
                 ctx = blk: {
-                    var new_ctx = imev.renderNoSrc();
+                    var new_ctx = imev.render();
                     new_ctx.place(ctx.result(), .{ .x = 0, .y = push_up_dist });
                     current_y += push_up_dist;
                     break :blk new_ctx;
@@ -1078,13 +1055,12 @@ pub const BaseRootState = struct {
     }
 };
 
-pub fn renderBaseRoot(src: Src, imev: *ImEvent, isc: *IdStateCache, wh: WH, data: ExecData) RenderResult {
-    var ctx = imev.render(src);
-    defer ctx.pop();
+pub fn renderBaseRoot(id: ID, imev: *ImEvent, isc: *IdStateCache, wh: WH, data: ExecData) RenderResult {
+    var ctx = imev.render();
 
-    const state = isc.useState(@src(), imev, BaseRootState, BaseRootState.init);
+    const state = isc.useState(id.push(@src()), imev, BaseRootState, BaseRootState.init);
 
-    const rootfn_src = @src();
+    const rootfn_id = id.push(@src());
 
     // TODO imev.hotkey with dispatch based on focus and stuff
     if (imev.persistent.prev_frame_keydown) |kd| if (kd == .f12) {
@@ -1098,9 +1074,9 @@ pub fn renderBaseRoot(src: Src, imev: *ImEvent, isc: *IdStateCache, wh: WH, data
         // render the rest of devtools
         const smaller_size: WH = .{ .w = @divFloor(wh.w, 2), .h = @divFloor(wh.h, 2) };
         const ul: Point = .{ .x = @divFloor(wh.w, 4), .y = @divFloor(wh.h, 4) };
-        ctx.place(data.rootFnGeneric(rootfn_src, imev, isc, smaller_size, data.root_fn_content), ul);
+        ctx.place(data.rootFnGeneric(rootfn_id, imev, isc, smaller_size, data.root_fn_content), ul);
     } else {
-        ctx.place(data.rootFnGeneric(rootfn_src, imev, isc, wh, data.root_fn_content), Point.origin);
+        ctx.place(data.rootFnGeneric(rootfn_id, imev, isc, wh, data.root_fn_content), Point.origin);
     }
 
     return ctx.result();
@@ -1111,17 +1087,20 @@ pub fn renderFrame(cr: backend.Context, rr: backend.RerenderRequest, data: ExecD
     const imev = data.imev;
     const root_state_cache = data.root_state_cache;
 
-    const root_src = @src();
+    var id = ID.init(imev.persistentAlloc());
 
     var render_count: usize = 0;
     while (imev.prerender()) {
         render_count += 1;
         imev.startFrame(cr, false);
-        imev.endFrame(renderBaseRoot(root_src, imev, root_state_cache, imev.persistent.screen_size, data));
+        imev.endFrame(renderBaseRoot(id, imev, root_state_cache, imev.persistent.screen_size, data));
+        id.deinit();
+        id = ID.init(imev.persistentAlloc());
     }
     render_count += 1;
     imev.startFrame(cr, true);
-    imev.endFrameRender(renderBaseRoot(root_src, imev, root_state_cache, imev.persistent.screen_size, data));
+    imev.endFrameRender(renderBaseRoot(id, imev, root_state_cache, imev.persistent.screen_size, data));
+    id.deinit();
 
     // std.log.info("rerender×{} in {}ns", .{ render_count, timer.read() }); // max allowed time is 4ms
 }
@@ -1140,7 +1119,7 @@ const ExecData = struct {
 };
 
 fn RenderRootFn(comptime Content: type) type {
-    return fn (src: Src, imev: *ImEvent, isc: *IdStateCache, wh: WH, content: Content) RenderResult;
+    return fn (id: ID, imev: *ImEvent, isc: *IdStateCache, wh: WH, content: Content) RenderResult;
 }
 pub fn runUntilExit(alloc: *std.mem.Allocator, content: anytype, comptime renderRoot: RenderRootFn(@TypeOf(content))) !void {
     var imevent = ImEvent.init(alloc);
@@ -1154,8 +1133,8 @@ pub fn runUntilExit(alloc: *std.mem.Allocator, content: anytype, comptime render
     var exec_data = ExecData{
         .root_fn_content = root_fn_content,
         .rootFnGeneric = (struct {
-            fn a(src: Src, imev: *ImEvent, isc: *IdStateCache, wh: WH, content_ptr: usize) RenderResult {
-                return renderRoot(src, imev, isc, wh, @intToPtr(RootFnContent, content_ptr).*);
+            fn a(id: ID, imev: *ImEvent, isc: *IdStateCache, wh: WH, content_ptr: usize) RenderResult {
+                return renderRoot(id, imev, isc, wh, @intToPtr(RootFnContent, content_ptr).*);
             }
         }).a,
         .imev = &imevent,
