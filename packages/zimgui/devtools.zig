@@ -22,9 +22,10 @@ const MobileEmulationKey = struct {
         const id = id_arg.id;
         var ctx = imev.render();
 
+        ctx.place(primitives.rect(imev, key.full_wh, .{ .bg = .gray300 }), Point.origin);
         ctx.place(root_result, .{ .x = @divFloor(key.full_wh.w, 4), .y = @divFloor(key.full_wh.h, 4) });
 
-        return ctx.result();
+        return primitives.clippingRect(imev, key.full_wh, ctx.result());
     }
 };
 
@@ -38,7 +39,7 @@ pub fn renderDevtools(id_arg: ID.Arg, imev: *ImEvent, isc: *IdStateCache, wh: WH
     const id = id_arg.id;
     var ctx = imev.render();
 
-    ctx.place(primitives.rect(imev, wh, .{ .bg = .red }), Point.origin);
+    // ctx.place(primitives.rect(imev, wh, .{ .bg = .red }), Point.origin);
 
     return ctx.result();
 }

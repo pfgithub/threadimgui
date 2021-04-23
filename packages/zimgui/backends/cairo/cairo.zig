@@ -1,4 +1,5 @@
 // https://docs.gtk.org/Pango
+// https://www.cairographics.org/manual/cairo-Paths.html
 
 usingnamespace @cImport({
     @cInclude("cairo_cbind.h");
@@ -129,7 +130,6 @@ pub const RerenderRequest = struct {
 fn roundedRectangle(cr: *cairo_t, x: f64, y: f64, w: f64, h: f64, corner_radius_raw: f64) void {
     // TODO if radius == 0 skip this
 
-    cairo_new_sub_path(cr);
     if (corner_radius_raw == 0) {
         cairo_rectangle(cr, x, y, w, h);
     } else {
@@ -138,12 +138,13 @@ fn roundedRectangle(cr: *cairo_t, x: f64, y: f64, w: f64, h: f64, corner_radius_
         const radius = corner_radius;
         const degrees = std.math.pi / 180.0;
 
+        cairo_new_sub_path(cr);
         cairo_arc(cr, x + w - radius, y + radius, radius, -90 * degrees, 0 * degrees);
         cairo_arc(cr, x + w - radius, y + h - radius, radius, 0 * degrees, 90 * degrees);
         cairo_arc(cr, x + radius, y + h - radius, radius, 90 * degrees, 180 * degrees);
         cairo_arc(cr, x + radius, y + radius, radius, 180 * degrees, 270 * degrees);
+        cairo_close_path(cr);
     }
-    cairo_close_path(cr);
 }
 
 pub const TextLayout = struct {
@@ -284,6 +285,11 @@ pub const Context = struct {
         cairo_move_to(cr, point.x, point.y);
         pango_cairo_show_layout_line(cr, text.line);
         cairo_restore(cr);
+    }
+    pub fn setClippingRect(ctx: Context, rect: Rect) void {
+        const cr = ctx.cr;
+        cairo_rectangle(cr, rect.x, rect.y, rect.w, rect.h);
+        cairo_clip(cr);
     }
     pub fn layoutText(ctx: Context, font: [*:0]const u8, text: []const u8, width: ?c_int, left_offset: c_int, attrs: TextAttrList) TextLayout {
         const cr = ctx.cr;

@@ -1,3 +1,5 @@
+const std = @import("std");
+
 pub const RawEvent = union(enum) {
     empty: void,
     key: struct { down: bool, key: Key, modifiers: KeyModifiers },
@@ -62,6 +64,12 @@ pub const Point = struct {
     pub fn toRectBR(pt: Point, wh: WH) Rect {
         return .{ .x = pt.x, .y = pt.y, .w = wh.w, .h = wh.h };
     }
+    pub fn min(lhs: @This(), rhs: @This()) @This() {
+        return .{ .x = std.math.min(lhs.x, rhs.x), .y = std.math.min(lhs.y, rhs.y) };
+    }
+    pub fn max(lhs: @This(), rhs: @This()) @This() {
+        return .{ .x = std.math.max(lhs.x, rhs.x), .y = std.math.max(lhs.y, rhs.y) };
+    }
 };
 pub const Rect = struct {
     x: f64,
@@ -95,6 +103,15 @@ pub const Rect = struct {
         return point.x >= rect.x and point.x < rect.x + rect.w and
             point.y >= rect.y and point.y < rect.y + rect.h //
         ;
+    }
+    pub fn overlap(lhs: Rect, rhs: Rect) Rect {
+        return Rect.fromULBR(
+            lhs.ul().max(rhs.ul()),
+            lhs.br().min(rhs.br()),
+        );
+    }
+    pub fn fromULBR(ul_: Point, br_: Point) Rect {
+        return .{ .x = ul_.x, .y = ul_.y, .w = br_.x - ul_.x, .h = br_.y - ul_.y };
     }
 };
 

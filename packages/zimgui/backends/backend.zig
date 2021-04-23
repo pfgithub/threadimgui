@@ -132,6 +132,11 @@ pub const Context = struct {
             ctx.value.renderTextLine(point, text.value, color);
         } else warn.once(@src(), "Context.renderTextLine");
     }
+    pub fn setClippingRect(ctx: Context, rect: structures.Rect) void {
+        if (@hasDecl(backend.Context, "setClippingRect")) {
+            ctx.value.setClippingRect(rect);
+        } else warn.once(@src(), "Context.setClippingRect");
+    }
     pub const TextLayoutOpts = struct {
         /// pango scaled
         width: ?c_int,

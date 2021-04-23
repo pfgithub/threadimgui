@@ -24,8 +24,12 @@ pub const RenderNode = struct { value: union(enum) {
         color: Color,
     },
     place: struct {
-        node: ?*Queue(RenderNode).Node,
+        node: RenderResult,
         offset: Point,
+    },
+    clipping_rect: struct {
+        node: RenderResult,
+        wh: WH,
     },
     clickable: struct {
         id: u64,
@@ -178,6 +182,12 @@ pub const primitives = struct {
         rounded: RoundedStyle = .none,
         bg: ThemeColor,
     };
+    /// draw a rect of size WH
+    ///
+    /// sample:
+    /// ```zig
+    /// ctx.place(primitives.rect(imev, .{.w = 50, .h = 25}, .{.rounded = .md, .bg = .gray100}), .{.x = 25, .y = 50});
+    /// ```
     pub fn rect(imev: *ImEvent, size: WH, opts: RectOpts) RenderResult {
         var ctx = imev.render();
 
@@ -186,6 +196,23 @@ pub const primitives = struct {
             .radius = opts.rounded.getPx(),
             .bg_color = opts.bg.getColor(),
         } } });
+        return ctx.result();
+    }
+    /// draw a clipping rect around some content of size WH
+    ///
+    /// sample:
+    /// ```zig
+    /// const content = primitives.rect(…);
+    /// ctx.place(primitives.clippingRect(imev, .{.w = 50, .h = 25}, content), .{.x = 25, .y = 50});
+    /// ```
+    pub fn clippingRect(imev: *ImEvent, size: WH, content: RenderResult) RenderResult {
+        var ctx = imev.render();
+
+        ctx.putRenderNode(RenderNode{ .value = .{ .clipping_rect = .{
+            .wh = size,
+            .node = content,
+        } } });
+
         return ctx.result();
     }
     const FontOpts = struct {
@@ -564,7 +591,8 @@ pub const ImEvent = struct { // pinned?
             }
             imev.persistent.scroll_focused = null;
 
-            imev.handleEvent(imev.frame.render_result, imev.persistent.internal_screen_offset);
+            const soffset = imev.persistent.internal_screen_offset;
+            imev.handleEvent(imev.frame.render_result, soffset, imev.persistent.screen_size.setUL(soffset));
         };
 
         if (imev.persistent.is_first_frame) imev.persistent.is_first_frame = false //
@@ -586,7 +614,7 @@ pub const ImEvent = struct { // pinned?
             .cr = cr,
         };
     }
-    pub fn handleEvent(imev: *ImEvent, nodes: RenderResult, offset: Point) void {
+    pub fn handleEvent(imev: *ImEvent, nodes: RenderResult, offset: Point, clip: Rect) void {
         var nodeiter = nodes;
         const cr = imev.frame.cr;
         while (nodeiter) |node| {
@@ -596,10 +624,13 @@ pub const ImEvent = struct { // pinned?
                 .text => {},
                 .text_line => {},
                 .place => |place| {
-                    imev.handleEvent(place.node, .{ .x = offset.x + place.offset.x, .y = offset.y + place.offset.y });
+                    imev.handleEvent(place.node, .{ .x = offset.x + place.offset.x, .y = offset.y + place.offset.y }, clip);
+                },
+                .clipping_rect => |clip_rect| {
+                    imev.handleEvent(clip_rect.node, offset, clip_rect.wh.setUL(offset).overlap(clip));
                 },
                 .clickable => |cable| {
-                    const contains_point = offset.toRectBR(cable.wh).containsPoint(imev.persistent.mouse_position);
+                    const contains_point = offset.toRectBR(cable.wh).overlap(clip).containsPoint(imev.persistent.mouse_position);
                     const active_is_this = if (imev.persistent.mouse_focused) |mfx| mfx.id == cable.id else contains_point;
                     if (active_is_this) {
                         imev.persistent.mouse_focused = MouseFocused{
@@ -610,7 +641,7 @@ pub const ImEvent = struct { // pinned?
                     }
                 },
                 .scrollable => |sable| {
-                    const contains_point = offset.toRectBR(sable.wh).containsPoint(imev.persistent.mouse_position);
+                    const contains_point = offset.toRectBR(sable.wh).overlap(clip).containsPoint(imev.persistent.mouse_position);
                     if (contains_point and !(imev.frame.scroll_delta.x == 0 and imev.frame.scroll_delta.y == 0)) {
                         imev.persistent.scroll_focused = ScrollFocused{
                             .id = sable.id,
@@ -622,7 +653,7 @@ pub const ImEvent = struct { // pinned?
             nodeiter = node.next;
         }
     }
-    pub fn internalRender(imev: *ImEvent, nodes: RenderResult, offset: Point) void {
+    pub fn internalRender(imev: *ImEvent, nodes: RenderResult, offset: Point, clip: Rect) void {
         var nodeiter = nodes;
         const cr = imev.frame.cr;
         while (nodeiter) |node| {
@@ -638,7 +669,13 @@ pub const ImEvent = struct { // pinned?
                     cr.renderTextLine(offset, tl.line, tl.color);
                 },
                 .place => |place| {
-                    imev.internalRender(place.node, .{ .x = offset.x + place.offset.x, .y = offset.y + place.offset.y });
+                    imev.internalRender(place.node, .{ .x = offset.x + place.offset.x, .y = offset.y + place.offset.y }, clip);
+                },
+                .clipping_rect => |clip_rect| {
+                    const content_clip = clip_rect.wh.setUL(offset).overlap(clip);
+                    cr.setClippingRect(content_clip);
+                    imev.internalRender(clip_rect.node, offset, content_clip);
+                    cr.setClippingRect(clip);
                 },
                 .clickable => {},
                 .scrollable => {},
@@ -649,7 +686,10 @@ pub const ImEvent = struct { // pinned?
     pub fn endFrameRender(imev: *ImEvent, render_v: RenderResult) void {
         if (!imev.frame.should_render) unreachable;
 
-        imev.internalRender(render_v, imev.persistent.internal_screen_offset);
+        const soffset = imev.persistent.internal_screen_offset;
+        const ir_clip = imev.persistent.screen_size.setUL(soffset);
+        imev.frame.cr.setClippingRect(ir_clip);
+        imev.internalRender(render_v, soffset, ir_clip);
 
         imev.frame.render_result = render_v;
     }
