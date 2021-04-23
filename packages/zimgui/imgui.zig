@@ -1121,6 +1121,8 @@ pub fn renderBaseRoot(id: ID, imev: *ImEvent, isc: *IdStateCache, wh: WH, data: 
             .h = wh.h - content_rect.h,
         };
 
+        // devtools.useDevtools()
+        // if(mobile_emulation) useMobileEmulation // if(memu.clip) clip (should clip content or just memu frame)
         const memu = devtools.useMobileEmulation(id.push(@src()), imev, isc, content_rect.wh());
 
         const root_result = data.rootFnGeneric(rootfn_id, imev, isc, memu.content_wh, data.root_fn_content);
