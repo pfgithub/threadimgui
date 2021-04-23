@@ -345,6 +345,8 @@ pub const IdStateCache = struct {
             initialized: bool,
         };
     }
+    // what if switch(useStateCustomInit()) {.initialized => {}, .unin => |unin| {unin.value.init(); break :blk unin}}
+    // that could work
     pub fn useStateCustomInit(isc: *IdStateCache, id_val: ID.Arg, imev: *ImEvent, comptime Type: type) StateRes(Type) {
         const id = id_val.id.forSrc(@src());
 
@@ -1056,6 +1058,8 @@ pub const BaseRootState = struct {
     }
 };
 
+const devtools = @import("devtools.zig");
+
 pub fn renderBaseRoot(id: ID, imev: *ImEvent, isc: *IdStateCache, wh: WH, data: ExecData) RenderResult {
     var ctx = imev.render();
 
@@ -1069,13 +1073,20 @@ pub fn renderBaseRoot(id: ID, imev: *ImEvent, isc: *IdStateCache, wh: WH, data: 
     };
 
     if (build_opts.devtools_enabled and state.devtools_open) {
-        // for devtools, must:
-        // get the size to render the root fn with
-        // render the root fn in the frame (but with an id belonging to this function)
-        // render the rest of devtools
-        const smaller_size: WH = .{ .w = @divFloor(wh.w, 2), .h = @divFloor(wh.h, 2) };
-        const ul: Point = .{ .x = @divFloor(wh.w, 4), .y = @divFloor(wh.h, 4) };
-        ctx.place(data.rootFnGeneric(rootfn_id, imev, isc, smaller_size, data.root_fn_content), ul);
+        const content_rect: Rect = (WH{ .w = wh.w, .h = @divFloor(wh.h, 2) }).setUL(Point.origin);
+        const devtools_rect: Rect = .{
+            .x = 0,
+            .y = content_rect.y + content_rect.h,
+            .w = wh.w,
+            .h = wh.h - content_rect.h,
+        };
+
+        const memu = devtools.useMobileEmulation(id.push(@src()), imev, isc, content_rect.wh());
+
+        const root_result = data.rootFnGeneric(rootfn_id, imev, isc, memu.content_wh, data.root_fn_content);
+
+        ctx.place(memu.render(id.push(@src()), imev, root_result), content_rect.ul());
+        ctx.place(devtools.renderDevtools(id.push(@src()), imev, isc, devtools_rect.wh(), root_result), devtools_rect.ul());
     } else {
         ctx.place(data.rootFnGeneric(rootfn_id, imev, isc, wh, data.root_fn_content), Point.origin);
     }
@@ -1096,12 +1107,14 @@ pub fn renderFrame(cr: backend.Context, rr: backend.RerenderRequest, data: ExecD
         imev.startFrame(cr, false);
         imev.endFrame(renderBaseRoot(id, imev, root_state_cache, imev.persistent.screen_size, data));
         id.deinit();
+        root_state_cache.cleanupUnused(imev);
         id = ID.init(imev.persistentAlloc());
     }
     render_count += 1;
     imev.startFrame(cr, true);
     imev.endFrameRender(renderBaseRoot(id, imev, root_state_cache, imev.persistent.screen_size, data));
     id.deinit();
+    root_state_cache.cleanupUnused(imev);
 
     // std.log.info("rerender×{} in {}ns", .{ render_count, timer.read() }); // max allowed time is 4ms
 }

@@ -166,4 +166,13 @@ eventually, this will be done automatically through one of: (node server | embed
 
 # notes
 
+- `imev.fmt("{}", .{25})` should return a formatted string valid for the current frame
+
+# notes
+
+- overlays like the right click menu or dropdowns that can go outside the window. you'd say that you want to render an overlay and
+  then, at the end of the frame, the function would be called to render the overlay but it might even be a popup window thing
+
+# notes
+
 - https://github.com/nektro/zig-tracy todo

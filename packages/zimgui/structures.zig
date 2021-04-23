@@ -44,6 +44,9 @@ pub const WH = struct {
     w: f64,
     h: f64,
     // should this be float or int?
+    pub fn setUL(wh: WH, ul: Point) Rect {
+        return .{ .x = ul.x, .y = ul.y, .w = wh.w, .h = wh.h };
+    }
 };
 /// represents a rectangle with its upper left at the origin with a baseline
 pub const BlWH = struct {
