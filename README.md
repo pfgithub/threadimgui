@@ -175,4 +175,10 @@ eventually, this will be done automatically through one of: (node server | embed
 
 # notes
 
+- for rerenders : a rerender doesn't have to be performed unless there is a reason to perform it.
+- sample: if the mouse, last frame, was hovering over a mouse event handler that does not require motion events, and the mouse is moved,
+  if the mouse event handler it's hovering doesn't change, there is no need to perform a rerender
+
+# notes
+
 - https://github.com/nektro/zig-tracy todo
