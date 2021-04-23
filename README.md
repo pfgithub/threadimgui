@@ -161,4 +161,9 @@ eventually, this will be done automatically through one of: (node server | embed
 
 # notes
 
+- for devtools: imev.render() should → imev.render(@src()) and when devtools is enabled it should save that in the
+  object thing
+
+# notes
+
 - https://github.com/nektro/zig-tracy todo

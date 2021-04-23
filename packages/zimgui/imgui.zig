@@ -682,6 +682,10 @@ pub const ImEvent = struct { // pinned?
     }
 
     pub fn render(imev: *ImEvent) RenderCtx {
+        // TODO the render fn should accept a source location so that the render node
+        // knows what function called it. so the devtools can say "renderNode()" eg and
+        // tell you what function rendered it. like "this is a scroll view", "this is
+        // an action" eg.
         return RenderCtx.init(imev);
     }
 
@@ -702,10 +706,6 @@ pub const ImEvent = struct { // pinned?
             // attr_list.addRange(0, font_str.len, .underline);
             // (in c, this is created using pango_attr_underline_new(.PANGO_UNDERLINE_SINGLE) and then set the attr)
             // start index and end index
-
-            // it appears the way AttrShape works in pango, a \u200b is required at the start of the text for no good reason.
-            // TODO move this to something the backend automatically handles so other platforms with better support
-            // can ignore this
 
             const attrs = backend.TextAttrList.new();
             if (key.font_opts.underline) attrs.addRange(0, 0 + text_dupe.len, .underline);
