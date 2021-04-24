@@ -181,4 +181,17 @@ eventually, this will be done automatically through one of: (node server | embed
 
 # notes
 
+- zig features this would be helped by
+- [#6965](https://github.com/ziglang/zig/issues/6965). for useState and some other things.
+- destructuring, so `fn thing({id}: ID.Arg, imev: *ImEvent) {` or some other way to remove
+  a variable in the current scope
+- a way to remove a variable in the current scope for `for(…) {const id = …}` when the
+  parent scope has `const id`
+
+# notes
+
+- change ids to []const IDSegment where IDSegment is a union(enum){ index: usize, text: []const u8, srcloc: \*const SourceLocation }
+
+# notes
+
 - https://github.com/nektro/zig-tracy todo

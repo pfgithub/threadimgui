@@ -286,10 +286,15 @@ pub const Context = struct {
         pango_cairo_show_layout_line(cr, text.line);
         cairo_restore(cr);
     }
-    pub fn setClippingRect(ctx: Context, rect: Rect) void {
+    pub fn pushClippingRect(ctx: Context, rect: Rect) void {
         const cr = ctx.cr;
+        cairo_save(cr);
         cairo_rectangle(cr, rect.x, rect.y, rect.w, rect.h);
         cairo_clip(cr);
+    }
+    pub fn popState(ctx: Context) void {
+        const cr = ctx.cr;
+        cairo_restore(cr);
     }
     pub fn layoutText(ctx: Context, font: [*:0]const u8, text: []const u8, width: ?c_int, left_offset: c_int, attrs: TextAttrList) TextLayout {
         const cr = ctx.cr;

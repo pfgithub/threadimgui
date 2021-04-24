@@ -673,9 +673,9 @@ pub const ImEvent = struct { // pinned?
                 },
                 .clipping_rect => |clip_rect| {
                     const content_clip = clip_rect.wh.setUL(offset).overlap(clip);
-                    cr.setClippingRect(content_clip);
+                    cr.pushClippingRect(content_clip);
                     imev.internalRender(clip_rect.node, offset, content_clip);
-                    cr.setClippingRect(clip);
+                    cr.popState();
                 },
                 .clickable => {},
                 .scrollable => {},
@@ -688,7 +688,6 @@ pub const ImEvent = struct { // pinned?
 
         const soffset = imev.persistent.internal_screen_offset;
         const ir_clip = imev.persistent.screen_size.setUL(soffset);
-        imev.frame.cr.setClippingRect(ir_clip);
         imev.internalRender(render_v, soffset, ir_clip);
 
         imev.frame.render_result = render_v;
@@ -1123,6 +1122,8 @@ pub fn renderBaseRoot(id: ID, imev: *ImEvent, isc: *IdStateCache, wh: WH, data: 
 
         // devtools.useDevtools()
         // if(mobile_emulation) useMobileEmulation // if(memu.clip) clip (should clip content or just memu frame)
+        // actually the mobile emulation screen should have the options for clipping rather than devtools having them
+        // devtools can just have a toggle
         const memu = devtools.useMobileEmulation(id.push(@src()), imev, isc, content_rect.wh());
 
         const root_result = data.rootFnGeneric(rootfn_id, imev, isc, memu.content_wh, data.root_fn_content);

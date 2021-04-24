@@ -132,10 +132,19 @@ pub const Context = struct {
             ctx.value.renderTextLine(point, text.value, color);
         } else warn.once(@src(), "Context.renderTextLine");
     }
-    pub fn setClippingRect(ctx: Context, rect: structures.Rect) void {
-        if (@hasDecl(backend.Context, "setClippingRect")) {
-            ctx.value.setClippingRect(rect);
-        } else warn.once(@src(), "Context.setClippingRect");
+    pub fn pushClippingRect(ctx: Context, rect: structures.Rect) void {
+        if (@hasDecl(backend.Context, "pushClippingRect")) {
+            ctx.value.pushClippingRect(rect);
+        } else warn.once(@src(), "Context.pushClippingRect");
+    }
+    // in the future maybe this will be → popClippingRect(resulting rect) eg
+    // and then Context will have to store a debug mode stack of the types of
+    // states pushed in order to error if you pop a clipping rect when the last
+    // state that was pushed was something else
+    pub fn popState(ctx: Context) void {
+        if (@hasDecl(backend.Context, "popState")) {
+            ctx.value.popState();
+        } else warn.once(@src(), "Context.popState");
     }
     pub const TextLayoutOpts = struct {
         /// pango scaled
