@@ -1,0 +1,5 @@
+test.o
+Config.xcconfig
+
+xcuserdata/
+/*.gcno
