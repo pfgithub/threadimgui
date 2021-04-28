@@ -32,11 +32,11 @@ pub const RenderNode = struct { value: union(enum) {
         wh: WH,
     },
     clickable: struct {
-        id: u64,
+        id: ID.Ident, // owned by the arena
         wh: WH,
     },
     scrollable: struct {
-        id: u64,
+        id: ID.Ident, // owned by the arena
         wh: WH,
     },
 } };
@@ -350,11 +350,12 @@ pub const IdStateCache = struct {
             return @intToPtr(*Type, value.ptr);
         }
     };
-    hm: std.AutoHashMapUnmanaged(u64, Entry),
+    const IscHM = std.HashMapUnmanaged(ID.Ident, Entry, ID.Ident.hash, ID.Ident.eql, std.hash_map.default_max_load_percentage);
+    hm: IscHM,
 
     pub fn init() IdStateCache {
         return .{
-            .hm = std.AutoHashMapUnmanaged(u64, Entry){},
+            .hm = IscHM{},
         };
     }
 
@@ -377,11 +378,12 @@ pub const IdStateCache = struct {
     pub fn useStateCustomInit(isc: *IdStateCache, id_val: ID.Arg, imev: *ImEvent, comptime Type: type) StateRes(Type) {
         const id = id_val.id.forSrc(@src());
 
-        const hm_entry = isc.hm.getOrPut(imev.persistentAlloc(), id) catch @panic("oom");
-        if (hm_entry.found_existing) {
-            hm_entry.entry.value.used_this_frame = true;
-            return .{ .ptr = hm_entry.entry.value.readAs(Type), .initialized = true };
+        if (isc.hm.getEntry(id)) |hm_entry| {
+            hm_entry.value.used_this_frame = true;
+            return .{ .ptr = hm_entry.value.readAs(Type), .initialized = true };
         }
+        const hm_entry = isc.hm.getOrPut(imev.persistentAlloc(), id.dupe(imev.persistentAlloc())) catch @panic("oom");
+        if (hm_entry.found_existing) unreachable;
         var item_ptr: *Type = imev.persistentAlloc().create(Type) catch @panic("oom");
         hm_entry.entry.value = .{
             .ptr = @ptrToInt(item_ptr),
@@ -402,7 +404,7 @@ pub const IdStateCache = struct {
         if (!imev.isRenderFrame()) return;
 
         var iter = isc.hm.iterator();
-        var unused = std.ArrayList(u64).init(imev.persistentAlloc());
+        var unused = std.ArrayList(ID.Ident).init(imev.persistentAlloc());
         defer unused.deinit();
         while (iter.next()) |ntry| {
             if (ntry.value.used_this_frame) {
@@ -414,11 +416,13 @@ pub const IdStateCache = struct {
         }
         for (unused.items) |key| {
             isc.hm.removeAssertDiscard(key);
+            key.deinit(imev.persistentAlloc());
         }
     }
     pub fn deinit(isc: *IdStateCache, alloc: *std.mem.Allocator) void {
         var iter = isc.hm.iterator();
         while (iter.next()) |ntry| {
+            ntry.key.deinit(alloc);
             ntry.value.deinitFn(ntry.value, alloc);
         }
         isc.hm.deinit(alloc);
@@ -465,13 +469,19 @@ pub const ImEvent = struct { // pinned?
     },
 
     const ScrollFocused = struct {
-        id: u64,
+        id: ID.Ident, // saved across frames, must be duplicated and freed
         delta: Point,
+        fn deinit(sf: ScrollFocused, alloc: *std.mem.Allocator) void {
+            sf.id.deinit(alloc);
+        }
     };
     const MouseFocused = struct {
-        id: u64,
+        id: ID.Ident, // saved across frames, must be duplicated and freed
         hover: bool,
         mouse_up: bool,
+        fn deinit(mf: MouseFocused, alloc: *std.mem.Allocator) void {
+            mf.id.deinit(alloc);
+        }
     };
 
     pub fn arena(imev: *ImEvent) *std.mem.Allocator {
@@ -515,6 +525,9 @@ pub const ImEvent = struct { // pinned?
             imev.persistent.real_allocator.free(entry.key.text);
         }
         imev.persistent.text_cache.deinit();
+
+        if (imev.persistent.mouse_focused) |mf| mf.deinit(imev.persistentAlloc());
+        if (imev.persistent.scroll_focused) |sf| sf.deinit(imev.persistentAlloc());
     }
     pub fn addEvent(imev: *ImEvent, event: RawEvent) !void {
         // could use an arena allocator, unfortunately arena allocators are created at frame start
@@ -587,8 +600,10 @@ pub const ImEvent = struct { // pinned?
             }
 
             if (!imev.persistent.mouse_held and !imev.frame.mouse_up) {
+                if (imev.persistent.mouse_focused) |mf| mf.deinit(imev.persistentAlloc());
                 imev.persistent.mouse_focused = null;
             }
+            if (imev.persistent.scroll_focused) |sf| sf.deinit(imev.persistentAlloc());
             imev.persistent.scroll_focused = null;
 
             const soffset = imev.persistent.internal_screen_offset;
@@ -631,10 +646,15 @@ pub const ImEvent = struct { // pinned?
                 },
                 .clickable => |cable| {
                     const contains_point = offset.toRectBR(cable.wh).overlap(clip).containsPoint(imev.persistent.mouse_position);
-                    const active_is_this = if (imev.persistent.mouse_focused) |mfx| mfx.id == cable.id else contains_point;
+                    const active_is_this = if (imev.persistent.mouse_focused) |mfx| ( //
+                        mfx.id.eql(cable.id) //
+                    ) else ( //
+                        contains_point //
+                    );
                     if (active_is_this) {
+                        if (imev.persistent.mouse_focused) |mf| mf.deinit(imev.persistentAlloc());
                         imev.persistent.mouse_focused = MouseFocused{
-                            .id = cable.id,
+                            .id = cable.id.dupe(imev.persistentAlloc()),
                             .hover = contains_point,
                             .mouse_up = imev.frame.mouse_up,
                         };
@@ -643,8 +663,9 @@ pub const ImEvent = struct { // pinned?
                 .scrollable => |sable| {
                     const contains_point = offset.toRectBR(sable.wh).overlap(clip).containsPoint(imev.persistent.mouse_position);
                     if (contains_point and !(imev.frame.scroll_delta.x == 0 and imev.frame.scroll_delta.y == 0)) {
+                        if (imev.persistent.scroll_focused) |sf| sf.deinit(imev.persistentAlloc());
                         imev.persistent.scroll_focused = ScrollFocused{
-                            .id = sable.id,
+                            .id = sable.id.dupe(imev.persistentAlloc()),
                             .delta = imev.frame.scroll_delta,
                         };
                     }
@@ -768,23 +789,31 @@ pub const ImEvent = struct { // pinned?
 
     pub fn clickable(imev: *ImEvent, id_h: ID.Arg) ClickableState {
         const id = id_h.id.forSrc(@src());
-        return ClickableState{ .key = .{ .id = id }, .focused = if (imev.persistent.mouse_focused) |mfx| if (mfx.id == id) ClickableState.Focused{
-            .hover = mfx.hover,
-            .click = mfx.mouse_up and mfx.hover,
-        } else null else null };
+        return ClickableState{
+            .key = .{ .id = id },
+            .focused = if (imev.persistent.mouse_focused) |mfx| if (mfx.id.eql(id)) ( //
+                ClickableState.Focused{
+                .hover = mfx.hover,
+                .click = mfx.mouse_up and mfx.hover,
+            } //
+            ) else null else null,
+        };
     }
 
     pub fn scrollable(imev: *ImEvent, id_h: ID.Arg) ScrollableState {
         const id = id_h.id.forSrc(@src());
-        return ScrollableState{ .key = .{ .id = id }, .scrolling = if (imev.persistent.scroll_focused) |scr| if (scr.id == id) ScrollableState.Scrolling{
-            .delta = scr.delta,
-        } else null else null };
+        return ScrollableState{
+            .key = .{ .id = id },
+            .scrolling = if (imev.persistent.scroll_focused) |scr| if (scr.id.eql(id)) ( //
+                ScrollableState.Scrolling{ .delta = scr.delta } //
+            ) else null else null,
+        };
     }
 };
 pub const Src = ID.Src;
 
 pub const ClickableKey = struct {
-    id: u64,
+    id: ID.Ident,
     pub fn node(key: ClickableKey, imev: *ImEvent, wh: WH) RenderResult {
         var ctx = imev.render();
         ctx.putRenderNode(.{ .value = .{ .clickable = .{ .id = key.id, .wh = wh } } });
@@ -810,7 +839,7 @@ pub const ClickableState = struct {
 };
 
 pub const ScrollableKey = struct {
-    id: u64,
+    id: ID.Ident,
     pub fn node(key: ScrollableKey, imev: *ImEvent, wh: WH) RenderResult {
         var ctx = imev.render();
         ctx.putRenderNode(.{ .value = .{ .scrollable = .{ .id = key.id, .wh = wh } } });
@@ -1142,19 +1171,20 @@ pub fn renderFrame(cr: backend.Context, rr: backend.RerenderRequest, data: ExecD
     const imev = data.imev;
     const root_state_cache = data.root_state_cache;
 
-    var id = ID.init(imev.persistentAlloc());
+    var id: ID = undefined;
 
     var render_count: usize = 0;
     while (imev.prerender()) {
         render_count += 1;
         imev.startFrame(cr, false);
+        id = ID.init(imev.persistentAlloc(), imev.arena());
         imev.endFrame(renderBaseRoot(id, imev, root_state_cache, imev.persistent.screen_size, data));
         id.deinit();
         root_state_cache.cleanupUnused(imev);
-        id = ID.init(imev.persistentAlloc());
     }
     render_count += 1;
     imev.startFrame(cr, true);
+    id = ID.init(imev.persistentAlloc(), imev.arena());
     imev.endFrameRender(renderBaseRoot(id, imev, root_state_cache, imev.persistent.screen_size, data));
     id.deinit();
     root_state_cache.cleanupUnused(imev);

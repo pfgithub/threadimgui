@@ -153,6 +153,8 @@ eventually, this will be done automatically through one of: (node server | embed
   click focus to be removed (the click focus is removed one frame after the mouse up)
 - scroll down one tick. click focus is unchanged.
 - stuff like that
+- first:
+- think about why these need double rendering and check if it's actually true
 
 # notes
 
@@ -190,7 +192,10 @@ eventually, this will be done automatically through one of: (node server | embed
 
 # notes
 
-- change ids to []const IDSegment where IDSegment is a union(enum){ index: usize, text: []const u8, srcloc: \*const SourceLocation }
+- more scrolling stuff
+- do a demo of scrolling that has those two things side by side in one segment and has a segment on top and a segment on bottom
+- rather than allowing scrolling to have a vertical overflow, put a box of a certain size at the bottom of the scroll window
+- that means behaviour will be slightly different but it's probably fine maybe
 
 # notes
 

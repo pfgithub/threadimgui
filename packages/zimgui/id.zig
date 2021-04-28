@@ -35,55 +35,134 @@ pub const ID2 = struct {
 pub const ID = struct {
     pub const Src = std.builtin.SourceLocation;
     const DebugSafety = struct {
+        const SeenHM = std.HashMapUnmanaged(Ident, void, Ident.hash, Ident.eql, std.hash_map.default_max_load_percentage);
         alloc: *std.mem.Allocator,
-        seen: std.AutoHashMap(u64, void),
+        seen: SeenHM,
         pub fn create(alloc: *std.mem.Allocator) *DebugSafety {
             //
             var dbs = alloc.create(DebugSafety) catch @panic("oom");
             dbs.* = .{
                 .alloc = alloc,
-                .seen = std.AutoHashMap(u64, void).init(alloc),
+                .seen = SeenHM{},
             };
             return dbs;
         }
         pub fn destroy(dbs: *DebugSafety) void {
-            dbs.seen.deinit();
+            dbs.seen.deinit(dbs.alloc);
             dbs.alloc.destroy(dbs);
         }
-        // pub fn pushStr(str: []const u8) void {
-        //     //
-        // }
 
-        pub fn seenID(dbs: *DebugSafety, id: u64) !void {
-            if ((dbs.seen.getOrPut(id) catch @panic("oom")).found_existing) {
+        pub fn seenID(dbs: *DebugSafety, id: Ident) !void {
+            if ((dbs.seen.getOrPut(dbs.alloc, id) catch @panic("oom")).found_existing) {
                 return error.Seen;
             }
         }
+    };
+    pub const Segment = struct {
+        src_loc: *const Src, // comptime &src
+        data: union(enum) {
+            none,
+            text: []const u8,
+            index: usize,
+        },
 
-        // basically this will keep
-        // Map([]const []const u8 → Set(std.builtin.SourceLocation))
-        // then whenever an id is generated(src_location)
-        // check if the current map key has that source location already
-        // if it does, @panic("id.pushString() is required in loops to prevent reusing IDs");
-
-        // for now though I'm just keeping which ids have been generated before
-        // this has a chance of false positives so it is disabled in release modes, even release-safe
-        // chance: for 5 million ids (probably wouldn't be able to render in any resonable amount of time)
-        // : 0.7% chance of collision
-        // if user-inputted data is ever inputted into pushString(), it is possible to engineer a collision
-        // that's probably not an issue as long as ids are only used for resonable things.
-
-        // also this likely uses wyhash wrong (wyhash seems to have up to 32 bytes of data + a u64 for the
-        // past data while this only has a u64 for the past data)
+        pub fn hash(seg: Segment) u64 {
+            var hasher = std.hash.Wyhash.init(0);
+            hasher.update(&std.mem.toBytes(seg.src_loc));
+            switch (seg.data) {
+                .none => {},
+                .text => |txt| hasher.update(txt),
+                .index => |idx| hasher.update(&std.mem.toBytes(idx)),
+            }
+            return hasher.final();
+        }
+        pub fn eql(s1: Segment, s2: Segment) bool {
+            return s1.src_loc == s2.src_loc and switch (s1.data) {
+                .none => s2.data == .none,
+                .text => |txt| s2.data == .text and std.mem.eql(u8, txt, s2.data.text),
+                .index => |idx| s2.data == .index and s2.data.index == idx,
+            };
+        }
+        pub fn dupe(seg: Segment, alloc: *std.mem.Allocator) Segment {
+            return .{
+                .src_loc = seg.src_loc,
+                .data = switch (seg.data) {
+                    .none => |v| .{ .none = v },
+                    .index => |i| .{ .index = i },
+                    .text => |txt| .{ .text = alloc.dupe(u8, txt) catch @panic("oom") },
+                },
+            };
+        }
+        pub fn deinit(seg: Segment, alloc: *std.mem.Allocator) void {
+            switch (seg.data) {
+                .none, .index => {},
+                .text => |txt| alloc.free(txt),
+            }
+        }
+    };
+    // TODO
+    // const Ident
+    // pub const IdentFrame (fn value() Ident)
+    // pub const IdentStored (fn value() Ident)
+    // also offer an id map thing that maps from IdentStored => value
+    //   but lets you getOrPut IdentFrame things.
+    // alternatively, switch to rust. oh wait, it doesn't have good
+    //   support for arena allocators which is what this issue is about.
+    pub const Ident = struct {
+        segments: []const Segment,
+        pub fn hash(ident: Ident) u64 {
+            var hasher = std.hash.Wyhash.init(0);
+            for (ident.segments) |segment| hasher.update(&std.mem.toBytes(segment.hash()));
+            return hasher.final();
+        }
+        pub fn eql(id1: Ident, id2: Ident) bool {
+            if (id1.segments.len != id2.segments.len) return false;
+            if (id1.segments.ptr == id2.segments.ptr) return true;
+            for (id1.segments) |segment, index| {
+                if (!segment.eql(id2.segments[index])) return false;
+            }
+            return true;
+        }
+        // oh no
+        // for storage across frames,
+        // it needs to be possible to: dupe and free idents
+        pub fn dupe(ident: Ident, alloc: *std.mem.Allocator) Ident {
+            const acpy = alloc.alloc(Segment, ident.segments.len) catch @panic("oom");
+            for (acpy) |*v, i| v.* = ident.segments[i].dupe(alloc);
+            return .{ .segments = acpy };
+        }
+        pub fn deinit(ident: Ident, alloc: *std.mem.Allocator) void {
+            for (ident.segments) |segment| segment.deinit(alloc);
+            alloc.free(ident.segments);
+        }
+        pub fn format(ident: Ident, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+            try writer.writeAll("<");
+            for (ident.segments) |segment, i| {
+                if (i != 0) try writer.writeAll(", ");
+                try writer.print("@{s}:{}.{}", .{ segment.src_loc.fn_name, segment.src_loc.line, segment.src_loc.column });
+                // try writer.print("@{x}", .{@ptrToInt(segment.src_loc)});
+                switch (segment.data) {
+                    .none => {},
+                    .index => |idx| try writer.print("[{}]", .{idx}),
+                    .text => |txt| try writer.print("[\"{}\"]", .{std.fmt.fmtSliceEscapeUpper(txt)}),
+                }
+            }
+            try writer.writeAll(">");
+            // try writer.print("@{}", .{ident.hash()});
+        }
     };
     // this probably isn't how you use wyhash
     // there might be something else better for this use case / a correct way to use wyhash here
-    seed: u64,
+
     debug_safety: if (safety_enabled) *DebugSafety else void,
-    pub fn init(alloc: *std.mem.Allocator) ID {
+    ident: Ident,
+    arena: *std.mem.Allocator,
+
+    pub fn init(alloc: *std.mem.Allocator, arena: *std.mem.Allocator) ID {
         return ID{
-            .seed = 0,
+            .ident = .{ .segments = &[_]Segment{} },
             .debug_safety = if (safety_enabled) DebugSafety.create(alloc) else {},
+            .arena = arena,
         };
     }
     pub fn deinit(id: ID) void {
@@ -98,53 +177,31 @@ pub const ID = struct {
     //
     // fn Src(comptime in_src: std.builtin.SourceLocation) usize { return @ptrToInt(comptime &src); }
     pub fn pushString(id: ID, comptime src: std.builtin.SourceLocation, str: []const u8) ID {
-        return id.pushSrc(srcToUsize(src), str);
+        const duped_str = id.arena.dupe(str) catch @panic("oom");
+        return id.pushSegment(.{ .src_loc = comptime &src, .data = .{ .text = duped_str } });
     }
     pub fn pushIndex(id: ID, comptime src: std.builtin.SourceLocation, index: usize) ID {
-        return id.pushSrc(srcToUsize(src), std.mem.asBytes(&index));
+        return id.pushSegment(.{ .src_loc = comptime &src, .data = .{ .index = index } });
     }
     pub const Arg = struct {
         /// get this at the top of your fn.
         id: ID,
     };
     pub fn push(id: ID, comptime src: std.builtin.SourceLocation) Arg {
-        return .{ .id = id.pushSrc(srcToUsize(src), "") };
+        return .{ .id = id.pushSegment(.{ .src_loc = comptime &src, .data = .none }) };
     }
-    fn srcToUsize(comptime src: std.builtin.SourceLocation) usize {
-        return @ptrToInt(comptime &src);
+    fn pushSegment(id: ID, segment: Segment) ID {
+        const itmdupe = id.arena.alloc(Segment, id.ident.segments.len + 1) catch @panic("oom");
+        std.mem.copy(Segment, itmdupe, id.ident.segments);
+        itmdupe[itmdupe.len - 1] = segment;
+        const ident: Ident = .{ .segments = itmdupe };
+        if (safety_enabled) id.debug_safety.seenID(ident) catch @panic(
+            \\This ID was used multiple times. Make sure loops pushIndex or pushString.
+        );
+        return .{ .ident = ident, .debug_safety = id.debug_safety, .arena = id.arena };
     }
-    fn pushSrc(id: ID, src: usize, slice: []const u8) ID {
-        const seed_start = id.seed;
-
-        var hasher = std.hash.Wyhash.init(id.seed);
-        std.hash.autoHash(&hasher, src);
-        hasher.update("#");
-        hasher.update(slice);
-        const seed = hasher.final();
-        if (safety_enabled) {
-            id.debug_safety.seenID(seed) catch |e| @panic(
-                \\The same ID was generated twice for the same source location and scope.
-                \\Make sure to use id.push in loops and at the start and end of functions.
-            );
-        }
-
-        return .{ .seed = seed, .debug_safety = id.debug_safety };
-    }
-    pub fn forSrc(id: ID, src: std.builtin.SourceLocation) u64 {
-        var hasher = std.hash.Wyhash.init(id.seed);
-
-        std.hash.autoHash(&hasher, src.line);
-        std.hash.autoHash(&hasher, src.column);
-        hasher.update(src.file);
-
-        const res = hasher.final();
-        if (safety_enabled) {
-            id.debug_safety.seenID(res) catch |e| @panic(
-                \\The same ID was generated twice for the same source location and scope.
-                \\Make sure to use id.push in loops and at the start and end of functions.
-            );
-        }
-        return res;
+    pub fn forSrc(id: ID, comptime src: std.builtin.SourceLocation) Ident {
+        return id.push(src).id.ident;
     }
 };
 fn demoID(id: *ID, cond: bool) void {
