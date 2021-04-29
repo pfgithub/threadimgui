@@ -199,4 +199,11 @@ eventually, this will be done automatically through one of: (node server | embed
 
 # notes
 
+- for ios:
+- since it's build-obj, we can call `@root().main` ourselves. just make sure the root file does like `comptime {_ = @import("imgui");}`
+- actually wait we also need to provide some root things like `fn log` and possibly `const os` so maybe like `pub usingnamespace @import("imgui").backend` or
+  similar.
+
+# notes
+
 - https://github.com/nektro/zig-tracy todo
