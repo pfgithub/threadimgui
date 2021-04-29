@@ -5,6 +5,8 @@ pub const ID = @import("id.zig").ID;
 pub usingnamespace @import("structures.zig");
 const build_opts = @import("build_options");
 
+pub const StartBackend = backend.StartBackend;
+
 pub fn range(max: usize) []const void {
     return @as([]const void, &[_]void{}).ptr[0..max];
 }

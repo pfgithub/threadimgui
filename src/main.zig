@@ -3,6 +3,8 @@ const imgui = @import("imgui");
 const app = @import("app.zig");
 const generic = @import("generic.zig");
 
+pub usingnamespace imgui.StartBackend;
+
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer std.testing.expect(!gpa.deinit());

@@ -8,6 +8,8 @@ const backend = switch (build_opts.render_backend) {
 };
 const structures = @import("../structures.zig");
 
+pub const StartBackend = if (@hasDecl(backend, "StartBackend")) backend.StartBackend else struct {};
+
 const warn = struct {
     fn sourceLocationEql(a: std.builtin.SourceLocation, b: std.builtin.SourceLocation) bool {
         return std.meta.eql(a.line, b.line) and std.meta.eql(a.column, b.column) and std.mem.eql(u8, a.file, b.file);
