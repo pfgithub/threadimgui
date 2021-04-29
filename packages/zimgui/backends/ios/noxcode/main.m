@@ -1,10 +1,9 @@
-// clang -isysroot (xcrun --sdk iphonesimulator --show-sdk-path) -framework Foundation -framework UIKit -lobjc -o Untitled.app/main main.m
-// xcrun simctl boot 80D6FE0C-6920-484D-8B80-178E319BD077
-// xcrun simctl install 80D6FE0C-6920-484D-8B80-178E319BD077 ./Untitled.app
-// open (xcode-select --print-path)"/Applications/Simulator.app"
-// Debug > Open System Log
-
 #import <UIKit/UIKit.h>
+
+extern const char* zig_getstring(void);
+extern void objc_panic(void) {
+    // panic
+}
 
 @interface AppDelegate : UIResponder <UIApplicationDelegate>
 @property (strong, nonatomic) UIWindow *window;
@@ -23,7 +22,7 @@
 
     // Create a label
     UILabel *label  = [[UILabel alloc] init];
-    label.text = @"Hello, world!";
+    label.text = @(zig_getstring());
     label.textColor = [UIColor blackColor];
     [viewController.view addSubview:label];
 

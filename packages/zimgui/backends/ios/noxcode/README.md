@@ -19,7 +19,7 @@ open (xcode-select --print-path)"/Applications/Simulator.app"
 1: build the code
 
 ```
-rm -rf Untitled.app && mkdir Untitled.app && cp ./Info.plist Untitled.app/ && clang -isysroot (xcrun --sdk iphonesimulator --show-sdk-path) -framework Foundation -framework UIKit -lobjc -o Untitled.app/main main.m
+rm -rf Untitled.app && mkdir Untitled.app && cp ./Info.plist Untitled.app/ && zig build-obj -Dtarget=native-ios test.zig && clang -isysroot (xcrun --sdk iphonesimulator --show-sdk-path) -framework Foundation -framework UIKit -lobjc -o Untitled.app/main main.m test.o
 ```
 
 2: install the app on the simulator
