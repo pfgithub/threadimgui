@@ -98,6 +98,7 @@
 			buildConfigurationList = B7B0492B26389E4B00A1D5AB /* Build configuration list for PBXNativeTarget "threadimgui" */;
 			buildPhases = (
 				B7B0490E26389E4A00A1D5AB /* Sources */,
+				B7ED8C4E263B4DDB00B5EF73 /* ShellScript */,
 				B7B0490F26389E4A00A1D5AB /* Frameworks */,
 				B7B0491026389E4A00A1D5AB /* Resources */,
 			);
@@ -154,6 +155,26 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		B7ED8C4E263B4DDB00B5EF73 /* ShellScript */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "cd ../../../../../\nzig build\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		B7B0490E26389E4A00A1D5AB /* Sources */ = {

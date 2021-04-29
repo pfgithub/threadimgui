@@ -3,9 +3,11 @@ const std = @import("std");
 const RenderBackend = enum {
     cairo_gtk3,
     windows,
+    ios,
     pub fn defaultFor(target: std.zig.CrossTarget) ?RenderBackend {
         if (target.isWindows()) return .windows;
         if (target.isLinux()) return .cairo_gtk3;
+        if (target.getOsTag() == .ios) return .ios;
         return null;
     }
 };
@@ -20,7 +22,7 @@ pub fn build(b: *std.build.Builder) void {
     // - set backend (defaults to cairo, only option is cairo)
     //   (in the future this would pick based on what platform you're building for)
 
-    const render_backend = b.option(RenderBackend, "renderer", "Set the render backend") orelse RenderBackend.defaultFor(target) orelse @panic("not supported for this target");
+    const render_backend = b.option(RenderBackend, "renderer", "Set the render backend") orelse RenderBackend.defaultFor(target) orelse @panic("there is no default backend for this target; select one with -Drenderer=[backend]");
 
     const devtools_enabled = b.option(bool, "devtools", "Enable or disable devtools") orelse (mode == .Debug);
 
@@ -47,6 +49,9 @@ pub fn build(b: *std.build.Builder) void {
             exe.linkSystemLibrary("gdi32");
             exe.addIncludeDir("packages/zimgui/backends/windows");
             exe.addCSourceFile("packages/zimgui/backends/windows/windows_cbind.c", &[_][]const u8{});
+        },
+        .ios => {
+            // idk
         },
     }
 

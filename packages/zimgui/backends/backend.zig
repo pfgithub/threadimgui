@@ -3,6 +3,7 @@ const build_opts = @import("build_options");
 const backend = switch (build_opts.render_backend) {
     .cairo_gtk3 => @import("cairo/cairo.zig"),
     .windows => @import("windows/windows.zig"),
+    .ios => @import("ios/ios.zig"),
     // huh a "runtime backend" could be made that calls functions from a vtable
 };
 const structures = @import("../structures.zig");
@@ -59,7 +60,7 @@ pub const TextAttrList = struct {
 pub const TextLayout = struct {
     const FakeTextLayout = struct {
         size: structures.WH,
-        pub fn deinit() void {
+        pub fn deinit(this: @This()) void {
             warn.once(@src(), "TextLayout.deinit");
         }
         pub fn getSize(ftl: FakeTextLayout) structures.WH {
@@ -70,10 +71,9 @@ pub const TextLayout = struct {
     const BackendValue = if (@hasDecl(backend, "TextLayout")) backend.TextLayout else FakeTextLayout;
     value: BackendValue,
     pub fn deinit(layout: TextLayout) void {
-        if (BackendValue != void) layout.value.deinit();
+        layout.value.deinit();
     }
     pub fn getSize(layout: TextLayout) structures.WH {
-        // TODO a fake backend rather than void
         return layout.value.getSize();
     }
     pub fn lines(layout: TextLayout) TextLayoutLinesIter {
@@ -114,17 +114,30 @@ pub const TextLayoutLine = struct {
     }
 };
 pub fn pangoScale(float: f64) c_int {
+    if (!@hasDecl(backend, "pangoScale")) return @floatToInt(c_int, float * 1000);
     return backend.pangoScale(float);
 }
 pub const Context = struct {
     value: backend.Context,
     pub fn setCursor(ctx: Context, cursor: structures.CursorEnum) void {
+        if (!@hasDecl(backend.Context, "setCursor")) {
+            warn.once(@src(), "Context.setCursor");
+            return;
+        }
         ctx.value.setCursor(cursor);
     }
     pub fn renderRectangle(ctx: Context, color: structures.Color, rect: structures.Rect, radius: f64) void {
+        if (!@hasDecl(backend.Context, "renderRectangle")) {
+            warn.once(@src(), "Context.renderRectangle");
+            return;
+        }
         ctx.value.renderRectangle(color, rect, radius);
     }
     pub fn renderText(ctx: Context, point: structures.Point, text: TextLayout, color: structures.Color) void {
+        if (!@hasDecl(backend.Context, "renderText")) {
+            warn.once(@src(), "Context.renderText");
+            return;
+        }
         ctx.value.renderText(point, text.value, color);
     }
     pub fn renderTextLine(ctx: Context, point: structures.Point, text: TextLayoutLine, color: structures.Color) void {
@@ -152,6 +165,10 @@ pub const Context = struct {
         left_offset: ?c_int = null,
     };
     pub fn layoutText(ctx: Context, font: [*:0]const u8, text: []const u8, opts: TextLayoutOpts, attrs: TextAttrList) TextLayout {
+        if (!@hasDecl(backend.Context, "layoutText") and TextLayout.BackendValue == TextLayout.FakeTextLayout) {
+            warn.once(@src(), "Context.layoutText");
+            return TextLayout{ .value = .{ .size = .{ .w = 25, .h = 25 } } };
+        }
         return .{ .value = ctx.value.layoutText(
             font,
             text,
