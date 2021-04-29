@@ -26,7 +26,10 @@ pub fn build(b: *std.build.Builder) void {
 
     const devtools_enabled = b.option(bool, "devtools", "Enable or disable devtools") orelse (mode == .Debug);
 
-    const exe = b.addExecutable("threadimgui", "src/main.zig");
+    const exe = switch (render_backend) {
+        .cairo_gtk3, .windows => b.addExecutable("threadimgui", "src/main.zig"),
+        .ios => b.addStaticLibrary("threadimgui", "src/main.zig"),
+    };
     exe.setTarget(target);
     exe.setBuildMode(mode);
 
@@ -72,12 +75,14 @@ pub fn build(b: *std.build.Builder) void {
 
     exe.install();
 
-    const run_cmd = exe.run();
-    run_cmd.step.dependOn(b.getInstallStep());
-    if (b.args) |args| {
-        run_cmd.addArgs(args);
-    }
+    if (exe.kind == .Exe) {
+        const run_cmd = exe.run();
+        run_cmd.step.dependOn(b.getInstallStep());
+        if (b.args) |args| {
+            run_cmd.addArgs(args);
+        }
 
-    const run_step = b.step("run", "Run the app");
-    run_step.dependOn(&run_cmd.step);
+        const run_step = b.step("run", "Run the app");
+        run_step.dependOn(&run_cmd.step);
+    }
 }
