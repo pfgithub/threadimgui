@@ -206,4 +206,60 @@ eventually, this will be done automatically through one of: (node server | embed
 
 # notes
 
+- making virtual scrollers with static content
+
+```zig
+var scroller = VScroll{};
+
+if(scroller.item(@src())) |itm| {
+  // itm has stuff it needs like the idstatecache and id and stuff
+}
+
+// dynamic content
+scroller.list(@src(), some_slice, renderItem);
+```
+
+sample:
+
+a basic threadreader view.
+
+```
+[___         sticky navbar         ___]
+[   ] [         header          ] [   ]
+[   ] [    content    ] [sidebar] [   ]
+[   ] [               ] [       ] [   ]
+[   ] [               ] [       ] [   ]
+[   ] [               ] [       ] [   ]
+[   ] [_______________] [_______] [   ]
+[   ] [         footer          ] [   ]
+```
+
+content is a dynamic list, sidebar is a dynamic list. also, that content/sidebar thing - they are two horizontally stacked scroll views. if you
+scroll down on one it should scroll down on the other but it acts like the twitter sidebar thing.
+
+ok uuh
+
+```
+fn App() {
+  var scroller = VScroller.new(imev);
+  if(scroller.sticky(@src())) |itm| {
+    itm.put(renderNavbar(itm.id.push(@src()), itm.isc, …));
+  }
+  if(scroller.node(@src())) |itm| {
+    itm.put(hcenter(renderContent(itm), .xl)); // that might not be possible
+  }
+}
+fn renderContent(scroller) {
+
+}
+```
+
+uuh
+
+how to do that horizontal centering without ending up in a subframe that doesn't know its y position relative to the top of the screen
+
+maybe children can be told their y positions or something
+
+# notes
+
 - https://github.com/nektro/zig-tracy todo
