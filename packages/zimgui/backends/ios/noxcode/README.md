@@ -27,3 +27,9 @@ rm -rf Untitled.app && mkdir Untitled.app && cp ./Info.plist Untitled.app/ && zi
 ```
 xcrun simctl install 80D6FE0C-6920-484D-8B80-178E319BD077 ./Untitled.app
 ```
+
+# notes:
+
+- is it possible to use build-exe with this and have the entrypoint in zig?
+
+it looks like it should be

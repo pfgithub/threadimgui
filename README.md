@@ -260,6 +260,22 @@ how to do that horizontal centering without ending up in a subframe that doesn't
 
 maybe children can be told their y positions or something
 
+how these functions work:
+
+currently scroll is able to fetch the previous item, but with scroller.node() it must know before rendering any below items if it's needed
+
+so : save the previous heights of all the nodes it comes across so if it says to scroll up 25 it knows "oh I should render 2 nodes above"
+
+and if that turns out to not be enough and there's more to render, set the imev request frame flag so a rerender will be queued
+
+# notes
+
+- try recreating musicplayer
+- also probably have to implement that scroll stuff
+- likely the way to do it is using a vertical placer thing combined with those virtual scroll functions
+- additional fun stuff that could be implemented, although a base implementation is enough:
+  - make that log_analysis.js a ui feature, could be neat
+
 # notes
 
 - https://github.com/nektro/zig-tracy todo
