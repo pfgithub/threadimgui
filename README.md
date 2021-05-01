@@ -224,14 +224,14 @@ sample:
 a basic threadreader view.
 
 ```
-[___         sticky navbar         ___]
-[   ] [         header          ] [   ]
+[____________sticky_navbar____________]
+[   ] [_________header__________] [   ]
 [   ] [    content    ] [sidebar] [   ]
 [   ] [               ] [       ] [   ]
 [   ] [               ] [       ] [   ]
 [   ] [               ] [       ] [   ]
-[   ] [_______________] [_______] [   ]
-[   ] [         footer          ] [   ]
+[   ] [_______________]_[_______] [   ]
+[   ] [_________footer__________] [   ]
 ```
 
 content is a dynamic list, sidebar is a dynamic list. also, that content/sidebar thing - they are two horizontally stacked scroll views. if you
