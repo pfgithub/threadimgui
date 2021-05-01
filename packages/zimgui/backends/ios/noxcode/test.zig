@@ -1,5 +1,5 @@
 export fn zig_getstring() [*]const u8 {
-    return "Hello from Zig!";
+    return "Hello from Zig (1)!";
 }
 
 const std = @import("std");
