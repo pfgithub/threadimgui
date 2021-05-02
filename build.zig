@@ -22,13 +22,19 @@ pub fn build(b: *std.build.Builder) void {
     // - set backend (defaults to cairo, only option is cairo)
     //   (in the future this would pick based on what platform you're building for)
 
-    const render_backend = b.option(RenderBackend, "renderer", "Set the render backend") orelse RenderBackend.defaultFor(target) orelse @panic("there is no default backend for this target; select one with -Drenderer=[backend]");
+    const render_backend = b.option(RenderBackend, "renderer", "Set the render backend") orelse //
+        RenderBackend.defaultFor(target) orelse //
+        @panic("there is no default backend for this target; select one with -Drenderer=[backend]") //
+    ;
 
     const devtools_enabled = b.option(bool, "devtools", "Enable or disable devtools") orelse (mode == .Debug);
 
+    const main_file = "apps/threadimgui/main.zig";
+    const app_name = "threadimgui";
+
     const exe = switch (render_backend) {
-        .cairo_gtk3, .windows => b.addExecutable("threadimgui", "src/main.zig"),
-        .ios => b.addStaticLibrary("threadimgui", "src/main.zig"),
+        .cairo_gtk3, .windows => b.addExecutable(app_name, main_file),
+        .ios => b.addStaticLibrary(app_name, main_file),
     };
     exe.setTarget(target);
     exe.setBuildMode(mode);
