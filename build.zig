@@ -29,8 +29,8 @@ pub fn build(b: *std.build.Builder) void {
 
     const devtools_enabled = b.option(bool, "devtools", "Enable or disable devtools") orelse (mode == .Debug);
 
-    const main_file = "apps/threadimgui/main.zig";
-    const app_name = "threadimgui";
+    const main_file = "apps/app_selector.zig";
+    const app_name = "app_selector";
 
     const exe = switch (render_backend) {
         .cairo_gtk3, .windows => b.addExecutable(app_name, main_file),
