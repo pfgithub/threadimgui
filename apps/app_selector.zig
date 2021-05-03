@@ -11,6 +11,15 @@ pub fn renderAppSelector(id_arg: im.ID.Arg, imev: *im.ImEvent, isc: *im.IdStateC
     // tab name, x button to clear isc if the tab is open (/ refresh button if it's focused)
     const id = id_arg.id;
     var ctx = imev.render();
+
+    // so this will have a tab view on the left and a custom navbar thing on the top framing the app window
+    // wondering if I can dynamically load the apps from a so file or something
+    // that'd take a bit of effort but should be doable eventually. not going to yet though.
+    // actually that could be really fun - you can rebuild the project and click the refresh button and it reloads
+    // as long as you didn't make any edits to the imgui structure
+
+    ctx.place(@import("demo/app.zig").renderRoot(id.push(@src()), imev, isc, wh, 0), im.Point.origin);
+
     return ctx.result();
 }
 

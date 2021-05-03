@@ -16,7 +16,14 @@ const IdStateCache = ui.IdStateCache;
 const ID = ui.ID;
 const generic = @import("generic.zig");
 
-pub fn renderRoot(id_arg: ID.Arg, imev: *ImEvent, isc: *IdStateCache, wh: WH, content: generic.Page) RenderResult {
+pub fn renderRoot(id_arg: ID.Arg, imev: *ImEvent, isc: *IdStateCache, wh: WH, content: u1) RenderResult {
     const id = id_arg.id;
-    return renderApp(id.push(@src()), imev, isc, wh, content);
+    var ctx = imev.render();
+
+    ctx.place(primitives.rect(imev, wh, .{ .bg = .black }), Point.origin);
+
+    const text = primitives.text(imev, .{ .size = .sm, .color = .white }, "Hello, World!");
+    ctx.place(text.node, wh.setUL(Point.origin).positionCenter(text.wh).ul());
+
+    return ctx.result();
 }

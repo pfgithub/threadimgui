@@ -113,6 +113,14 @@ pub const Rect = struct {
     pub fn fromULBR(ul_: Point, br_: Point) Rect {
         return .{ .x = ul_.x, .y = ul_.y, .w = br_.x - ul_.x, .h = br_.y - ul_.y };
     }
+    pub fn positionCenter(rect: Rect, inner: WH) Rect {
+        return Rect{
+            .x = rect.x + @divFloor(rect.w, 2) - @divFloor(inner.w, 2),
+            .y = rect.y + @divFloor(rect.h, 2) - @divFloor(inner.h, 2),
+            .w = inner.w,
+            .h = inner.h,
+        };
+    }
 };
 
 pub const TopRect = struct {
