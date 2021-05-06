@@ -340,7 +340,7 @@ const TextCacheHM = std.HashMap(
 pub const IdStateCache = struct {
     pub const Entry = struct {
         ptr: usize,
-        deinitFn: fn (entry: Entry, alloc: *std.mem.Allocator) void,
+        deinitFn: fn (entry: Entry, imev: *ImEvent) void,
         // I think the point was for this{fyl,lyn,col} to be a value representing
         // the source location where useState was called so that if useState ends
         // up somehow with the same ID asking for different data, an error can be
@@ -361,12 +361,20 @@ pub const IdStateCache = struct {
         };
     }
 
+    pub fn useISC(isc: *IdStateCache, id_arg: ID.Arg, imev: *ImEvent) *IdStateCache {
+        return isc.useState(id_arg, imev, IdStateCache, IdStateCache.init);
+    }
     // this is where |these| {things} would be useful:
     // ` cache.state(@src(), imev, struct{x: f64}, |_| .{.x = 25});
     // unfortunately, not yet
     pub fn useState(isc: *IdStateCache, id_arg: ID.Arg, imev: *ImEvent, comptime Type: type, comptime initFn: fn () Type) *Type {
         var res = isc.useStateCustomInit(id_arg, imev, Type);
         if (!res.initialized) res.ptr.* = initFn();
+        return res.ptr;
+    }
+    pub fn useStateDefault(isc: *IdStateCache, id_arg: ID.Arg, imev: *ImEvent, comptime initial: anytype) *@TypeOf(initial) {
+        var res = isc.useStateCustomInit(id_arg, imev, @TypeOf(initial));
+        if (!res.initialized) res.ptr.* = initial;
         return res.ptr;
     }
     fn StateRes(comptime Type: type) type {
@@ -390,9 +398,15 @@ pub const IdStateCache = struct {
         hm_entry.entry.value = .{
             .ptr = @ptrToInt(item_ptr),
             .deinitFn = struct {
-                fn a(entry: Entry, alloc: *std.mem.Allocator) void {
+                fn a(entry: Entry, imev_: *ImEvent) void {
+                    const alloc = imev_.persistentAlloc();
                     const ptr_v = entry.readAs(Type);
-                    if (@hasDecl(Type, "deinit")) {
+                    if (Type == IdStateCache) {
+                        ptr_v.deinit(imev_);
+                    } else if (switch (@typeInfo(Type)) {
+                        .Struct, .Enum, .Union => true,
+                        else => false,
+                    } and @hasDecl(Type, "deinit")) {
                         ptr_v.deinit();
                     }
                     alloc.destroy(ptr_v);
@@ -412,7 +426,7 @@ pub const IdStateCache = struct {
             if (ntry.value.used_this_frame) {
                 ntry.value.used_this_frame = false;
             } else {
-                ntry.value.deinitFn(ntry.value, imev.persistentAlloc());
+                ntry.value.deinitFn(ntry.value, imev);
                 unused.append(ntry.key) catch @panic("oom");
             }
         }
@@ -421,11 +435,12 @@ pub const IdStateCache = struct {
             key.deinit(imev.persistentAlloc());
         }
     }
-    pub fn deinit(isc: *IdStateCache, alloc: *std.mem.Allocator) void {
+    pub fn deinit(isc: *IdStateCache, imev: *ImEvent) void {
+        const alloc = imev.persistentAlloc();
         var iter = isc.hm.iterator();
         while (iter.next()) |ntry| {
             ntry.key.deinit(alloc);
-            ntry.value.deinitFn(ntry.value, alloc);
+            ntry.value.deinitFn(ntry.value, imev);
         }
         isc.hm.deinit(alloc);
     }
@@ -1215,7 +1230,7 @@ pub fn runUntilExit(alloc: *std.mem.Allocator, content: anytype, comptime render
     defer imevent.deinit();
 
     var root_state_cache = IdStateCache.init();
-    defer root_state_cache.deinit(imevent.persistentAlloc());
+    defer root_state_cache.deinit(&imevent);
 
     const root_fn_content = @ptrToInt(&content);
     comptime const RootFnContent = @TypeOf(&content);
