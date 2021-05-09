@@ -729,6 +729,11 @@ pub const ImEvent = struct { // pinned?
         const ir_clip = imev.persistent.screen_size.setUL(soffset);
         imev.internalRender(render_v, soffset, ir_clip);
 
+        if (imev.frame.cursor != imev.persistent.current_cursor) {
+            imev.persistent.current_cursor = imev.frame.cursor;
+            imev.frame.cr.setCursor(imev.frame.cursor);
+        }
+
         imev.frame.render_result = render_v;
     }
     pub fn endFrame(imev: *ImEvent, render_v: RenderResult) void {
@@ -750,11 +755,6 @@ pub const ImEvent = struct { // pinned?
                     v.value.layout.deinit();
                     imev.persistent.real_allocator.free(v.key.text);
                 } else unreachable;
-            }
-
-            if (imev.frame.cursor != imev.persistent.current_cursor) {
-                imev.persistent.current_cursor = imev.frame.cursor;
-                imev.frame.cr.setCursor(imev.frame.cursor);
             }
         }
 
@@ -805,7 +805,10 @@ pub const ImEvent = struct { // pinned?
         }
     }
 
-    pub fn clickable(imev: *ImEvent, id_h: ID.Arg) ClickableState {
+    /// this should assert that the resulting clickablestate is placed
+    /// ideally this could be done by the language in the typesystem,
+    /// but zig doesn't have a way to do that.
+    pub fn useClickable(imev: *ImEvent, id_h: ID.Arg) ClickableState {
         const id = id_h.id.forSrc(@src());
         return ClickableState{
             .key = .{ .id = id },
@@ -818,7 +821,7 @@ pub const ImEvent = struct { // pinned?
         };
     }
 
-    pub fn scrollable(imev: *ImEvent, id_h: ID.Arg) ScrollableState {
+    pub fn useScrollable(imev: *ImEvent, id_h: ID.Arg) ScrollableState {
         const id = id_h.id.forSrc(@src());
         return ScrollableState{
             .key = .{ .id = id },
@@ -836,6 +839,17 @@ pub const ClickableKey = struct {
         var ctx = imev.render();
         ctx.putRenderNode(.{ .value = .{ .clickable = .{ .id = key.id, .wh = wh } } });
         return ctx.result();
+    }
+    pub fn wrap(key: ClickableKey, imev: *ImEvent, widget: Widget) Widget {
+        var ctx = imev.render();
+
+        ctx.place(key.node(imev, widget.wh), Point.origin);
+        ctx.place(widget.node, Point.origin);
+
+        return .{
+            .wh = widget.wh,
+            .node = ctx.result(),
+        };
     }
 };
 pub const ClickableState = struct {

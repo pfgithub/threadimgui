@@ -59,11 +59,21 @@ const SidebarRender = struct {
 
         const item = items[node_id];
 
+        const click_state = imev.useClickable(id.push(@src()));
+        const hovering = if (click_state.focused) |f| f.hover else false;
+
+        if (click_state.focused) |f| {
+            if (f.hover) f.setCursor(imev, .pointer);
+        }
+
         var span_placer = im.SpanPlacer.init(imev, anr.width - (8 * 2));
         span_placer.placeInline(inset(imev, 8, im.primitives.text(imev, .{ .size = .base, .color = .white }, item)));
 
         const res = span_placer.finish();
-        ctx.place(rectaround(imev, .{ .bg = .gray300, .rounded = .sm }, res).node, .{ .x = 8, .y = 8 });
+        ctx.place(click_state.key.wrap(
+            imev,
+            rectaround(imev, .{ .bg = if (hovering) .gray300 else .gray200, .rounded = .sm }, res),
+        ).node, .{ .x = 8, .y = 8 });
 
         // can even have like a heading and a short description or something
         // layout is
@@ -97,7 +107,7 @@ pub fn renderSidebar(id_arg: im.ID.Arg, imev: *im.ImEvent, isc: *im.IdStateCache
     const scroll_state = isc.useStateCustomInit(id.push(@src()), im.VirtualScrollHelper);
     if (!scroll_state.initialized) scroll_state.ptr.* = im.VirtualScrollHelper.init(imev.persistentAlloc(), 0);
 
-    const scrollable = imev.scrollable(id.push(@src()));
+    const scrollable = imev.useScrollable(id.push(@src()));
     ctx.place(scrollable.key.node(imev, wh), im.Point.origin);
 
     if (scrollable.scrolling) |scrolling| {

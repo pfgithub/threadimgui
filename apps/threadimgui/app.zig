@@ -79,7 +79,7 @@ fn renderAction(id_arg: ID.Arg, imev: *ImEvent, isc: *IdStateCache, action: gene
     const text = primitives.text(imev, .{ .size = .sm, .color = .white }, action.text);
 
     const insetv = inset(id.push(@src()), imev, 4, text);
-    const clickable = imev.clickable(id.push(@src()));
+    const clickable = imev.useClickable(id.push(@src()));
 
     if (clickable.focused) |mstate| {
         if (mstate.hover) {
@@ -128,7 +128,7 @@ pub const ButtonKey = struct {
 
 fn useButton(id_arg: ID.Arg, imev: *ImEvent) ButtonKey {
     const id = id_arg.id;
-    const clicked_state = imev.clickable(id.push(@src()));
+    const clicked_state = imev.useClickable(id.push(@src()));
     return .{
         .hover = if (clicked_state.focused) |fxd| fxd.hover else false,
         .clicked = if (clicked_state.focused) |fxd| fxd.click else false,
@@ -285,7 +285,7 @@ fn renderBody(id_arg: ID.Arg, imev: *ImEvent, isc: *IdStateCache, body: generic.
             // render a link → a RenderedSpan
             // render the span with the spanrenderer thing
             // layout.place(&ctx, .{.gap = 8}); // place the rendered span
-            const clicked = imev.clickable(id.push(@src()));
+            const clicked = imev.useClickable(id.push(@src()));
             const hovering = if (clicked.focused) |fc| fc.hover else false;
             if (clicked.focused) |fc| if (fc.hover) fc.setCursor(imev, .pointer);
             const text = primitives.textV(imev, layout.top_rect.w, .{ .size = .sm, .color = .blue500, .underline = hovering }, link.url);
@@ -503,7 +503,7 @@ pub fn renderApp(id_arg: ID.Arg, imev: *ImEvent, isc: *IdStateCache, wh: WH, pag
     const cutoff = 1000;
     const mobile_cutoff = 600;
 
-    const scrollable = imev.scrollable(id.push(@src()));
+    const scrollable = imev.useScrollable(id.push(@src()));
     ctx.place(scrollable.key.node(imev, wh), Point.origin);
 
     if (scrollable.scrolling) |scrolling| {
