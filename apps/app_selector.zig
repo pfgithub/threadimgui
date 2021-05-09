@@ -49,9 +49,26 @@ fn rectaround(imev: *im.ImEvent, rectopts: im.primitives.RectOpts, widget: im.Wi
     };
 }
 
+const SidebarItem = struct {
+    title: []const u8,
+    desc: []const u8,
+    key: ActiveTab,
+};
+
 const SidebarRender = struct {
     width: f64,
-    const items = &[_][]const u8{ "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight" };
+    const items = &[_]SidebarItem{
+        .{
+            .title = "Demo",
+            .desc = "A hello world demo",
+            .key = .demo,
+        },
+        .{
+            .title = "ThreadReader",
+            .desc = "An implementation of ThreadReader in zimgui",
+            .key = .threadimgui,
+        },
+    };
 
     pub fn renderNode(anr: @This(), id_arg: im.ID.Arg, imev: *im.ImEvent, isc: *im.IdStateCache, node_id: u64) im.VLayoutManager.Child {
         const id = id_arg.id;
@@ -66,10 +83,14 @@ const SidebarRender = struct {
             if (f.hover) f.setCursor(imev, .pointer);
         }
 
-        var span_placer = im.SpanPlacer.init(imev, anr.width - (8 * 2));
-        span_placer.placeInline(inset(imev, 8, im.primitives.text(imev, .{ .size = .base, .color = .white }, item)));
+        var span_placer = im.SpanPlacer.init(imev, anr.width - (8 * 2 * 2));
+        // actually this should be done properly to support wrapping uuh
+        // the current implementation for that is 50loc so that needs to be generalized before it can be used here
+        span_placer.placeInline(im.primitives.text(imev, .{ .size = .base, .color = .white }, item.title));
+        span_placer.endLine();
+        span_placer.placeInline(im.primitives.text(imev, .{ .size = .sm, .color = .white }, item.desc));
 
-        const res = span_placer.finish();
+        const res = inset(imev, 8, span_placer.finish());
         ctx.place(click_state.key.wrap(
             imev,
             rectaround(imev, .{ .bg = if (hovering) .gray300 else .gray200, .rounded = .sm }, res),
