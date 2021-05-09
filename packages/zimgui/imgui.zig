@@ -1136,6 +1136,146 @@ pub const VLayoutManager = struct {
     }
 };
 
+/// any reason this has to be like this?
+/// can't you just place a widget?
+pub const RenderedSpan = union(enum) {
+    empty: void,
+    inline_value: struct {
+        widget: Widget,
+    },
+    multi_line: struct {
+        first_line: Widget,
+        middle: Widget,
+        last_line: Widget,
+    },
+};
+
+pub const SpanPlacer = struct {
+    ctx: RenderCtx,
+    current_x: f64 = 0,
+    current_y: f64 = 0,
+    max_width: f64,
+    current_line_height: f64 = 0,
+    current_line_widgets: Queue(Widget),
+    // TODO baseline maybe?
+
+    pub fn init(imev: *ImEvent, max_w: f64) SpanPlacer {
+        const alloc = imev.arena();
+        return .{
+            .ctx = imev.render(),
+            .max_width = max_w,
+            .current_line_widgets = Queue(Widget){},
+        };
+    }
+
+    pub fn getArgs(sp: SpanPlacer) Args {
+        return .{ .width = sp.max_width, .start_offset = sp.current_x };
+    }
+    pub fn endLine(sp: *SpanPlacer) void {
+        const alloc = sp.ctx.imev.arena();
+        var ox: f64 = 0;
+        while (sp.current_line_widgets.shift(alloc)) |widget| {
+            sp.ctx.place(widget.node, .{ .x = ox, .y = sp.current_y });
+            ox += widget.wh.w;
+        }
+
+        sp.current_x = 0;
+        sp.current_y += sp.current_line_height;
+        sp.current_line_height = 0;
+    }
+    pub fn placeInlineNoOverflow(sp: *SpanPlacer, widget: Widget) void {
+        const alloc = sp.ctx.imev.arena();
+        if (widget.wh.w + sp.current_x > sp.max_width and sp.current_x != 0) {
+            sp.endLine();
+        }
+        sp.current_line_widgets.push(alloc, widget) catch @panic("oom");
+        sp.current_x += widget.wh.w;
+        if (widget.wh.h > sp.current_line_height) {
+            sp.current_line_height = widget.wh.h;
+        }
+    }
+    pub fn placeInline(sp: *SpanPlacer, span: Widget) void {
+        return sp.place(.{ .inline_value = .{ .widget = span } });
+    }
+    pub fn place(sp: *SpanPlacer, span: RenderedSpan) void {
+        const alloc = sp.ctx.imev.arena();
+        switch (span) {
+            .empty => {},
+            .inline_value => |ilspan| {
+                if (ilspan.widget.wh.w + sp.current_x > sp.max_width and sp.current_x != 0) {
+                    sp.endLine();
+                }
+                sp.placeInlineNoOverflow(ilspan.widget);
+            },
+            .multi_line => |mlspan| {
+                sp.placeInlineNoOverflow(mlspan.first_line);
+                sp.endLine();
+                sp.ctx.place(mlspan.middle.node, .{ .x = 0, .y = sp.current_y });
+                sp.current_y += mlspan.middle.wh.h;
+                sp.placeInlineNoOverflow(mlspan.last_line);
+            },
+        }
+    }
+    pub fn finish(sp: *SpanPlacer) Widget {
+        sp.endLine();
+        return .{ .node = sp.ctx.result(), .wh = .{ .w = sp.max_width, .h = sp.current_y } };
+    }
+
+    const Args = struct { width: f64, start_offset: f64 };
+};
+
+pub const HLayoutManager = struct {
+    ctx: RenderCtx,
+    max_w: f64,
+    gap_x: f64,
+    gap_y: f64,
+
+    x: f64 = 0,
+    y: f64 = 0,
+    overflow_widget: ?Widget = null,
+    current_h: f64 = 0,
+
+    over: bool = false,
+
+    pub fn init(imev: *ImEvent, opts: struct { max_w: f64, gap_x: f64, gap_y: f64 }) HLayoutManager {
+        return .{
+            .ctx = imev.render(),
+            .max_w = opts.max_w,
+            .gap_x = opts.gap_x,
+            .gap_y = opts.gap_y,
+        };
+    }
+    pub fn overflow(hlm: *HLayoutManager, widget: Widget) void {
+        hlm.overflow_widget = widget;
+    }
+    pub fn put(hlm: *HLayoutManager, widget: Widget) ?void {
+        if (hlm.over) unreachable;
+        if (hlm.overflow_widget) |overflow_w| {
+            // TODO if (is_last), skip `- overflow.w`
+            if (hlm.x + widget.wh.w > hlm.max_w - overflow_w.wh.w - hlm.gap_x) {
+                hlm.ctx.place(overflow_w.node, .{ .x = hlm.x, .y = hlm.y });
+                if (overflow_w.wh.h > hlm.current_h) hlm.current_h = overflow_w.wh.h;
+                hlm.over = true;
+                return null;
+            }
+        } else if (hlm.x > 0 and hlm.x + widget.wh.w > hlm.max_w) {
+            hlm.y += hlm.current_h + hlm.gap_y;
+            hlm.current_h = 0;
+            hlm.x = 0;
+        }
+        hlm.ctx.place(widget.node, .{ .x = hlm.x, .y = hlm.y });
+        if (widget.wh.h > hlm.current_h) hlm.current_h = widget.wh.h;
+        hlm.x += widget.wh.w + hlm.gap_x;
+        return {};
+    }
+    pub fn build(hlm: *HLayoutManager) VLayoutManager.Child {
+        return VLayoutManager.Child{
+            .h = hlm.current_h + hlm.y + if (hlm.current_h == 0) 0 else -hlm.gap_y,
+            .node = hlm.ctx.result(),
+        };
+    }
+};
+
 pub const BaseRootState = struct {
     devtools_open: bool = false,
 

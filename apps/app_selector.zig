@@ -59,13 +59,11 @@ const SidebarRender = struct {
 
         const item = items[node_id];
 
-        const text = inset(imev, 8, rectaround(
-            imev,
-            .{ .bg = .gray300, .rounded = .sm },
-            inset(imev, 8, im.primitives.text(imev, .{ .size = .base, .color = .white }, item)),
-        )); // oh I thought this would be "easier" but I have to make the rect wider nvm
+        var span_placer = im.SpanPlacer.init(imev, anr.width - (8 * 2));
+        span_placer.placeInline(inset(imev, 8, im.primitives.text(imev, .{ .size = .base, .color = .white }, item)));
 
-        ctx.place(text.node, im.Point.origin);
+        const res = span_placer.finish();
+        ctx.place(rectaround(imev, .{ .bg = .gray300, .rounded = .sm }, res).node, .{ .x = 8, .y = 8 });
 
         // can even have like a heading and a short description or something
         // layout is
@@ -75,7 +73,7 @@ const SidebarRender = struct {
         // where × might be ⟳ instead
         // also make sure to set proper alt text for screenreaders because "multiplication sign" isn't very useful
 
-        return .{ .h = text.wh.h - 8, .node = ctx.result() };
+        return .{ .h = res.wh.h + 8, .node = ctx.result() };
     }
     pub fn existsNode(anr: @This(), node_id: u64) bool {
         return node_id < items.len;
