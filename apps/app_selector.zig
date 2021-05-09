@@ -223,11 +223,12 @@ pub fn renderAppSelector(id_arg: im.ID.Arg, imev: *im.ImEvent, isc: *im.IdStateC
         // const right = hlayout.dynamic(); // neither ul nor wh are known
         // hlayout.finalize(); // wh and ul are now known for all
 
-        const left: im.Rect = .{ .x = 0, .y = 0, .w = 250, .h = wh.h };
+        const left: im.Rect = .{ .x = 0, .y = 0, .w = 249, .h = wh.h };
         const right = im.Rect{ .x = 250, .y = 0, .w = wh.w - 250, .h = wh.h };
 
         ctx.place(renderSidebar(sidebar_id, imev, sidebar_isc, left.wh(), active_tab, show_sidebar), left.ul());
         ctx.place(renderContent(content_id, imev, content_isc, right.wh(), active_tab.*), right.ul());
+        ctx.place(im.primitives.rect(imev, .{ .w = 1, .h = wh.h }, .{ .bg = .gray300 }), .{ .x = 249, .y = 0 });
     }
     // wait I can make a full layout thing that has spacers, can't I:
     // const left = hlayout.use(250);
