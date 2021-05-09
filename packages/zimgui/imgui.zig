@@ -340,7 +340,7 @@ const TextCacheHM = std.HashMap(
 pub const IdStateCache = struct {
     pub const Entry = struct {
         ptr: usize,
-        deinitFn: fn (entry: Entry, imev: *ImEvent) void,
+        deinitFn: fn (entry: Entry, alloc: *std.mem.Allocator) void,
         // I think the point was for this{fyl,lyn,col} to be a value representing
         // the source location where useState was called so that if useState ends
         // up somehow with the same ID asking for different data, an error can be
@@ -354,26 +354,30 @@ pub const IdStateCache = struct {
     };
     const IscHM = std.HashMapUnmanaged(ID.Ident, Entry, ID.Ident.hash, ID.Ident.eql, std.hash_map.default_max_load_percentage);
     hm: IscHM,
+    alloc: *std.mem.Allocator,
 
-    pub fn init() IdStateCache {
+    pub fn init(alloc: *std.mem.Allocator) IdStateCache {
         return .{
             .hm = IscHM{},
+            .alloc = alloc,
         };
     }
 
-    pub fn useISC(isc: *IdStateCache, id_arg: ID.Arg, imev: *ImEvent) *IdStateCache {
-        return isc.useState(id_arg, imev, IdStateCache, IdStateCache.init);
+    pub fn useISC(isc: *IdStateCache, id_arg: ID.Arg) *IdStateCache {
+        var res = isc.useStateCustomInit(id_arg, IdStateCache);
+        if (!res.initialized) res.ptr.* = IdStateCache.init(isc.alloc);
+        return res.ptr;
     }
     // this is where |these| {things} would be useful:
     // ` cache.state(@src(), imev, struct{x: f64}, |_| .{.x = 25});
     // unfortunately, not yet
-    pub fn useState(isc: *IdStateCache, id_arg: ID.Arg, imev: *ImEvent, comptime Type: type, comptime initFn: fn () Type) *Type {
-        var res = isc.useStateCustomInit(id_arg, imev, Type);
+    pub fn useState(isc: *IdStateCache, id_arg: ID.Arg, comptime Type: type, comptime initFn: fn () Type) *Type {
+        var res = isc.useStateCustomInit(id_arg, Type);
         if (!res.initialized) res.ptr.* = initFn();
         return res.ptr;
     }
-    pub fn useStateDefault(isc: *IdStateCache, id_arg: ID.Arg, imev: *ImEvent, comptime initial: anytype) *@TypeOf(initial) {
-        var res = isc.useStateCustomInit(id_arg, imev, @TypeOf(initial));
+    pub fn useStateDefault(isc: *IdStateCache, id_arg: ID.Arg, comptime initial: anytype) *@TypeOf(initial) {
+        var res = isc.useStateCustomInit(id_arg, @TypeOf(initial));
         if (!res.initialized) res.ptr.* = initial;
         return res.ptr;
     }
@@ -385,25 +389,22 @@ pub const IdStateCache = struct {
     }
     // what if switch(useStateCustomInit()) {.initialized => {}, .unin => |unin| {unin.value.init(); break :blk unin}}
     // that could work
-    pub fn useStateCustomInit(isc: *IdStateCache, id_val: ID.Arg, imev: *ImEvent, comptime Type: type) StateRes(Type) {
+    pub fn useStateCustomInit(isc: *IdStateCache, id_val: ID.Arg, comptime Type: type) StateRes(Type) {
         const id = id_val.id.forSrc(@src());
 
         if (isc.hm.getEntry(id)) |hm_entry| {
             hm_entry.value.used_this_frame = true;
             return .{ .ptr = hm_entry.value.readAs(Type), .initialized = true };
         }
-        const hm_entry = isc.hm.getOrPut(imev.persistentAlloc(), id.dupe(imev.persistentAlloc())) catch @panic("oom");
+        const hm_entry = isc.hm.getOrPut(isc.alloc, id.dupe(isc.alloc)) catch @panic("oom");
         if (hm_entry.found_existing) unreachable;
-        var item_ptr: *Type = imev.persistentAlloc().create(Type) catch @panic("oom");
+        var item_ptr: *Type = isc.alloc.create(Type) catch @panic("oom");
         hm_entry.entry.value = .{
             .ptr = @ptrToInt(item_ptr),
             .deinitFn = struct {
-                fn a(entry: Entry, imev_: *ImEvent) void {
-                    const alloc = imev_.persistentAlloc();
+                fn a(entry: Entry, alloc: *std.mem.Allocator) void {
                     const ptr_v = entry.readAs(Type);
-                    if (Type == IdStateCache) {
-                        ptr_v.deinit(imev_);
-                    } else if (switch (@typeInfo(Type)) {
+                    if (switch (@typeInfo(Type)) {
                         .Struct, .Enum, .Union => true,
                         else => false,
                     } and @hasDecl(Type, "deinit")) {
@@ -420,27 +421,27 @@ pub const IdStateCache = struct {
         if (!imev.isRenderFrame()) return;
 
         var iter = isc.hm.iterator();
-        var unused = std.ArrayList(ID.Ident).init(imev.persistentAlloc());
+        var unused = std.ArrayList(ID.Ident).init(isc.alloc);
         defer unused.deinit();
         while (iter.next()) |ntry| {
             if (ntry.value.used_this_frame) {
                 ntry.value.used_this_frame = false;
             } else {
-                ntry.value.deinitFn(ntry.value, imev);
+                ntry.value.deinitFn(ntry.value, isc.alloc);
                 unused.append(ntry.key) catch @panic("oom");
             }
         }
         for (unused.items) |key| {
             isc.hm.removeAssertDiscard(key);
-            key.deinit(imev.persistentAlloc());
+            key.deinit(isc.alloc);
         }
     }
-    pub fn deinit(isc: *IdStateCache, imev: *ImEvent) void {
-        const alloc = imev.persistentAlloc();
+    pub fn deinit(isc: *IdStateCache) void {
+        const alloc = isc.alloc;
         var iter = isc.hm.iterator();
         while (iter.next()) |ntry| {
             ntry.key.deinit(alloc);
-            ntry.value.deinitFn(ntry.value, imev);
+            ntry.value.deinitFn(ntry.value, alloc);
         }
         isc.hm.deinit(alloc);
     }
@@ -887,7 +888,7 @@ pub const VirtualScrollHelper = struct {
     pub fn deinit(vsh: *VirtualScrollHelper) void {
         var iter = vsh.node_data_cache.iterator();
         while (iter.next()) |entry| {
-            entry.value.deinit(vsh.node_data_cache.allocator);
+            entry.value.deinit();
             vsh.node_data_cache.allocator.destroy(entry.value);
         }
         vsh.node_data_cache.deinit();
@@ -903,7 +904,7 @@ pub const VirtualScrollHelper = struct {
         var gop_res = vsh.node_data_cache.getOrPut(node_id) catch @panic("oom");
         if (!gop_res.found_existing) {
             const ptr = vsh.node_data_cache.allocator.create(IdStateCache) catch @panic("oom");
-            ptr.* = IdStateCache.init();
+            ptr.* = IdStateCache.init(vsh.node_data_cache.allocator);
             gop_res.entry.value = ptr;
         }
         return gop_res.entry.value;
@@ -1148,7 +1149,7 @@ const devtools = @import("devtools.zig");
 pub fn renderBaseRoot(id: ID, imev: *ImEvent, isc: *IdStateCache, wh: WH, data: ExecData) RenderResult {
     var ctx = imev.render();
 
-    const state = isc.useState(id.push(@src()), imev, BaseRootState, BaseRootState.init);
+    const state = isc.useState(id.push(@src()), BaseRootState, BaseRootState.init);
 
     const rootfn_id = id.push(@src());
 
@@ -1229,8 +1230,8 @@ pub fn runUntilExit(alloc: *std.mem.Allocator, content: anytype, comptime render
     var imevent = ImEvent.init(alloc);
     defer imevent.deinit();
 
-    var root_state_cache = IdStateCache.init();
-    defer root_state_cache.deinit(&imevent);
+    var root_state_cache = IdStateCache.init(alloc);
+    defer root_state_cache.deinit();
 
     const root_fn_content = @ptrToInt(&content);
     comptime const RootFnContent = @TypeOf(&content);

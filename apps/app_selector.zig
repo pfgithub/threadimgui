@@ -28,38 +28,62 @@ pub const Axis = enum {
     }
 };
 
-pub fn MajorLayout(axis: Axis) type {
-    return struct {
-        const Layout = @This();
+const SidebarRender = struct {
+    width: f64,
+    const items = &[_][]const u8{ "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight" };
 
-        wh: im.WH, // size of the container
+    pub fn renderNode(anr: @This(), id_arg: im.ID.Arg, imev: *im.ImEvent, isc: *im.IdStateCache, node_id: u64) im.VLayoutManager.Child {
+        const id = id_arg.id;
+        var ctx = imev.render();
 
-        const Partial = struct {
-            ul: *im.Point,
-            wh: *im.Point,
-        };
+        const item = items[node_id];
+        const text = im.primitives.text(imev, .{ .size = .base, .color = .white }, item);
+        ctx.place(text.node, im.Point.origin);
+        // can even have like a heading and a short description or something
+        // layout is
+        // [  Title                      ]
+        // [                          ×  ]
+        // [                             ]
+        // where × might be ⟳ instead
+        // also make sure to set proper alt text for screenreaders because "multiplication sign" isn't very useful
 
-        pub fn use(width: f64) Partial {
-            //
-        }
-        pub fn dynamic() Partial {
-            //
-        }
-    };
-}
-
-pub const VLayout = MajorLayout(.vertical);
-pub const HLayout = MajorLayout(.horizontal);
+        return .{ .h = text.wh.h + 8, .node = ctx.result() };
+    }
+    pub fn existsNode(anr: @This(), node_id: u64) bool {
+        return node_id < items.len;
+    }
+    pub fn getNextNode(anr: @This(), node_id: u64) ?u64 {
+        if (!existsNode(anr, node_id + 1)) return null;
+        return node_id + 1;
+    }
+    pub fn getPreviousNode(anr: @This(), node_id: u64) ?u64 {
+        if (node_id == 0) return null;
+        return node_id - 1;
+    }
+};
 
 pub fn renderSidebar(id_arg: im.ID.Arg, imev: *im.ImEvent, isc: *im.IdStateCache, wh: im.WH, active_tab: *ActiveTab, show_sidebar: *bool) im.RenderResult {
     const id = id_arg.id;
     var ctx = imev.render();
 
-    var vlayout = VLayout{ .wh = wh };
-    inline for (@typeInfo(ActiveTab).Enum.fields) |field| {
-        // /
-        // for now just a normal vertical placer but eventually this should be switched to a scrollable vertical placer
+    const scroll_state = isc.useStateCustomInit(id.push(@src()), im.VirtualScrollHelper);
+    if (!scroll_state.initialized) scroll_state.ptr.* = im.VirtualScrollHelper.init(imev.persistentAlloc(), 0);
+
+    const scrollable = imev.scrollable(id.push(@src()));
+    ctx.place(scrollable.key.node(imev, wh), im.Point.origin);
+
+    if (scrollable.scrolling) |scrolling| {
+        scroll_state.ptr.scroll(scrolling.delta.y);
     }
+
+    const content_render = scroll_state.ptr.render(id.push(@src()), imev, SidebarRender{ .width = wh.w }, wh.h, 0);
+    ctx.place(content_render, im.Point.origin);
+
+    // var vlayout = VLayout{ .wh = wh };
+    // inline for (@typeInfo(ActiveTab).Enum.fields) |field| {
+    //     // /
+    //     // for now just a normal vertical placer but eventually this should be switched to a scrollable vertical placer
+    // }
 
     return ctx.result();
 }
@@ -82,14 +106,14 @@ pub fn renderAppSelector(id_arg: im.ID.Arg, imev: *im.ImEvent, isc: *im.IdStateC
     const is_mobile = wh.w < 500;
 
     const sidebar_id = id.push(@src());
-    const sidebar_isc = isc.useISC(id.push(@src()), imev);
+    const sidebar_isc = isc.useISC(id.push(@src()));
 
     const content_id = id.push(@src()); // needs the content enum
-    const content_isc = isc.useISC(id.push(@src()), imev);
+    const content_isc = isc.useISC(id.push(@src()));
     // content isc needs to be a map from the enum => the content isc
 
-    const active_tab = isc.useStateDefault(id.push(@src()), imev, ActiveTab.demo);
-    const show_sidebar = isc.useStateDefault(id.push(@src()), imev, true);
+    const active_tab = isc.useStateDefault(id.push(@src()), ActiveTab.demo);
+    const show_sidebar = isc.useStateDefault(id.push(@src()), true);
 
     if (is_mobile) {
         // #useState(false) : macro to fill in isc., id.push(@src()), …
