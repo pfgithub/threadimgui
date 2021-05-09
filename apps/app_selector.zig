@@ -9,6 +9,18 @@ pub usingnamespace im.StartBackend;
 const ActiveTab = enum {
     demo,
     threadimgui,
+    pub fn item(at: ActiveTab) SidebarItem {
+        return switch (at) {
+            .demo => .{
+                .title = "Demo",
+                .desc = "A hello world demo",
+            },
+            .threadimgui => .{
+                .title = "ThreadReader",
+                .desc = "An implementation of ThreadReader in zimgui",
+            },
+        };
+    }
 };
 
 pub const Axis = enum {
@@ -52,7 +64,6 @@ fn rectaround(imev: *im.ImEvent, rectopts: im.primitives.RectOpts, widget: im.Wi
 const SidebarItem = struct {
     title: []const u8,
     desc: []const u8,
-    key: ActiveTab,
 };
 
 const SidebarRender = struct {
@@ -60,24 +71,14 @@ const SidebarRender = struct {
     active_tab: *ActiveTab,
     show_sidebar: *bool,
 
-    const items = &[_]SidebarItem{
-        .{
-            .title = "Demo",
-            .desc = "A hello world demo",
-            .key = .demo,
-        },
-        .{
-            .title = "ThreadReader",
-            .desc = "An implementation of ThreadReader in zimgui",
-            .key = .threadimgui,
-        },
-    };
+    const items = &[_]ActiveTab{ .demo, .threadimgui };
 
     pub fn renderNode(anr: @This(), id_arg: im.ID.Arg, imev: *im.ImEvent, isc: *im.IdStateCache, node_id: u64) im.VLayoutManager.Child {
         const id = id_arg.id;
         var ctx = imev.render();
 
-        const item = items[node_id];
+        const key = items[node_id];
+        const item = key.item();
 
         const click_state = imev.useClickable(id.push(@src()));
         const hovering = if (click_state.focused) |f| f.hover else false;
@@ -85,7 +86,7 @@ const SidebarRender = struct {
         if (click_state.focused) |f| {
             if (f.hover) f.setCursor(imev, .pointer);
             if (f.click) {
-                anr.active_tab.* = item.key;
+                anr.active_tab.* = key;
                 anr.show_sidebar.* = false;
                 imev.invalidate();
             }
@@ -180,6 +181,56 @@ pub fn renderContent(id_arg: im.ID.Arg, imev: *im.ImEvent, isc: *im.IdStateCache
     }
 }
 
+pub fn renderNavbar(
+    id_arg: im.ID.Arg,
+    imev: *im.ImEvent,
+    isc: *im.IdStateCache,
+    width: f64,
+    active_tab: ActiveTab,
+    show_sidebar: *bool,
+) im.VLayoutManager.Child {
+    const id = id_arg.id;
+    var ctx = imev.render();
+
+    // 1: inset by 8px
+    // 2: render [spacer] [text] [spacer]
+    // 3: put a background rect
+    // there are no good helpers for this yet
+
+    const click_key = imev.useClickable(id.push(@src()));
+
+    var vplacer = im.VLayoutManager.fromWidth(width);
+
+    vplacer.inset(8);
+
+    const text = im.primitives.text(imev, .{ .size = .base, .color = .white }, imev.fmt("{s} ▾", .{active_tab.item().title}));
+    const tr = vplacer.take(.{ .gap = 4, .h = text.wh.h });
+
+    const height = vplacer.height();
+
+    ctx.place(im.primitives.rect(imev, .{ .w = width, .h = height }, .{ .bg = .gray100 }), im.Point.origin);
+
+    const textpos = tr.positionCenter(text.wh);
+    if (click_key.focused) |f| {
+        if (f.hover) {
+            f.setCursor(imev, .pointer);
+            ctx.place(im.primitives.rect(imev, .{ .w = textpos.w + 8, .h = textpos.h + 8 }, .{ .bg = .gray300, .rounded = .sm }), .{ .x = textpos.x - 4, .y = textpos.y - 4 });
+        }
+        if (f.click) {
+            show_sidebar.* = true;
+            imev.invalidate();
+        }
+    }
+    ctx.place(click_key.key.node(imev, textpos.wh()), textpos.ul());
+    ctx.place(text.node, textpos.ul());
+
+    return .{ .node = ctx.result(), .h = height };
+}
+
+pub fn renderHLine(imev: *im.ImEvent, color: im.ThemeColor, width: f64) im.VLayoutManager.Child {
+    return .{ .node = im.primitives.rect(imev, .{ .w = width, .h = 1 }, .{ .bg = color }), .h = 1 };
+}
+
 pub fn renderAppSelector(id_arg: im.ID.Arg, imev: *im.ImEvent, isc: *im.IdStateCache, wh: im.WH, content: u1) im.RenderResult {
     // tabs on the left
     // tab name, x button to clear isc if the tab is open (/ refresh button if it's focused)
@@ -195,7 +246,7 @@ pub fn renderAppSelector(id_arg: im.ID.Arg, imev: *im.ImEvent, isc: *im.IdStateC
     // renderDemoSelector();
     // maybe find some way to say if the inspector frame is open, don't render the navbar and stuff?
 
-    const is_mobile = wh.w < 500;
+    const is_mobile = wh.w < 800;
 
     const sidebar_id = id.push(@src());
     const sidebar_isc = isc.useISC(id.push(@src()), imev);
@@ -215,7 +266,20 @@ pub fn renderAppSelector(id_arg: im.ID.Arg, imev: *im.ImEvent, isc: *im.IdStateC
             ctx.place(renderSidebar(sidebar_id, imev, sidebar_isc, wh, active_tab, show_sidebar), im.Point.origin);
         } else {
             // TODO render a navbar with a button to show the sidebar
-            ctx.place(renderContent(content_id, imev, content_isc, wh, active_tab.*), im.Point.origin);
+
+            var y: f64 = 0;
+
+            const navbar = renderNavbar(id.push(@src()), imev, isc, wh.w, active_tab.*, show_sidebar);
+            ctx.place(navbar.node, .{ .x = 0, .y = y });
+            y += navbar.h;
+
+            const hline = renderHLine(imev, .gray300, wh.w);
+            ctx.place(hline.node, .{ .x = 0, .y = y });
+            y += hline.h;
+
+            const rest = im.Rect{ .x = 0, .y = y, .w = wh.w, .h = wh.h - y };
+
+            ctx.place(im.primitives.clippingRect(imev, rest.wh(), renderContent(content_id, imev, content_isc, rest.wh(), active_tab.*)), rest.ul());
         }
     } else {
         // var hlayout = HLayout{ .wh = wh };

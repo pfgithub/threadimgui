@@ -840,6 +840,10 @@ pub const ImEvent = struct { // pinned?
     pub fn invalidate(imev: *ImEvent) void {
         imev.frame.request_rerender = true;
     }
+
+    pub fn fmt(imev: *ImEvent, comptime text: []const u8, args: anytype) [:0]const u8 {
+        return std.fmt.allocPrint0(imev.arena(), text, args) catch @panic("oom");
+    }
 };
 pub const Src = ID.Src;
 
