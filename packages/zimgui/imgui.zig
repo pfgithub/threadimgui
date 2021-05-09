@@ -485,6 +485,8 @@ pub const ImEvent = struct { // pinned?
         scroll_delta: Point = Point.origin,
 
         key_down: ?Key = null,
+
+        request_rerender: bool = false,
     },
 
     const ScrollFocused = struct {
@@ -830,6 +832,13 @@ pub const ImEvent = struct { // pinned?
                 ScrollableState.Scrolling{ .delta = scr.delta } //
             ) else null else null,
         };
+    }
+
+    /// call this whenever you update state that cannot be displayed properly in this frame
+    /// this will set a flag suggesting to rerender immediately rather than waiting for the
+    /// next event.
+    pub fn invalidate(imev: *ImEvent) void {
+        imev.frame.request_rerender = true;
     }
 };
 pub const Src = ID.Src;
@@ -1361,6 +1370,10 @@ pub fn renderFrame(cr: backend.Context, rr: backend.RerenderRequest, data: ExecD
     imev.endFrameRender(renderBaseRoot(id, imev, root_state_cache, imev.persistent.screen_size, data));
     id.deinit();
     root_state_cache.cleanupUnused(imev);
+
+    if (imev.frame.request_rerender) {
+        rr.queueDraw();
+    }
 
     // std.log.info("rerender×{} in {}ns", .{ render_count, timer.read() }); // max allowed time is 4ms
 }

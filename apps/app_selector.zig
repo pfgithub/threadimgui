@@ -58,6 +58,7 @@ const SidebarItem = struct {
 const SidebarRender = struct {
     width: f64,
     active_tab: *ActiveTab,
+    show_sidebar: *bool,
 
     const items = &[_]SidebarItem{
         .{
@@ -85,7 +86,8 @@ const SidebarRender = struct {
             if (f.hover) f.setCursor(imev, .pointer);
             if (f.click) {
                 anr.active_tab.* = item.key;
-                // imev.invalidate();
+                anr.show_sidebar.* = false;
+                imev.invalidate();
             }
         }
 
@@ -148,7 +150,8 @@ pub fn renderSidebar(
         scroll_state.ptr.scroll(scrolling.delta.y);
     }
 
-    const content_render = scroll_state.ptr.render(id.push(@src()), imev, SidebarRender{ .width = wh.w, .active_tab = active_tab }, wh.h, 0);
+    const sbo = SidebarRender{ .width = wh.w, .active_tab = active_tab, .show_sidebar = show_sidebar };
+    const content_render = scroll_state.ptr.render(id.push(@src()), imev, sbo, wh.h, 0);
     ctx.place(content_render, im.Point.origin);
 
     // var vlayout = VLayout{ .wh = wh };
@@ -211,6 +214,7 @@ pub fn renderAppSelector(id_arg: im.ID.Arg, imev: *im.ImEvent, isc: *im.IdStateC
         if (show_sidebar.*) {
             ctx.place(renderSidebar(sidebar_id, imev, sidebar_isc, wh, active_tab, show_sidebar), im.Point.origin);
         } else {
+            // TODO render a navbar with a button to show the sidebar
             ctx.place(renderContent(content_id, imev, content_isc, wh, active_tab.*), im.Point.origin);
         }
     } else {
