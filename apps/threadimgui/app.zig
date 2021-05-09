@@ -333,7 +333,7 @@ fn renderPost(id_arg: ID.Arg, imev: *ImEvent, isc: *IdStateCache, width: f64, no
     const id = id_arg.id;
     var ctx = imev.render();
 
-    const state = isc.useState(id.push(@src()), imev, PostState, PostState.init); // |_| .{.display_body = node.default_open}
+    const state = isc.useState(id.push(@src()), PostState, PostState.init); // |_| .{.display_body = node.default_open}
 
     var layout = VLayoutManager.fromWidth(width);
 
@@ -493,7 +493,7 @@ pub fn renderApp(id_arg: ID.Arg, imev: *ImEvent, isc: *IdStateCache, wh: WH, pag
     const id = id_arg.id;
     var ctx = imev.render();
 
-    const state_frame = isc.useStateCustomInit(id.push(@src()), imev, AppState);
+    const state_frame = isc.useStateCustomInit(id.push(@src()), AppState);
     if (!state_frame.initialized) state_frame.ptr.* = AppState.init(imev.persistentAlloc(), 0, 0);
     const state = state_frame.ptr;
 

@@ -363,9 +363,10 @@ pub const IdStateCache = struct {
         };
     }
 
-    pub fn useISC(isc: *IdStateCache, id_arg: ID.Arg) *IdStateCache {
+    pub fn useISC(isc: *IdStateCache, id_arg: ID.Arg, imev: *ImEvent) *IdStateCache {
         var res = isc.useStateCustomInit(id_arg, IdStateCache);
         if (!res.initialized) res.ptr.* = IdStateCache.init(isc.alloc);
+        res.ptr.cleanupUnused(imev);
         return res.ptr;
     }
     // this is where |these| {things} would be useful:
@@ -1235,7 +1236,7 @@ pub const SpanPlacer = struct {
         return .{ .node = sp.ctx.result(), .wh = .{ .w = sp.max_width, .h = sp.current_y } };
     }
 
-    const Args = struct { width: f64, start_offset: f64 };
+    pub const Args = struct { width: f64, start_offset: f64 };
 };
 
 pub const HLayoutManager = struct {

@@ -57,6 +57,8 @@ const SidebarItem = struct {
 
 const SidebarRender = struct {
     width: f64,
+    active_tab: *ActiveTab,
+
     const items = &[_]SidebarItem{
         .{
             .title = "Demo",
@@ -81,6 +83,10 @@ const SidebarRender = struct {
 
         if (click_state.focused) |f| {
             if (f.hover) f.setCursor(imev, .pointer);
+            if (f.click) {
+                anr.active_tab.* = item.key;
+                // imev.invalidate();
+            }
         }
 
         var span_placer = im.SpanPlacer.init(imev, anr.width - (8 * 2 * 2));
@@ -119,7 +125,14 @@ const SidebarRender = struct {
     }
 };
 
-pub fn renderSidebar(id_arg: im.ID.Arg, imev: *im.ImEvent, isc: *im.IdStateCache, wh: im.WH, active_tab: *ActiveTab, show_sidebar: *bool) im.RenderResult {
+pub fn renderSidebar(
+    id_arg: im.ID.Arg,
+    imev: *im.ImEvent,
+    isc: *im.IdStateCache,
+    wh: im.WH,
+    active_tab: *ActiveTab,
+    show_sidebar: *bool,
+) im.RenderResult {
     const id = id_arg.id;
     var ctx = imev.render();
 
@@ -135,7 +148,7 @@ pub fn renderSidebar(id_arg: im.ID.Arg, imev: *im.ImEvent, isc: *im.IdStateCache
         scroll_state.ptr.scroll(scrolling.delta.y);
     }
 
-    const content_render = scroll_state.ptr.render(id.push(@src()), imev, SidebarRender{ .width = wh.w }, wh.h, 0);
+    const content_render = scroll_state.ptr.render(id.push(@src()), imev, SidebarRender{ .width = wh.w, .active_tab = active_tab }, wh.h, 0);
     ctx.place(content_render, im.Point.origin);
 
     // var vlayout = VLayout{ .wh = wh };
@@ -145,6 +158,23 @@ pub fn renderSidebar(id_arg: im.ID.Arg, imev: *im.ImEvent, isc: *im.IdStateCache
     // }
 
     return ctx.result();
+}
+
+pub fn renderContent(id_arg: im.ID.Arg, imev: *im.ImEvent, isc: *im.IdStateCache, wh: im.WH, tab: ActiveTab) im.RenderResult {
+    const id = id_arg.id;
+
+    switch (tab) {
+        .demo => return @import("demo/app.zig").renderRoot(id.push(@src()), imev, isc, wh, 0),
+        .threadimgui => {
+            const arena = isc.useStateCustomInit(id.push(@src()), std.heap.ArenaAllocator);
+            if (!arena.initialized) arena.ptr.* = std.heap.ArenaAllocator.init(imev.persistentAlloc());
+
+            const sample = isc.useStateCustomInit(id.push(@src()), @import("threadimgui/generic.zig").Page);
+            if (!sample.initialized) sample.ptr.* = @import("threadimgui/generic.zig").initSample(&arena.ptr.allocator);
+
+            return @import("threadimgui/app.zig").renderRoot(id.push(@src()), imev, isc, wh, sample.ptr.*);
+        },
+    }
 }
 
 pub fn renderAppSelector(id_arg: im.ID.Arg, imev: *im.ImEvent, isc: *im.IdStateCache, wh: im.WH, content: u1) im.RenderResult {
@@ -165,14 +195,14 @@ pub fn renderAppSelector(id_arg: im.ID.Arg, imev: *im.ImEvent, isc: *im.IdStateC
     const is_mobile = wh.w < 500;
 
     const sidebar_id = id.push(@src());
-    const sidebar_isc = isc.useISC(id.push(@src()));
-
-    const content_id = id.push(@src()); // needs the content enum
-    const content_isc = isc.useISC(id.push(@src()));
-    // content isc needs to be a map from the enum => the content isc
+    const sidebar_isc = isc.useISC(id.push(@src()), imev);
 
     const active_tab = isc.useStateDefault(id.push(@src()), ActiveTab.demo);
     const show_sidebar = isc.useStateDefault(id.push(@src()), true);
+
+    const content_id = id.push(@src()); // needs the content enum
+    const content_isc = isc.useISC(id.push(@src()), imev);
+    // content isc needs to be a map from the enum => the content isc
 
     if (is_mobile) {
         // #useState(false) : macro to fill in isc., id.push(@src()), …
@@ -181,7 +211,7 @@ pub fn renderAppSelector(id_arg: im.ID.Arg, imev: *im.ImEvent, isc: *im.IdStateC
         if (show_sidebar.*) {
             ctx.place(renderSidebar(sidebar_id, imev, sidebar_isc, wh, active_tab, show_sidebar), im.Point.origin);
         } else {
-            ctx.place(@import("demo/app.zig").renderRoot(content_id, imev, content_isc, wh, 0), im.Point.origin);
+            ctx.place(renderContent(content_id, imev, content_isc, wh, active_tab.*), im.Point.origin);
         }
     } else {
         // var hlayout = HLayout{ .wh = wh };
@@ -193,7 +223,7 @@ pub fn renderAppSelector(id_arg: im.ID.Arg, imev: *im.ImEvent, isc: *im.IdStateC
         const right = im.Rect{ .x = 250, .y = 0, .w = wh.w - 250, .h = wh.h };
 
         ctx.place(renderSidebar(sidebar_id, imev, sidebar_isc, left.wh(), active_tab, show_sidebar), left.ul());
-        ctx.place(@import("demo/app.zig").renderRoot(content_id, imev, content_isc, right.wh(), 0), right.ul());
+        ctx.place(renderContent(content_id, imev, content_isc, right.wh(), active_tab.*), right.ul());
     }
     // wait I can make a full layout thing that has spacers, can't I:
     // const left = hlayout.use(250);
