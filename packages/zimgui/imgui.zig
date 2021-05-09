@@ -180,7 +180,7 @@ pub const Widget = struct {
 };
 
 pub const primitives = struct {
-    const RectOpts = struct {
+    pub const RectOpts = struct {
         rounded: RoundedStyle = .none,
         bg: ThemeColor,
     };

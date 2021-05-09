@@ -28,6 +28,27 @@ pub const Axis = enum {
     }
 };
 
+fn inset(imev: *im.ImEvent, inset_v: f64, widget: im.Widget) im.Widget {
+    var ctx = imev.render();
+
+    ctx.place(widget.node, .{ .x = inset_v, .y = inset_v });
+    return .{
+        .wh = .{ .w = inset_v * 2 + widget.wh.w, .h = inset_v * 2 + widget.wh.h },
+        .node = ctx.result(),
+    };
+}
+fn rectaround(imev: *im.ImEvent, rectopts: im.primitives.RectOpts, widget: im.Widget) im.Widget {
+    var ctx = imev.render();
+
+    ctx.place(im.primitives.rect(imev, widget.wh, rectopts), im.Point.origin);
+    ctx.place(widget.node, im.Point.origin);
+
+    return .{
+        .wh = widget.wh,
+        .node = ctx.result(),
+    };
+}
+
 const SidebarRender = struct {
     width: f64,
     const items = &[_][]const u8{ "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight" };
@@ -37,8 +58,15 @@ const SidebarRender = struct {
         var ctx = imev.render();
 
         const item = items[node_id];
-        const text = im.primitives.text(imev, .{ .size = .base, .color = .white }, item);
+
+        const text = inset(imev, 8, rectaround(
+            imev,
+            .{ .bg = .gray300, .rounded = .sm },
+            inset(imev, 8, im.primitives.text(imev, .{ .size = .base, .color = .white }, item)),
+        )); // oh I thought this would be "easier" but I have to make the rect wider nvm
+
         ctx.place(text.node, im.Point.origin);
+
         // can even have like a heading and a short description or something
         // layout is
         // [  Title                      ]
@@ -47,7 +75,7 @@ const SidebarRender = struct {
         // where × might be ⟳ instead
         // also make sure to set proper alt text for screenreaders because "multiplication sign" isn't very useful
 
-        return .{ .h = text.wh.h + 8, .node = ctx.result() };
+        return .{ .h = text.wh.h - 8, .node = ctx.result() };
     }
     pub fn existsNode(anr: @This(), node_id: u64) bool {
         return node_id < items.len;
@@ -65,6 +93,8 @@ const SidebarRender = struct {
 pub fn renderSidebar(id_arg: im.ID.Arg, imev: *im.ImEvent, isc: *im.IdStateCache, wh: im.WH, active_tab: *ActiveTab, show_sidebar: *bool) im.RenderResult {
     const id = id_arg.id;
     var ctx = imev.render();
+
+    ctx.place(im.primitives.rect(imev, wh, .{ .bg = .gray100 }), im.Point.origin);
 
     const scroll_state = isc.useStateCustomInit(id.push(@src()), im.VirtualScrollHelper);
     if (!scroll_state.initialized) scroll_state.ptr.* = im.VirtualScrollHelper.init(imev.persistentAlloc(), 0);
