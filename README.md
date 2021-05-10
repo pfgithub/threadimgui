@@ -295,4 +295,11 @@ and if that turns out to not be enough and there's more to render, set the imev 
 
 # notes
 
+- windows:
+- use direct2d instead of gdi. it makes it easy to draw rounded rectangles and is hardware accelerated
+- use directwrite text rendering
+- alternatively: use cairo or skia
+
+# notes
+
 - https://github.com/nektro/zig-tracy todo
