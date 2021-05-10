@@ -263,9 +263,11 @@ pub fn renderAppSelector(id_arg: im.ID.Arg, imev: *im.ImEvent, isc: *im.IdStateC
         // after setting show_sidebar, call like imev.changed() or something
         // to note that the frame shouldn't be done yet; there's more to do
         if (show_sidebar.*) {
+            sidebar_isc.cleanupUnused(imev);
+
             ctx.place(renderSidebar(sidebar_id, imev, sidebar_isc, wh, active_tab, show_sidebar), im.Point.origin);
         } else {
-            // TODO render a navbar with a button to show the sidebar
+            content_isc.cleanupUnused(imev);
 
             var y: f64 = 0;
 
@@ -282,6 +284,9 @@ pub fn renderAppSelector(id_arg: im.ID.Arg, imev: *im.ImEvent, isc: *im.IdStateC
             ctx.place(im.primitives.clippingRect(imev, rest.wh(), renderContent(content_id, imev, content_isc, rest.wh(), active_tab.*)), rest.ul());
         }
     } else {
+        sidebar_isc.cleanupUnused(imev);
+        content_isc.cleanupUnused(imev);
+
         // var hlayout = HLayout{ .wh = wh };
         // const left = hlayout.use(250); // wh is known but not ul
         // const right = hlayout.dynamic(); // neither ul nor wh are known

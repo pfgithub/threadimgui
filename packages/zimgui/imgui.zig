@@ -366,7 +366,6 @@ pub const IdStateCache = struct {
     pub fn useISC(isc: *IdStateCache, id_arg: ID.Arg, imev: *ImEvent) *IdStateCache {
         var res = isc.useStateCustomInit(id_arg, IdStateCache);
         if (!res.initialized) res.ptr.* = IdStateCache.init(isc.alloc);
-        res.ptr.cleanupUnused(imev);
         return res.ptr;
     }
     // this is where |these| {things} would be useful:
