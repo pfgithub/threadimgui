@@ -282,6 +282,7 @@ and if that turns out to not be enough and there's more to render, set the imev 
 - skia is a huge dependency
 - cairo probably is too but I don't know because it's installed by the system package manager
 - https://github.com/preshing/cairo-windows
+- https://www.cairographics.org/manual/cairo-Win32-Surfaces.html
 
 # notes
 
