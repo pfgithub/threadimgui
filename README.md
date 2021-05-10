@@ -278,4 +278,11 @@ and if that turns out to not be enough and there's more to render, set the imev 
 
 # notes
 
+- rather than trying to figure out skia, try getting a cairo glfw backend working
+- skia is a huge dependency
+- cairo probably is too but I don't know because it's installed by the system package manager
+- https://github.com/preshing/cairo-windows
+
+# notes
+
 - https://github.com/nektro/zig-tracy todo
