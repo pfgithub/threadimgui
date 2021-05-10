@@ -137,9 +137,8 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             int width = clientRect.right - clientRect.left;
             int height = clientRect.bottom - clientRect.top;
 
-            HDC hDC = GetDC(hwnd);
-            HDC memoryDC = CreateCompatibleDC(hDC);
-            HBITMAP memoryBitmap = CreateCompatibleBitmap(hDC, width, height);
+            HDC memoryDC = CreateCompatibleDC(hdc);
+            HBITMAP memoryBitmap = CreateCompatibleBitmap(hdc, width, height);
             SelectObject(memoryDC, memoryBitmap);
 
             FillRect(memoryDC, &ps.rcPaint, (HBRUSH) (COLOR_WINDOW+1));
@@ -150,7 +149,6 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     
             DeleteObject(memoryBitmap);
             DeleteDC(memoryDC);
-            ReleaseDC(hwnd, hDC);
 
             EndPaint(hwnd, &ps);
         }
