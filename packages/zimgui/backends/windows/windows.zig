@@ -14,6 +14,13 @@ export fn zig_on_resize(wd: *WindowData, data: *const backend.OpaquePtrData, wid
     data.pushEvent(.{ .resize = .{ .x = 0, .y = 0, .w = width, .h = height } }, .{ .wd = wd }, data.data);
 }
 
+export fn zig_on_mouse_click(wd: *WindowData, data: *const backend.OpaquePtrData, btn: u8, clicked: c_int, pt_x: c_short, pt_y: c_short) void {
+    data.pushEvent(.{ .mouse_click = .{ .down = clicked == 1, .x = @intToFloat(f64, pt_x), .y = @intToFloat(f64, pt_y), .button = btn } }, .{ .wd = wd }, data.data);
+}
+export fn zig_on_mouse_move(wd: *WindowData, data: *const backend.OpaquePtrData, pt_x: c_short, pt_y: c_short) void {
+    data.pushEvent(.{ .mouse_move = .{ .x = @intToFloat(f64, pt_x), .y = @intToFloat(f64, pt_y) } }, .{ .wd = wd }, data.data);
+}
+
 fn winColor(color: Color) c_ulong {
     if (color.a < 0.99) {
         backend.warn.once(@src(), "Windows GDI does not support partially transparent colors");
@@ -38,9 +45,6 @@ pub const TextLayout = struct {
 };
 pub const Context = struct {
     wd: *WindowData,
-    pub fn setCursor(ctx: Context, cursor_tag: CursorEnum) void {
-        std.log.warn("setCursor not implemented", .{});
-    }
     pub fn renderRectangle(ctx: Context, color: Color, rect: Rect, radius: f64) void {
         // std.log.info("rounded rect called!", .{});
         c_rounded_rect(

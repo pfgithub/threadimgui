@@ -16,6 +16,7 @@ int startCv2(const char* win_name, int width, int height, void* data_ptr) {
 
     wc.lpfnWndProc   = WindowProc;
     wc.hInstance     = hInstance;
+    wc.hCursor       = LoadCursor(NULL, IDC_ARROW);
     wc.lpszClassName = CLASS_NAME;
 
     RegisterClass(&wc);
@@ -71,6 +72,9 @@ typedef struct {
 void zig_on_resize(WindowData* wd, void* ptr, int width, int height);
 void zig_on_paint(WindowData* wd, void* state_ptr);
 
+void zig_on_mouse_click(WindowData* wd, void* state_ptr, char btn, int clicked, short pt_x, short pt_y);
+void zig_on_mouse_move(WindowData* wd, void* state_ptr, short pt_x, short pt_y);
+
 void c_repaint_window(WindowData* wd) {
     InvalidateRect(wd->hwnd, /*rect: */NULL, /*erase: */FALSE);
 }
@@ -101,7 +105,28 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         PostQuitMessage(0);
         return 0;
     case WM_ERASEBKGND:
-        return 0;
+        return TRUE;
+
+    case WM_LBUTTONDOWN: {
+        SetCapture(hwnd);
+
+        POINTS points = MAKEPOINTS(lParam);
+        zig_on_mouse_click(&wd, statePtr, 1, TRUE, points.x, points.y);
+
+    } return 0;
+    
+    case WM_LBUTTONUP: {
+        ReleaseCapture();
+        
+        POINTS points = MAKEPOINTS(lParam);
+        zig_on_mouse_click(&wd, statePtr, 1, FALSE, points.x, points.y);
+    } return 0;
+    
+    case WM_MOUSEMOVE: {
+        POINTS points = MAKEPOINTS(lParam);
+        zig_on_mouse_move(&wd, statePtr, points.x, points.y);
+    } return 0;
+
     case WM_PAINT:
         {
             PAINTSTRUCT ps;

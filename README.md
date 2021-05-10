@@ -288,4 +288,11 @@ and if that turns out to not be enough and there's more to render, set the imev 
 
 # notes
 
+- how to do keyboard events:
+- two types of keyboard events. raw and ime.
+- to get ime events, you must have focus and request keyboard events.
+- on mobile, this will show the keyboard. on desktop, this will ask for ime events.
+
+# notes
+
 - https://github.com/nektro/zig-tracy todo

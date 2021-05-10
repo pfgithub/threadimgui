@@ -5,7 +5,7 @@ pub const RawEvent = union(enum) {
     key: struct { down: bool, key: Key, modifiers: KeyModifiers },
     textcommit: []const u8,
     resize: struct { x: c_int, y: c_int, w: c_int, h: c_int },
-    mouse_click: struct { button: c_uint, x: f64, y: f64, down: bool },
+    mouse_click: struct { button: c_uint, x: f64, y: f64, down: bool }, // TODO button: enum{left, middle, right, …}
     mouse_move: struct { x: f64, y: f64 },
     scroll: struct { scroll_x: f64, scroll_y: f64 },
 };
