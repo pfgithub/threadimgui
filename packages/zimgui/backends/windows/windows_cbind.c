@@ -147,6 +147,9 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             zig_on_paint(&wd, statePtr);
 
             BitBlt(hdc, 0, 0, width, height, memoryDC, 0, 0, SRCCOPY);
+    
+            DeleteObject(memoryBitmap);
+            DeleteDC(memoryDC);
             ReleaseDC(hwnd, hDC);
 
             EndPaint(hwnd, &ps);
