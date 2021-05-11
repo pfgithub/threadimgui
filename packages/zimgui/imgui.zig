@@ -43,6 +43,28 @@ pub const RenderNode = struct { value: union(enum) {
     },
 } };
 
+pub const Width = enum {
+    none,
+    p4,
+    p8,
+    p12,
+    p16,
+    p20,
+    xl,
+    xl2,
+    pub fn getPx(w: Width) f64 {
+        return switch (w) {
+            .none => 0,
+            .p4 => 4,
+            .p8 => 8,
+            .p12 => 12,
+            .p16 => 16,
+            .p20 => 20,
+            .xl => 600,
+            .xl2 => 1000,
+        };
+    }
+};
 pub const RoundedStyle = enum {
     none,
     sm, // 5px
