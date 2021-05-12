@@ -1,0 +1,19 @@
+{
+    "CFBundleName":  "Untitled",
+    "CFBundleIdentifier":"com.cameronpalmer.Untitled",
+    "CFBundleInfoDictionaryVersion":"6.0",
+    "CFBundleVersion":"1",
+    "CFBundleExecutable":"main",
+    "LSRequiresIPhoneOS":true,
+    "UISupportedInterfaceOrientations": [
+        "UIInterfaceOrientationPortrait",
+        "UIInterfaceOrientationPortraitUpsideDown",
+        "UIInterfaceOrientationLandscapeLeft",
+        "UIInterfaceOrientationLandscapeRight"
+    ],
+    "CFBundleDisplayName":"Untitled",
+    "CFBundlePackageType":"APPL",
+    "CFBundleSignature":"????",
+    "CFBundleDevelopmentRegion":"en",
+    "CFBundleShortVersionString":"1.0.0"
+}
