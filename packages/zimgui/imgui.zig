@@ -1405,6 +1405,12 @@ pub fn renderFrame(cr: backend.Context, rr: backend.RerenderRequest, data: ExecD
 pub fn pushEvent(ev: RawEvent, rr: backend.RerenderRequest, data: ExecData) void {
     const imev = data.imev;
 
+    // why can't a frame be run here?
+    // can't a frame be run just with render set to false?
+    // or even with render set to true, just tell it to render the returned root
+    // at the start of next frame rather than calling the fn thing
+    // anyway probably not necessary but there may be some events where it's useful
+
     imev.addEvent(ev) catch @panic("oom");
     rr.queueDraw();
 }
