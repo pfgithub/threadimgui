@@ -19,3 +19,13 @@ open (xcode-select --print-path)"/Applications/Simulator.app"
 ```
 make all run
 ```
+
+# notes:
+
+- is it possible to use build-exe with this and have the entrypoint in zig?
+
+it looks like it should be
+
+# notes
+
+swift: `swiftc -target x86_64-apple-ios13.0-simulator -sdk $(shell xcrun --sdk iphonesimulator --show-sdk-path) -o Untitled.app/main main.swift main.o`
