@@ -10,7 +10,7 @@ const structures = @import("../structures.zig");
 
 pub const StartBackend = if (@hasDecl(backend, "StartBackend")) backend.StartBackend else struct {};
 
-const warn = struct {
+pub const warn = struct {
     fn sourceLocationEql(a: std.builtin.SourceLocation, b: std.builtin.SourceLocation) bool {
         return std.meta.eql(a.line, b.line) and std.meta.eql(a.column, b.column) and std.mem.eql(u8, a.file, b.file);
     }
@@ -30,7 +30,7 @@ const warn = struct {
     );
     const logger = std.log.scoped(.backend);
     var warned_map: ?WarnedMap = null;
-    fn once(src: std.builtin.SourceLocation, label: []const u8) void {
+    pub fn once(src: std.builtin.SourceLocation, label: []const u8) void {
         // if(!build_opts.allow_missing_backend_functionality) @panic("error")
         if (warned_map == null) warned_map = WarnedMap.init(std.heap.page_allocator);
         const wm = &(warned_map orelse unreachable);

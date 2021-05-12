@@ -22,13 +22,19 @@ pub fn build(b: *std.build.Builder) void {
     // - set backend (defaults to cairo, only option is cairo)
     //   (in the future this would pick based on what platform you're building for)
 
-    const render_backend = b.option(RenderBackend, "renderer", "Set the render backend") orelse RenderBackend.defaultFor(target) orelse @panic("there is no default backend for this target; select one with -Drenderer=[backend]");
+    const render_backend = b.option(RenderBackend, "renderer", "Set the render backend") orelse //
+        RenderBackend.defaultFor(target) orelse //
+        @panic("there is no default backend for this target; select one with -Drenderer=[backend]") //
+    ;
 
     const devtools_enabled = b.option(bool, "devtools", "Enable or disable devtools") orelse (mode == .Debug);
 
+    const main_file = "apps/app_selector.zig";
+    const app_name = "app_selector";
+
     const exe = switch (render_backend) {
-        .cairo_gtk3, .windows => b.addExecutable("threadimgui", "src/main.zig"),
-        .ios => b.addStaticLibrary("threadimgui", "src/main.zig"),
+        .cairo_gtk3, .windows => b.addExecutable(app_name, main_file),
+        .ios => b.addStaticLibrary(app_name, main_file),
     };
     exe.setTarget(target);
     exe.setBuildMode(mode);
@@ -36,7 +42,7 @@ pub fn build(b: *std.build.Builder) void {
     exe.addBuildOption(RenderBackend, "render_backend", render_backend);
     exe.addBuildOption(bool, "devtools_enabled", devtools_enabled);
     exe.addPackage(.{ .name = "imgui", .path = "packages/zimgui/main.zig", .dependencies = &[_]std.build.Pkg{
-        .{ .name = "build_options", .path = "zig-cache/threadimgui_build_options.zig" },
+        .{ .name = "build_options", .path = "zig-cache/" ++ app_name ++ "_build_options.zig" },
     } }); // hack workaround. ideally some fn to make a custom build options thing and return a std.build.Pkg
     switch (render_backend) {
         .cairo_gtk3 => {

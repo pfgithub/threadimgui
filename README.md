@@ -206,4 +206,100 @@ eventually, this will be done automatically through one of: (node server | embed
 
 # notes
 
+- making virtual scrollers with static content
+
+```zig
+var scroller = VScroll{};
+
+if(scroller.item(@src())) |itm| {
+  // itm has stuff it needs like the idstatecache and id and stuff
+}
+
+// dynamic content
+scroller.list(@src(), some_slice, renderItem);
+```
+
+sample:
+
+a basic threadreader view.
+
+```
+[____________sticky_navbar____________]
+[   ] [_________header__________] [   ]
+[   ] [    content    ] [sidebar] [   ]
+[   ] [               ] [       ] [   ]
+[   ] [               ] [       ] [   ]
+[   ] [               ] [       ] [   ]
+[   ] [_______________]_[_______] [   ]
+[   ] [_________footer__________] [   ]
+```
+
+content is a dynamic list, sidebar is a dynamic list. also, that content/sidebar thing - they are two horizontally stacked scroll views. if you
+scroll down on one it should scroll down on the other but it acts like the twitter sidebar thing.
+
+ok uuh
+
+```
+fn App() {
+  var scroller = VScroller.new(imev);
+  if(scroller.sticky(@src())) |itm| {
+    itm.put(renderNavbar(itm.id.push(@src()), itm.isc, …));
+  }
+  if(scroller.node(@src())) |itm| {
+    itm.put(hcenter(renderContent(itm), .xl)); // that might not be possible
+  }
+}
+fn renderContent(scroller) {
+
+}
+```
+
+uuh
+
+how to do that horizontal centering without ending up in a subframe that doesn't know its y position relative to the top of the screen
+
+maybe children can be told their y positions or something
+
+how these functions work:
+
+currently scroll is able to fetch the previous item, but with scroller.node() it must know before rendering any below items if it's needed
+
+so : save the previous heights of all the nodes it comes across so if it says to scroll up 25 it knows "oh I should render 2 nodes above"
+
+and if that turns out to not be enough and there's more to render, set the imev request frame flag so a rerender will be queued
+
+# notes
+
+- try recreating musicplayer
+- also probably have to implement that scroll stuff
+- likely the way to do it is using a vertical placer thing combined with those virtual scroll functions
+- additional fun stuff that could be implemented, although a base implementation is enough:
+  - make that log_analysis.js a ui feature, could be neat
+
+# notes
+
+- rather than trying to figure out skia, try getting a cairo glfw backend working
+- skia is a huge dependency
+- cairo probably is too but I don't know because it's installed by the system package manager
+- https://github.com/preshing/cairo-windows
+- https://www.cairographics.org/manual/cairo-Win32-Surfaces.html
+- differentiate rendering backends from event backends? so that rendering code can be shared between
+  gtk3-cairo and windows-cairo
+
+# notes
+
+- how to do keyboard events:
+- two types of keyboard events. raw and ime.
+- to get ime events, you must have focus and request keyboard events.
+- on mobile, this will show the keyboard. on desktop, this will ask for ime events.
+
+# notes
+
+- windows:
+- use direct2d instead of gdi. it makes it easy to draw rounded rectangles and is hardware accelerated
+- use directwrite text rendering
+- alternatively: use cairo or skia
+
+# notes
+
 - https://github.com/nektro/zig-tracy todo

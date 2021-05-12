@@ -43,6 +43,28 @@ pub const RenderNode = struct { value: union(enum) {
     },
 } };
 
+pub const Width = enum {
+    none,
+    p4,
+    p8,
+    p12,
+    p16,
+    p20,
+    xl,
+    xl2,
+    pub fn getPx(w: Width) f64 {
+        return switch (w) {
+            .none => 0,
+            .p4 => 4,
+            .p8 => 8,
+            .p12 => 12,
+            .p16 => 16,
+            .p20 => 20,
+            .xl => 600,
+            .xl2 => 1000,
+        };
+    }
+};
 pub const RoundedStyle = enum {
     none,
     sm, // 5px
@@ -180,7 +202,7 @@ pub const Widget = struct {
 };
 
 pub const primitives = struct {
-    const RectOpts = struct {
+    pub const RectOpts = struct {
         rounded: RoundedStyle = .none,
         bg: ThemeColor,
     };
@@ -354,19 +376,31 @@ pub const IdStateCache = struct {
     };
     const IscHM = std.HashMapUnmanaged(ID.Ident, Entry, ID.Ident.hash, ID.Ident.eql, std.hash_map.default_max_load_percentage);
     hm: IscHM,
+    alloc: *std.mem.Allocator,
 
-    pub fn init() IdStateCache {
+    pub fn init(alloc: *std.mem.Allocator) IdStateCache {
         return .{
             .hm = IscHM{},
+            .alloc = alloc,
         };
     }
 
+    pub fn useISC(isc: *IdStateCache, id_arg: ID.Arg, imev: *ImEvent) *IdStateCache {
+        var res = isc.useStateCustomInit(id_arg, IdStateCache);
+        if (!res.initialized) res.ptr.* = IdStateCache.init(isc.alloc);
+        return res.ptr;
+    }
     // this is where |these| {things} would be useful:
     // ` cache.state(@src(), imev, struct{x: f64}, |_| .{.x = 25});
     // unfortunately, not yet
-    pub fn useState(isc: *IdStateCache, id_arg: ID.Arg, imev: *ImEvent, comptime Type: type, comptime initFn: fn () Type) *Type {
-        var res = isc.useStateCustomInit(id_arg, imev, Type);
+    pub fn useState(isc: *IdStateCache, id_arg: ID.Arg, comptime Type: type, comptime initFn: fn () Type) *Type {
+        var res = isc.useStateCustomInit(id_arg, Type);
         if (!res.initialized) res.ptr.* = initFn();
+        return res.ptr;
+    }
+    pub fn useStateDefault(isc: *IdStateCache, id_arg: ID.Arg, comptime initial: anytype) *@TypeOf(initial) {
+        var res = isc.useStateCustomInit(id_arg, @TypeOf(initial));
+        if (!res.initialized) res.ptr.* = initial;
         return res.ptr;
     }
     fn StateRes(comptime Type: type) type {
@@ -377,22 +411,25 @@ pub const IdStateCache = struct {
     }
     // what if switch(useStateCustomInit()) {.initialized => {}, .unin => |unin| {unin.value.init(); break :blk unin}}
     // that could work
-    pub fn useStateCustomInit(isc: *IdStateCache, id_val: ID.Arg, imev: *ImEvent, comptime Type: type) StateRes(Type) {
+    pub fn useStateCustomInit(isc: *IdStateCache, id_val: ID.Arg, comptime Type: type) StateRes(Type) {
         const id = id_val.id.forSrc(@src());
 
         if (isc.hm.getEntry(id)) |hm_entry| {
             hm_entry.value.used_this_frame = true;
             return .{ .ptr = hm_entry.value.readAs(Type), .initialized = true };
         }
-        const hm_entry = isc.hm.getOrPut(imev.persistentAlloc(), id.dupe(imev.persistentAlloc())) catch @panic("oom");
+        const hm_entry = isc.hm.getOrPut(isc.alloc, id.dupe(isc.alloc)) catch @panic("oom");
         if (hm_entry.found_existing) unreachable;
-        var item_ptr: *Type = imev.persistentAlloc().create(Type) catch @panic("oom");
+        var item_ptr: *Type = isc.alloc.create(Type) catch @panic("oom");
         hm_entry.entry.value = .{
             .ptr = @ptrToInt(item_ptr),
             .deinitFn = struct {
                 fn a(entry: Entry, alloc: *std.mem.Allocator) void {
                     const ptr_v = entry.readAs(Type);
-                    if (@hasDecl(Type, "deinit")) {
+                    if (switch (@typeInfo(Type)) {
+                        .Struct, .Enum, .Union => true,
+                        else => false,
+                    } and @hasDecl(Type, "deinit")) {
                         ptr_v.deinit();
                     }
                     alloc.destroy(ptr_v);
@@ -406,22 +443,23 @@ pub const IdStateCache = struct {
         if (!imev.isRenderFrame()) return;
 
         var iter = isc.hm.iterator();
-        var unused = std.ArrayList(ID.Ident).init(imev.persistentAlloc());
+        var unused = std.ArrayList(ID.Ident).init(isc.alloc);
         defer unused.deinit();
         while (iter.next()) |ntry| {
             if (ntry.value.used_this_frame) {
                 ntry.value.used_this_frame = false;
             } else {
-                ntry.value.deinitFn(ntry.value, imev.persistentAlloc());
+                ntry.value.deinitFn(ntry.value, isc.alloc);
                 unused.append(ntry.key) catch @panic("oom");
             }
         }
         for (unused.items) |key| {
             isc.hm.removeAssertDiscard(key);
-            key.deinit(imev.persistentAlloc());
+            key.deinit(isc.alloc);
         }
     }
-    pub fn deinit(isc: *IdStateCache, alloc: *std.mem.Allocator) void {
+    pub fn deinit(isc: *IdStateCache) void {
+        const alloc = isc.alloc;
         var iter = isc.hm.iterator();
         while (iter.next()) |ntry| {
             ntry.key.deinit(alloc);
@@ -468,6 +506,8 @@ pub const ImEvent = struct { // pinned?
         scroll_delta: Point = Point.origin,
 
         key_down: ?Key = null,
+
+        request_rerender: bool = false,
     },
 
     const ScrollFocused = struct {
@@ -713,6 +753,11 @@ pub const ImEvent = struct { // pinned?
         const ir_clip = imev.persistent.screen_size.setUL(soffset);
         imev.internalRender(render_v, soffset, ir_clip);
 
+        if (imev.frame.cursor != imev.persistent.current_cursor) {
+            imev.persistent.current_cursor = imev.frame.cursor;
+            imev.frame.cr.setCursor(imev.frame.cursor);
+        }
+
         imev.frame.render_result = render_v;
     }
     pub fn endFrame(imev: *ImEvent, render_v: RenderResult) void {
@@ -734,11 +779,6 @@ pub const ImEvent = struct { // pinned?
                     v.value.layout.deinit();
                     imev.persistent.real_allocator.free(v.key.text);
                 } else unreachable;
-            }
-
-            if (imev.frame.cursor != imev.persistent.current_cursor) {
-                imev.persistent.current_cursor = imev.frame.cursor;
-                imev.frame.cr.setCursor(imev.frame.cursor);
             }
         }
 
@@ -789,7 +829,10 @@ pub const ImEvent = struct { // pinned?
         }
     }
 
-    pub fn clickable(imev: *ImEvent, id_h: ID.Arg) ClickableState {
+    /// this should assert that the resulting clickablestate is placed
+    /// ideally this could be done by the language in the typesystem,
+    /// but zig doesn't have a way to do that.
+    pub fn useClickable(imev: *ImEvent, id_h: ID.Arg) ClickableState {
         const id = id_h.id.forSrc(@src());
         return ClickableState{
             .key = .{ .id = id },
@@ -802,7 +845,7 @@ pub const ImEvent = struct { // pinned?
         };
     }
 
-    pub fn scrollable(imev: *ImEvent, id_h: ID.Arg) ScrollableState {
+    pub fn useScrollable(imev: *ImEvent, id_h: ID.Arg) ScrollableState {
         const id = id_h.id.forSrc(@src());
         return ScrollableState{
             .key = .{ .id = id },
@@ -810,6 +853,17 @@ pub const ImEvent = struct { // pinned?
                 ScrollableState.Scrolling{ .delta = scr.delta } //
             ) else null else null,
         };
+    }
+
+    /// call this whenever you update state that cannot be displayed properly in this frame
+    /// this will set a flag suggesting to rerender immediately rather than waiting for the
+    /// next event.
+    pub fn invalidate(imev: *ImEvent) void {
+        imev.frame.request_rerender = true;
+    }
+
+    pub fn fmt(imev: *ImEvent, comptime text: []const u8, args: anytype) [:0]const u8 {
+        return std.fmt.allocPrint0(imev.arena(), text, args) catch @panic("oom");
     }
 };
 pub const Src = ID.Src;
@@ -820,6 +874,17 @@ pub const ClickableKey = struct {
         var ctx = imev.render();
         ctx.putRenderNode(.{ .value = .{ .clickable = .{ .id = key.id, .wh = wh } } });
         return ctx.result();
+    }
+    pub fn wrap(key: ClickableKey, imev: *ImEvent, widget: Widget) Widget {
+        var ctx = imev.render();
+
+        ctx.place(key.node(imev, widget.wh), Point.origin);
+        ctx.place(widget.node, Point.origin);
+
+        return .{
+            .wh = widget.wh,
+            .node = ctx.result(),
+        };
     }
 };
 pub const ClickableState = struct {
@@ -872,7 +937,7 @@ pub const VirtualScrollHelper = struct {
     pub fn deinit(vsh: *VirtualScrollHelper) void {
         var iter = vsh.node_data_cache.iterator();
         while (iter.next()) |entry| {
-            entry.value.deinit(vsh.node_data_cache.allocator);
+            entry.value.deinit();
             vsh.node_data_cache.allocator.destroy(entry.value);
         }
         vsh.node_data_cache.deinit();
@@ -888,7 +953,7 @@ pub const VirtualScrollHelper = struct {
         var gop_res = vsh.node_data_cache.getOrPut(node_id) catch @panic("oom");
         if (!gop_res.found_existing) {
             const ptr = vsh.node_data_cache.allocator.create(IdStateCache) catch @panic("oom");
-            ptr.* = IdStateCache.init();
+            ptr.* = IdStateCache.init(vsh.node_data_cache.allocator);
             gop_res.entry.value = ptr;
         }
         return gop_res.entry.value;
@@ -1120,6 +1185,146 @@ pub const VLayoutManager = struct {
     }
 };
 
+/// any reason this has to be like this?
+/// can't you just place a widget?
+pub const RenderedSpan = union(enum) {
+    empty: void,
+    inline_value: struct {
+        widget: Widget,
+    },
+    multi_line: struct {
+        first_line: Widget,
+        middle: Widget,
+        last_line: Widget,
+    },
+};
+
+pub const SpanPlacer = struct {
+    ctx: RenderCtx,
+    current_x: f64 = 0,
+    current_y: f64 = 0,
+    max_width: f64,
+    current_line_height: f64 = 0,
+    current_line_widgets: Queue(Widget),
+    // TODO baseline maybe?
+
+    pub fn init(imev: *ImEvent, max_w: f64) SpanPlacer {
+        const alloc = imev.arena();
+        return .{
+            .ctx = imev.render(),
+            .max_width = max_w,
+            .current_line_widgets = Queue(Widget){},
+        };
+    }
+
+    pub fn getArgs(sp: SpanPlacer) Args {
+        return .{ .width = sp.max_width, .start_offset = sp.current_x };
+    }
+    pub fn endLine(sp: *SpanPlacer) void {
+        const alloc = sp.ctx.imev.arena();
+        var ox: f64 = 0;
+        while (sp.current_line_widgets.shift(alloc)) |widget| {
+            sp.ctx.place(widget.node, .{ .x = ox, .y = sp.current_y });
+            ox += widget.wh.w;
+        }
+
+        sp.current_x = 0;
+        sp.current_y += sp.current_line_height;
+        sp.current_line_height = 0;
+    }
+    pub fn placeInlineNoOverflow(sp: *SpanPlacer, widget: Widget) void {
+        const alloc = sp.ctx.imev.arena();
+        if (widget.wh.w + sp.current_x > sp.max_width and sp.current_x != 0) {
+            sp.endLine();
+        }
+        sp.current_line_widgets.push(alloc, widget) catch @panic("oom");
+        sp.current_x += widget.wh.w;
+        if (widget.wh.h > sp.current_line_height) {
+            sp.current_line_height = widget.wh.h;
+        }
+    }
+    pub fn placeInline(sp: *SpanPlacer, span: Widget) void {
+        return sp.place(.{ .inline_value = .{ .widget = span } });
+    }
+    pub fn place(sp: *SpanPlacer, span: RenderedSpan) void {
+        const alloc = sp.ctx.imev.arena();
+        switch (span) {
+            .empty => {},
+            .inline_value => |ilspan| {
+                if (ilspan.widget.wh.w + sp.current_x > sp.max_width and sp.current_x != 0) {
+                    sp.endLine();
+                }
+                sp.placeInlineNoOverflow(ilspan.widget);
+            },
+            .multi_line => |mlspan| {
+                sp.placeInlineNoOverflow(mlspan.first_line);
+                sp.endLine();
+                sp.ctx.place(mlspan.middle.node, .{ .x = 0, .y = sp.current_y });
+                sp.current_y += mlspan.middle.wh.h;
+                sp.placeInlineNoOverflow(mlspan.last_line);
+            },
+        }
+    }
+    pub fn finish(sp: *SpanPlacer) Widget {
+        sp.endLine();
+        return .{ .node = sp.ctx.result(), .wh = .{ .w = sp.max_width, .h = sp.current_y } };
+    }
+
+    pub const Args = struct { width: f64, start_offset: f64 };
+};
+
+pub const HLayoutManager = struct {
+    ctx: RenderCtx,
+    max_w: f64,
+    gap_x: f64,
+    gap_y: f64,
+
+    x: f64 = 0,
+    y: f64 = 0,
+    overflow_widget: ?Widget = null,
+    current_h: f64 = 0,
+
+    over: bool = false,
+
+    pub fn init(imev: *ImEvent, opts: struct { max_w: f64, gap_x: f64, gap_y: f64 }) HLayoutManager {
+        return .{
+            .ctx = imev.render(),
+            .max_w = opts.max_w,
+            .gap_x = opts.gap_x,
+            .gap_y = opts.gap_y,
+        };
+    }
+    pub fn overflow(hlm: *HLayoutManager, widget: Widget) void {
+        hlm.overflow_widget = widget;
+    }
+    pub fn put(hlm: *HLayoutManager, widget: Widget) ?void {
+        if (hlm.over) unreachable;
+        if (hlm.overflow_widget) |overflow_w| {
+            // TODO if (is_last), skip `- overflow.w`
+            if (hlm.x + widget.wh.w > hlm.max_w - overflow_w.wh.w - hlm.gap_x) {
+                hlm.ctx.place(overflow_w.node, .{ .x = hlm.x, .y = hlm.y });
+                if (overflow_w.wh.h > hlm.current_h) hlm.current_h = overflow_w.wh.h;
+                hlm.over = true;
+                return null;
+            }
+        } else if (hlm.x > 0 and hlm.x + widget.wh.w > hlm.max_w) {
+            hlm.y += hlm.current_h + hlm.gap_y;
+            hlm.current_h = 0;
+            hlm.x = 0;
+        }
+        hlm.ctx.place(widget.node, .{ .x = hlm.x, .y = hlm.y });
+        if (widget.wh.h > hlm.current_h) hlm.current_h = widget.wh.h;
+        hlm.x += widget.wh.w + hlm.gap_x;
+        return {};
+    }
+    pub fn build(hlm: *HLayoutManager) VLayoutManager.Child {
+        return VLayoutManager.Child{
+            .h = hlm.current_h + hlm.y + if (hlm.current_h == 0) 0 else -hlm.gap_y,
+            .node = hlm.ctx.result(),
+        };
+    }
+};
+
 pub const BaseRootState = struct {
     devtools_open: bool = false,
 
@@ -1133,7 +1338,7 @@ const devtools = @import("devtools.zig");
 pub fn renderBaseRoot(id: ID, imev: *ImEvent, isc: *IdStateCache, wh: WH, data: ExecData) RenderResult {
     var ctx = imev.render();
 
-    const state = isc.useState(id.push(@src()), imev, BaseRootState, BaseRootState.init);
+    const state = isc.useState(id.push(@src()), BaseRootState, BaseRootState.init);
 
     const rootfn_id = id.push(@src());
 
@@ -1191,10 +1396,20 @@ pub fn renderFrame(cr: backend.Context, rr: backend.RerenderRequest, data: ExecD
     id.deinit();
     root_state_cache.cleanupUnused(imev);
 
+    if (imev.frame.request_rerender) {
+        rr.queueDraw();
+    }
+
     // std.log.info("rerender×{} in {}ns", .{ render_count, timer.read() }); // max allowed time is 4ms
 }
 pub fn pushEvent(ev: RawEvent, rr: backend.RerenderRequest, data: ExecData) void {
     const imev = data.imev;
+
+    // why can't a frame be run here?
+    // can't a frame be run just with render set to false?
+    // or even with render set to true, just tell it to render the returned root
+    // at the start of next frame rather than calling the fn thing
+    // anyway probably not necessary but there may be some events where it's useful
 
     imev.addEvent(ev) catch @panic("oom");
     rr.queueDraw();
@@ -1214,8 +1429,8 @@ pub fn runUntilExit(alloc: *std.mem.Allocator, content: anytype, comptime render
     var imevent = ImEvent.init(alloc);
     defer imevent.deinit();
 
-    var root_state_cache = IdStateCache.init();
-    defer root_state_cache.deinit(imevent.persistentAlloc());
+    var root_state_cache = IdStateCache.init(alloc);
+    defer root_state_cache.deinit();
 
     const root_fn_content = @ptrToInt(&content);
     comptime const RootFnContent = @TypeOf(&content);

@@ -5,7 +5,7 @@ pub const RawEvent = union(enum) {
     key: struct { down: bool, key: Key, modifiers: KeyModifiers },
     textcommit: []const u8,
     resize: struct { x: c_int, y: c_int, w: c_int, h: c_int },
-    mouse_click: struct { button: c_uint, x: f64, y: f64, down: bool },
+    mouse_click: struct { button: c_uint, x: f64, y: f64, down: bool }, // TODO button: enum{left, middle, right, …}
     mouse_move: struct { x: f64, y: f64 },
     scroll: struct { scroll_x: f64, scroll_y: f64 },
 };
@@ -112,6 +112,14 @@ pub const Rect = struct {
     }
     pub fn fromULBR(ul_: Point, br_: Point) Rect {
         return .{ .x = ul_.x, .y = ul_.y, .w = br_.x - ul_.x, .h = br_.y - ul_.y };
+    }
+    pub fn positionCenter(rect: Rect, inner: WH) Rect {
+        return Rect{
+            .x = rect.x + @divFloor(rect.w, 2) - @divFloor(inner.w, 2),
+            .y = rect.y + @divFloor(rect.h, 2) - @divFloor(inner.h, 2),
+            .w = inner.w,
+            .h = inner.h,
+        };
     }
 };
 
