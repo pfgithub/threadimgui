@@ -1,3 +1,6 @@
+// TODO:
+// https://stackoverflow.com/questions/11319170/c-as-principal-class-or-a-cocoa-app-without-objc
+
 #import <UIKit/UIKit.h>
 
 extern const char* zig_getstring(void);
