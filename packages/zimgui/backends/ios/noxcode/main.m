@@ -8,9 +8,20 @@ extern void objc_panic(void) {
     // panic
 }
 
+struct CData;
+typedef struct CData CData;
+
+extern void objc_draw_rect(CGFloat x, CGFloat y, CGFloat w, CGFloat h, CGFloat r, CGFloat g, CGFloat b, CGFloat a) {
+    // [[UIColor initWithRed: r, green: g, blue: b, alpha: a] CGColor]
+}
+
 @interface AppDelegate : UIResponder <UIApplicationDelegate>
 @property (strong, nonatomic) UIWindow *window;
 @end
+
+struct CData {
+    AppDelegate* app_delegate;
+};
 
 @implementation AppDelegate
 
@@ -52,11 +63,19 @@ extern void objc_panic(void) {
     // [circleLayer setPath:[[UIBezierPath bezierPathWithOvalInRect:CGRectMake(50, 50, 100, 100)] CGPath]];
     // [shapeLayer  ]
 
+    //zig_render(&c_data);
+
     CAShapeLayer *circleLayer = [CAShapeLayer layer];
     [circleLayer setPath:[[UIBezierPath bezierPathWithOvalInRect:CGRectMake(50, 50, 100, 100)] CGPath]];
     [circleLayer setStrokeColor:[[UIColor redColor] CGColor]];
     [circleLayer setFillColor:[[UIColor clearColor] CGColor]];
     [[viewController.view layer] addSublayer:circleLayer];
+
+    // https://developer.apple.com/documentation/uikit/uiview/1622529-drawrect?language=objc
+
+    // maybe I should make a custom view?
+    // yeah it has stuff like  setNeedsDisplay
+    // and I can draw stuff with  quartz2d
 
     [self.window makeKeyAndVisible];
 
