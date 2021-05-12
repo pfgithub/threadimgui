@@ -29,3 +29,7 @@ it looks like it should be
 # notes
 
 swift: `swiftc -target x86_64-apple-ios13.0-simulator -sdk $(shell xcrun --sdk iphonesimulator --show-sdk-path) -o Untitled.app/main main.swift main.o`
+
+c: `clang -isysroot $(shell xcrun --sdk iphonesimulator --show-sdk-path) -framework Foundation -framework UIKit -lobjc -o Untitled.app/main main.c`
+
+neither  work
