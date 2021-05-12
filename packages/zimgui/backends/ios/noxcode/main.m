@@ -52,6 +52,12 @@ extern void objc_panic(void) {
     // [circleLayer setPath:[[UIBezierPath bezierPathWithOvalInRect:CGRectMake(50, 50, 100, 100)] CGPath]];
     // [shapeLayer  ]
 
+    CAShapeLayer *circleLayer = [CAShapeLayer layer];
+    [circleLayer setPath:[[UIBezierPath bezierPathWithOvalInRect:CGRectMake(50, 50, 100, 100)] CGPath]];
+    [circleLayer setStrokeColor:[[UIColor redColor] CGColor]];
+    [circleLayer setFillColor:[[UIColor clearColor] CGColor]];
+    [[viewController.view layer] addSublayer:circleLayer];
+
     [self.window makeKeyAndVisible];
 
     return YES;
