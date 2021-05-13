@@ -8,12 +8,17 @@ pub usingnamespace im.StartBackend;
 
 const ActiveTab = enum {
     demo,
+    widgets,
     threadimgui,
     pub fn item(at: ActiveTab) SidebarItem {
         return switch (at) {
             .demo => .{
                 .title = "Demo",
                 .desc = "A hello world demo",
+            },
+            .widgets => .{
+                .title = "Widgets",
+                .desc = "Demonstrate the builtin widgets",
             },
             .threadimgui => .{
                 .title = "ThreadReader",
@@ -61,6 +66,14 @@ fn rectaround(imev: *im.ImEvent, rectopts: im.primitives.RectOpts, widget: im.Wi
     };
 }
 
+fn enumFields(comptime Type: type) []const Type {
+    var res: []const Type = &[_]Type{};
+    for (std.meta.fields(Type)) |field| {
+        res = res ++ &[_]Type{@field(Type, field.name)};
+    }
+    return res;
+}
+
 const SidebarItem = struct {
     title: []const u8,
     desc: []const u8,
@@ -71,7 +84,7 @@ const SidebarRender = struct {
     active_tab: *ActiveTab,
     show_sidebar: *bool,
 
-    const items = &[_]ActiveTab{ .demo, .threadimgui };
+    const items: []const ActiveTab = enumFields(ActiveTab);
 
     pub fn renderNode(anr: @This(), id_arg: im.ID.Arg, imev: *im.ImEvent, isc: *im.IdStateCache, node_id: u64) im.VLayoutManager.Child {
         const id = id_arg.id;
@@ -169,6 +182,7 @@ pub fn renderContent(id_arg: im.ID.Arg, imev: *im.ImEvent, isc: *im.IdStateCache
 
     switch (tab) {
         .demo => return @import("demo/app.zig").renderRoot(id.push(@src()), imev, isc, wh, 0),
+        .widgets => return @import("widgets/app.zig").renderRoot(id.push(@src()), imev, isc, wh, 0),
         .threadimgui => {
             const arena = isc.useStateCustomInit(id.push(@src()), std.heap.ArenaAllocator);
             if (!arena.initialized) arena.ptr.* = std.heap.ArenaAllocator.init(imev.persistentAlloc());
