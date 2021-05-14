@@ -65,9 +65,84 @@ pub fn useButton(id_arg: im.ID.Arg) ButtonKey {
     return .{ .clicked = clicked_this_frame };
 }
 
-pub fn renderRoot(id_arg: im.ID.Arg, imev: *im.ImEvent, isc: *im.IdStateCache, wh: im.WH, content: u1) im.RenderResult {
-    const id = id_arg.id;
+pub fn renderRoot(id_arg: im.ID.Arg, imev: *im.ImEvent, isc: *im.IdStateCache, wh: im.WH, unused: u1) im.RenderResult {
+    const id_a = id_arg.id;
     var ctx = imev.render();
+
+    ctx.place(im.primitives.rect(imev, wh, .{ .bg = .gray100 }), im.Point.origin);
+
+    // const btn = useButton(id.push(@src()));
+
+    // if (btn.clicked) {
+    //     std.log.info("Button clicked!");
+    // }
+
+    var items_lm = im.HLayoutManager.init(imev, .{ .max_w = wh.w - 16, .gap_x = 8, .gap_y = 8 });
+
+    for (im.range(100)) |_, i| {
+        const id = id_a.pushIndex(@src(), i);
+        var sctx = imev.render();
+
+        const clicked_key = imev.useClickable(id.push(@src()));
+        //const focused_key = imev.useFocus(id.push(@src()), .keyboard);
+        // focused_key.render(); position doesn't matter
+        // if(clicked_key.mouse down this frame) focused_key.setFocused()
+
+        var hovering: bool = false;
+        if (clicked_key.focused) |f| {
+            if (f.hover) {
+                f.setCursor(imev, .pointer);
+                hovering = true;
+            }
+            if (f.click) {
+                std.log.info("clicked {d} with mouse", .{i});
+            }
+        }
+
+        const item_wh: im.WH = .{ .w = 25, .h = 25 };
+
+        sctx.place(im.primitives.rect(imev, .{ .w = 25, .h = 25 }, .{ .bg = if (hovering) .gray300 else .gray200, .rounded = .sm }), im.Point.origin);
+        const stxt = im.primitives.text(imev, .{ .size = .sm, .color = .white }, imev.fmt("{d}", .{i}));
+        sctx.place(stxt.node, item_wh.setUL(im.Point.origin).positionCenter(stxt.wh).ul());
+        sctx.place(clicked_key.key.node(imev, item_wh), im.Point.origin);
+
+        // <size=25x25|
+        //   <rect .bg-gray200.rounded-sm>
+        //   <center| <text .font-sm.text-white "{d}" .{i}> |>
+        //   <clicked_key.render>
+        // |>
+
+        items_lm.put(.{ .wh = item_wh, .node = sctx.result() }) orelse break;
+    }
+
+    const built_v = items_lm.build();
+    ctx.place(built_v.node, .{ .x = 8, .y = 8 });
+
+    // there needs to be a way so:
+    // buttons inset their content by some amount
+    // to make a button that's sized the width of the parent, the content needs to know its size
+    // wait why can't you just render a button and then add the content after
+    // you should be able to do that
+    // just say renderButton().setContent()
+
+    // right because uuh
+    // if the height isn't known can you render the button?
+    // that's why uuh
+    // ok this makes it into a 3-step then. it's doable if needed.
+    // like you can say prepare to render a button with width x and unknown height
+    // then get its content width and render the child node with that size
+    // then render the button around the content node
+    // the useButton() could probably make that size itself so it doesn't have to be 3-step
+    // but you may need to have the result from useButton before you have the size, nvm
+
+    // const content = im.primitives.text(imev, .{ .size = .sm, .color = .white }, "Click!");
+    // const rendered = btn.render(.{ .content_size = .{ .w = content.wh.w, .h = content.wh.h } });
+    // rendered.setContent(content.node, content.wh); // rendered.content_wh
+    // ctx.place(btn_rendered.node, im.Point.origin);
+
+    // ok yeah so if you want uuh
+    // if you want to make a button with content sized to the width of the content area
+    // content = btn.render();
 
     // focusable thing
     // const clicked = imev.useClickable();
