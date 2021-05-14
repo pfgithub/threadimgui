@@ -1281,6 +1281,7 @@ pub const HLayoutManager = struct {
 
     x: f64 = 0,
     y: f64 = 0,
+    highest_w: f64 = 0,
     overflow_widget: ?Widget = null,
     current_h: f64 = 0,
 
@@ -1310,6 +1311,7 @@ pub const HLayoutManager = struct {
         } else if (hlm.x > 0 and hlm.x + widget.wh.w > hlm.max_w) {
             hlm.y += hlm.current_h + hlm.gap_y;
             hlm.current_h = 0;
+            if (hlm.highest_w < hlm.x - hlm.gap_x) hlm.highest_w = hlm.x - hlm.gap_x;
             hlm.x = 0;
         }
         hlm.ctx.place(widget.node, .{ .x = hlm.x, .y = hlm.y });

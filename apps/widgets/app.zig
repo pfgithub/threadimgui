@@ -77,6 +77,7 @@ pub fn renderRoot(id_arg: im.ID.Arg, imev: *im.ImEvent, isc: *im.IdStateCache, w
     //     std.log.info("Button clicked!");
     // }
 
+    // rather than the -16, an insetKey + inset could be used
     var items_lm = im.HLayoutManager.init(imev, .{ .max_w = wh.w - 16, .gap_x = 8, .gap_y = 8 });
 
     for (im.range(100)) |_, i| {
@@ -116,7 +117,7 @@ pub fn renderRoot(id_arg: im.ID.Arg, imev: *im.ImEvent, isc: *im.IdStateCache, w
     }
 
     const built_v = items_lm.build();
-    ctx.place(built_v.node, .{ .x = 8, .y = 8 });
+    ctx.place(built_v.node, .{ .x = 8 + @divFloor((wh.w - 16) - items_lm.highest_w, 2), .y = 8 });
 
     // there needs to be a way so:
     // buttons inset their content by some amount
