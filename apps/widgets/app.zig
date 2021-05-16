@@ -85,7 +85,7 @@ pub fn renderRoot(id_arg: im.ID.Arg, imev: *im.ImEvent, isc: *im.IdStateCache, w
         var sctx = imev.render();
 
         const clicked_key = imev.useClickable(id.push(@src()));
-        //const focused_key = imev.useFocus(id.push(@src()), .keyboard);
+        const focused_key = imev.useFocusable(id.push(@src()), .keyboard);
         // focused_key.render(); position doesn't matter
         // if(clicked_key.mouse down this frame) focused_key.setFocused()
 
@@ -106,6 +106,9 @@ pub fn renderRoot(id_arg: im.ID.Arg, imev: *im.ImEvent, isc: *im.IdStateCache, w
         const stxt = im.primitives.text(imev, .{ .size = .sm, .color = .white }, imev.fmt("{d}", .{i}));
         sctx.place(stxt.node, item_wh.setUL(im.Point.origin).positionCenter(stxt.wh).ul());
         sctx.place(clicked_key.key.node(imev, item_wh), im.Point.origin);
+        sctx.place(focused_key.node(imev), im.Point.origin);
+        // sctx.placeSequential()? because focused_key doesn't care about where it's placed just what
+        // order it is relative to other focused keys
 
         // <size=25x25|
         //   <rect .bg-gray200.rounded-sm>

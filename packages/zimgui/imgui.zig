@@ -855,6 +855,16 @@ pub const ImEvent = struct { // pinned?
         };
     }
 
+    const FocusableReason = enum { keyboard, screenreader };
+    pub fn useFocusable(imev: *ImEvent, id_h: ID.Arg, reason: FocusableReason) FocusableState {
+        const id = id_h.id.forSrc(@src());
+        return FocusableState{
+            .key = .{ .id = id },
+            .focused = false,
+            .show_focus_ring = false, // if the focus was keyboard initiated (tab key)
+        };
+    }
+
     /// call this whenever you update state that cannot be displayed properly in this frame
     /// this will set a flag suggesting to rerender immediately rather than waiting for the
     /// next event.
@@ -920,6 +930,19 @@ pub const ScrollableState = struct {
     key: ScrollableKey,
 
     scrolling: ?Scrolling,
+};
+pub const FocusableKey = struct {
+    id: ID.Ident,
+};
+pub const FocusableState = struct {
+    key: FocusableKey,
+    focused: bool,
+    show_focus_ring: bool,
+    pub fn node(key: FocusableState, imev: *ImEvent) RenderResult {
+        var ctx = imev.render();
+        // ctx.putRenderNode(.{ .value = .{ .focusable = .{ .id = key.id, .wh = wh } } });
+        return ctx.result();
+    }
 };
 
 pub const VirtualScrollHelper = struct {
