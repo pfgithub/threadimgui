@@ -41,6 +41,10 @@ pub const RenderNode = struct { value: union(enum) {
         id: ID.Ident, // owned by the arena
         wh: WH,
     },
+    focusable: struct {
+        id: ID.Ident, // owned by the arena
+        focusable_by: FocusableReason,
+    },
 } };
 
 pub const Width = enum {
@@ -712,6 +716,11 @@ pub const ImEvent = struct { // pinned?
                         };
                     }
                 },
+                .focusable => |fable| {
+                    // do nothing.
+                    // once the event is handled, if it still remains and it's a keyboard event and it's the tab key,
+                    // advance the focus.
+                },
             }
             nodeiter = node.next;
         }
@@ -742,6 +751,7 @@ pub const ImEvent = struct { // pinned?
                 },
                 .clickable => {},
                 .scrollable => {},
+                .focusable => {},
             }
             nodeiter = node.next;
         }
@@ -855,11 +865,10 @@ pub const ImEvent = struct { // pinned?
         };
     }
 
-    const FocusableReason = enum { keyboard, screenreader };
     pub fn useFocusable(imev: *ImEvent, id_h: ID.Arg, reason: FocusableReason) FocusableState {
         const id = id_h.id.forSrc(@src());
         return FocusableState{
-            .key = .{ .id = id },
+            .key = .{ .id = id, .reason = reason },
             .focused = false,
             .show_focus_ring = false, // if the focus was keyboard initiated (tab key)
         };
@@ -933,16 +942,22 @@ pub const ScrollableState = struct {
 };
 pub const FocusableKey = struct {
     id: ID.Ident,
+    reason: FocusableReason,
+
+    pub fn node(key: FocusableKey, imev: *ImEvent) RenderResult {
+        var ctx = imev.render();
+        ctx.putRenderNode(.{ .value = .{ .focusable = .{ .id = key.id, .focusable_by = key.reason } } });
+        // when the tab key is pressed and no one eats it, advance focus (or devance shift tab)
+        // if a frame is rendered but no focused item was rendered, diff with the previous item
+        // and select a new focused item and rerender. repeat the process if that happens again.
+        return ctx.result();
+    }
 };
+const FocusableReason = enum { keyboard, screenreader };
 pub const FocusableState = struct {
     key: FocusableKey,
     focused: bool,
     show_focus_ring: bool,
-    pub fn node(key: FocusableState, imev: *ImEvent) RenderResult {
-        var ctx = imev.render();
-        // ctx.putRenderNode(.{ .value = .{ .focusable = .{ .id = key.id, .wh = wh } } });
-        return ctx.result();
-    }
 };
 
 pub const VirtualScrollHelper = struct {
