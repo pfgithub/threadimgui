@@ -77,3 +77,5 @@ and it also uses some scene thing in the plist
 not sure how that interacts with my current setup
 
 there's some documentation here https://developer.apple.com/documentation/bundleresources/information_property_list/uiapplicationscenemanifest?language=objc
+
+info.plist docs https://developer.apple.com/documentation/bundleresources/information_property_list/user_interface?language=objc
