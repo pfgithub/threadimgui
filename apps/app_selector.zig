@@ -331,7 +331,7 @@ pub fn renderAppSelector(id_arg: im.ID.Arg, imev: *im.ImEvent, isc: *im.IdStateC
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer std.testing.expect(!gpa.deinit());
+    defer std.debug.assert(!gpa.deinit());
     const alloc = &gpa.allocator;
 
     var sample_arena = std.heap.ArenaAllocator.init(alloc);
