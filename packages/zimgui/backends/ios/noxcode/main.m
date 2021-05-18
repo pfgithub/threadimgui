@@ -84,7 +84,7 @@ struct CData {
 
 @end
 
-int main(int argc, char *argv[]) {
+int c_main(int argc, char *argv[], void *data) {
     NSLog(@"%s", __PRETTY_FUNCTION__);
     NSLog(@"%s", "Application Launched!");
     @autoreleasepool {
