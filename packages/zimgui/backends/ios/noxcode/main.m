@@ -12,16 +12,26 @@ extern void objc_panic(void) {
 struct CData;
 typedef struct CData CData;
 
-extern void objc_draw_rect(CGFloat x, CGFloat y, CGFloat w, CGFloat h, CGFloat r, CGFloat g, CGFloat b, CGFloat a) {
-    // [[UIColor initWithRed: r, green: g, blue: b, alpha: a] CGColor]
-}
-
 @interface AppDelegate : UIResponder <UIApplicationDelegate>
 @property (strong, nonatomic) UIWindow *window;
 @end
 
 @interface MainView : UIView
 @end
+
+struct CData {
+    // CGColorSpaceRef colorspace;
+    CGContextRef context;
+};
+
+extern void objc_draw_rect(CData *ref, CGFloat x, CGFloat y, CGFloat w, CGFloat h, CGFloat r, CGFloat g, CGFloat b, CGFloat a) {
+    CGRect rectangle = CGRectMake(x, y, w, h);
+    CGContextSetRGBFillColor(ref->context, r, g, b, a);
+    // CGContextSetRGBStrokeColor(ref->context, 1.0, 0.0, 0.0, 1.0);
+    CGContextFillRect(ref->context, rectangle);
+}
+
+extern void zig_render(CData *ref);
 
 @implementation MainView
 
@@ -36,29 +46,29 @@ extern void objc_draw_rect(CGFloat x, CGFloat y, CGFloat w, CGFloat h, CGFloat r
 - (void)drawRect:(CGRect)rect {
     CGContextRef context = UIGraphicsGetCurrentContext();
 
-    CGContextSetLineWidth(context, 2.0);
+    CData data = {.context = context};
+    zig_render(&data);
+    // objc_draw_rect(&data, 25, 25, 100, 100, 0.0, 1.0, 0.0, 1.0);
 
-    CGColorSpaceRef colorspace = CGColorSpaceCreateDeviceRGB();
+    // CGContextSetLineWidth(context, 2.0);
 
-    CGFloat components[] = {0.0, 0.0, 1.0, 1.0};
+    // CGColorSpaceRef colorspace = CGColorSpaceCreateDeviceRGB();
 
-    CGColorRef color = CGColorCreate(colorspace, components);
+    // CGFloat components[] = {0.0, 0.0, 1.0, 1.0};
 
-    CGContextSetStrokeColorWithColor(context, color);
+    // CGColorRef color = CGColorCreate(colorspace, components);
 
-    CGContextMoveToPoint(context, 0, 0);
-    CGContextAddLineToPoint(context, 300, 400);
+    // CGContextSetStrokeColorWithColor(context, color);
 
-    CGContextStrokePath(context);
-    CGColorSpaceRelease(colorspace);
-    CGColorRelease(color);
+    // CGContextMoveToPoint(context, 0, 0);
+    // CGContextAddLineToPoint(context, 300, 400);
+
+    // CGContextStrokePath(context);
+    // CGColorSpaceRelease(colorspace);
+    // CGColorRelease(color);
 }
 
 @end
-
-struct CData {
-    AppDelegate* app_delegate;
-};
 
 @implementation AppDelegate
 
