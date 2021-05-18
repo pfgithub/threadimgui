@@ -1,7 +1,7 @@
 all:
 	rm -rf Untitled.app
 	mkdir Untitled.app
-	plutil -convert xml1 -o Untitled.app/Info.plist Info.json
+	plutil -convert binary1 -o Untitled.app/Info.plist Info.json
 	cd ../../../ && zig build -Dtarget=native-ios
 	clang -isysroot $(shell xcrun --sdk iphonesimulator --show-sdk-path) -framework Foundation -framework UIKit -framework QuartzCore -framework CoreGraphics -lobjc -o Untitled.app/main main.m ../../../../zig-out/lib/libapp_selector.a
 run: all
