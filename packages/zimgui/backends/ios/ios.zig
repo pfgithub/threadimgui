@@ -2,6 +2,9 @@ const std = @import("std");
 const backend = @import("../backend.zig");
 const structures = @import("../../structures.zig");
 
+// const CGFloat = ; // switch(os) {.watchos => double, else => float}
+const CGFloat = f64;
+
 pub const Context = struct {};
 
 pub const RerenderRequest = struct {
@@ -10,19 +13,19 @@ pub const RerenderRequest = struct {
     }
 };
 
+extern fn c_main(argc: c_int, argv: [*]const [*]const u8, data: *const backend.OpaquePtrData) c_int;
+
 pub fn startBackend(data: *const backend.OpaquePtrData) error{Failure}!void {
+    _ = c_main(@intCast(c_int, std.os.argv.len), std.os.argv.ptr, data);
+    unreachable; // never returns unfortunately. that means eg leak detection will never occur. TODO.
     // fake event
-    data.pushEvent(.{ .resize = .{ .x = 0, .y = 0, .w = 200, .h = 200 } }, .{}, data.data);
+    // data.pushEvent(.{ .resize = .{ .x = 0, .y = 0, .w = 200, .h = 200 } }, .{}, data.data);
 }
 
-pub const StartBackend = struct {
-    export fn zimgui_start() void {
-        //const return_code = std.start.callMain();
-        std.log.info("Hello, World!", .{});
-    }
-    extern fn zimgui_bind_panic() noreturn;
-    pub fn panic(message: []const u8, trace: ?*std.builtin.StackTrace) noreturn {
-        zimgui_bind_panic();
-        // the default panic fn has a linking error missing __zig_probe_stack
-    }
+const CData = opaque{
+    extern fn objc_draw_rect(ref: *CData, x: CGFloat, y: CGFloat, w: CGFloat, h: CGFloat, r: CGFloat, g: CGFloat, b: CGFloat, a: CGFloat) void;
 };
+
+export fn zig_render(ref: *CData) void {
+    ref.objc_draw_rect(25, 25, 100, 100, 1.0, 0.5, 0.0, 1.0);
+}

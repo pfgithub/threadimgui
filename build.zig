@@ -36,6 +36,9 @@ pub fn build(b: *std.build.Builder) void {
         .cairo_gtk3, .windows => b.addExecutable(app_name, main_file),
         .ios => b.addStaticLibrary(app_name, main_file),
     };
+    if(render_backend == .ios) {
+        exe.bundle_compiler_rt = true;
+    }
     exe.setTarget(target);
     exe.setBuildMode(mode);
 
