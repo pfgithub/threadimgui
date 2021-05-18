@@ -36,7 +36,15 @@ extern void objc_draw_rect(CData *ref, CGFloat x, CGFloat y, CGFloat w, CGFloat 
     CGContextFillRect(ref->context, rectangle);
 }
 
-extern void objc_layout_text(void) {
+// extern CTextLayout *objc_layout_text(void) {
+//     // malloc(sizeof(CTextLayout))
+// }
+// extern void objc_drop_text(CTextLayout *layout) {
+//     // CFRelease(layout->frame), path, framesetter
+//     // free(layout)
+// }
+
+extern void objc_layout_text_sample(void) {
     // here's the complete sample
 
     // Initialize a graphics context in iOS.
@@ -143,7 +151,7 @@ extern void zig_tap(CRerenderKey *rkey, CGFloat x, CGFloat y);
     CRerenderKey rkey = {.view = self};
     zig_render(&data, &rkey, self.frame.size.width, self.frame.size.height);
 
-    objc_layout_text();
+    objc_layout_text_sample();
 }
 
 @end
