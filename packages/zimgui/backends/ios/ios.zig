@@ -5,6 +5,22 @@ const structures = @import("../../structures.zig");
 // const CGFloat = ; // switch(os) {.watchos => double, else => float}
 const CGFloat = f64;
 
+// pub const TextLayout = struct {
+//     layout: *CFrame,
+//     // https://developer.apple.com/documentation/coretext/ctframe?language=objc
+//     pub fn deinit() void {}
+//     pub fn getSize(layout: TextLayout) structures.WH {
+//         //
+//     }
+// };
+const SCALE = 100;
+pub fn pangoScale(float: f64) c_int {
+    return @floatToInt(c_int, float * SCALE);
+}
+pub fn cairoScale(int: c_int) f64 {
+    return @intToFloat(f64, int) / SCALE;
+}
+
 pub const Context = struct {
     ref: *CData,
 
@@ -12,6 +28,10 @@ pub const Context = struct {
         // std.log.info("rounded rect called!", .{});
         ctx.ref.objc_draw_rect(rect.x, rect.y, rect.w, rect.h, color.r, color.g, color.b, color.a);
     }
+
+    // pub fn layoutText(ctx: Context, font: [*:0]const u8, text: []const u8, width: ?c_int, left_offset: c_int, attrs: TextAttrList) TextLayout {
+    //     // ignore the attrs for now. ignore the width for now.
+    // }
 };
 
 pub const RerenderRequest = struct {
