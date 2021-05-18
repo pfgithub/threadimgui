@@ -41,10 +41,12 @@ extern void objc_layout_text(void) {
 
     // Initialize a graphics context in iOS.
     CGContextRef context = UIGraphicsGetCurrentContext();
+
+    CGContextSaveGState(context);
     
     // Flip the context coordinates, in iOS only.
-    // CGContextTranslateCTM(context, 0, self.bounds.size.height);
-    // CGContextScaleCTM(context, 1.0, -1.0);
+    CGContextTranslateCTM(context, 0, 500); // TODO height
+    CGContextScaleCTM(context, 1.0, -1.0);
     
     // Set the text matrix.
     CGContextSetTextMatrix(context, CGAffineTransformIdentity);
@@ -55,7 +57,7 @@ extern void objc_layout_text(void) {
     
     // In this simple example, initialize a rectangular path.
     CGRect bounds = CGRectMake(10.0, 10.0, 200.0, 200.0);
-    CGPathAddRect(path, NULL, bounds );
+    CGPathAddRect(path, NULL, bounds);
     
     // Initialize a string.
     CFStringRef textString = CFSTR("Hello, World! I know nothing in the world that has as much power as a word.");
@@ -77,9 +79,8 @@ extern void objc_layout_text(void) {
     CGColorSpaceRelease(rgbColorSpace);
     
     // Set the color of the first 12 chars to red.
-    // CFAttributedStringSetAttribute(attrString, CFRangeMake(0, 12),
-    //         kCTForegroundColorAttributeName, red);
-    // not needed yet, we'll do attributes later
+    CFAttributedStringSetAttribute(attrString, CFRangeMake(0, 12),
+            kCTForegroundColorAttributeName, red);
     
     // Create the framesetter with the attributed string.
     CTFramesetterRef framesetter =
@@ -92,6 +93,8 @@ extern void objc_layout_text(void) {
     
     // Draw the specified frame in the given context.
     CTFrameDraw(frame, context);
+
+    CGContextRestoreGState(context);
     
     // Release the objects we used.
     CFRelease(frame);
