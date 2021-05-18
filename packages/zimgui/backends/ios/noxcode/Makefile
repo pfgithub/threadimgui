@@ -3,6 +3,6 @@ all:
 	mkdir Untitled.app
 	plutil -convert xml1 -o Untitled.app/Info.plist Info.json
 	zig build-obj -Dtarget=native-ios test.zig
-	clang -isysroot $(shell xcrun --sdk iphonesimulator --show-sdk-path) -framework Foundation -framework UIKit -framework QuartzCore -lobjc -o Untitled.app/main main.m test.o
+	clang -isysroot $(shell xcrun --sdk iphonesimulator --show-sdk-path) -framework Foundation -framework UIKit -framework QuartzCore -framework CoreGraphics -lobjc -o Untitled.app/main main.m test.o
 run: all
 	xcrun simctl install 80D6FE0C-6920-484D-8B80-178E319BD077 ./Untitled.app

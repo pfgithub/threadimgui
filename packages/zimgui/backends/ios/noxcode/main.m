@@ -2,6 +2,7 @@
 // https://stackoverflow.com/questions/11319170/c-as-principal-class-or-a-cocoa-app-without-objc
 
 #import <UIKit/UIKit.h>
+#import <QuartzCore/QuartzCore.h>
 
 extern const char* zig_getstring(void);
 extern void objc_panic(void) {
@@ -70,6 +71,18 @@ struct CData {
     [circleLayer setStrokeColor:[[UIColor redColor] CGColor]];
     [circleLayer setFillColor:[[UIColor clearColor] CGColor]];
     [[viewController.view layer] addSublayer:circleLayer];
+
+    // CGContextRef context = UIGraphicsGetCurrentContext();
+    // CGContextSetLineWidth(context, 2.0);
+    // CGColorSpaceRef colorspace = CGColorSpaceCreateDeviceRGB();
+    // CGFloat components[] = {1.0, 0.0, 1.0, 1.0};
+    // CGColorRef color = CGColorCreate(colorspace, components);
+    // CGContextSetStrokeColorWithColor(context, color);
+    // CGContextMoveToPoint(context, 0, 0);
+    // CGContextAddLineToPoint(context, 300, 400);
+    // CGContextStrokePath(context);
+    // CGColorSpaceRelease(colorspace);
+    // CGColorRelease(color);
 
     // https://developer.apple.com/documentation/uikit/uiview/1622529-drawrect?language=objc
 
