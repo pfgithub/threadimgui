@@ -20,6 +20,42 @@ extern void objc_draw_rect(CGFloat x, CGFloat y, CGFloat w, CGFloat h, CGFloat r
 @property (strong, nonatomic) UIWindow *window;
 @end
 
+@interface MainView : UIView
+@end
+
+@implementation MainView
+
+- (id)initWithFrame:(CGRect)frame {
+    self = [super initWithFrame:frame];
+    if (self) {
+        // initialize
+    }
+    return self;
+}
+
+- (void)drawRect:(CGRect)rect {
+    CGContextRef context = UIGraphicsGetCurrentContext();
+
+    CGContextSetLineWidth(context, 2.0);
+
+    CGColorSpaceRef colorspace = CGColorSpaceCreateDeviceRGB();
+
+    CGFloat components[] = {0.0, 0.0, 1.0, 1.0};
+
+    CGColorRef color = CGColorCreate(colorspace, components);
+
+    CGContextSetStrokeColorWithColor(context, color);
+
+    CGContextMoveToPoint(context, 0, 0);
+    CGContextAddLineToPoint(context, 300, 400);
+
+    CGContextStrokePath(context);
+    CGColorSpaceRelease(colorspace);
+    CGColorRelease(color);
+}
+
+@end
+
 struct CData {
     AppDelegate* app_delegate;
 };
@@ -34,6 +70,9 @@ struct CData {
     viewController.view.backgroundColor = [UIColor whiteColor];
     viewController.view.frame = mainScreenBounds;
     self.window.rootViewController = viewController;
+
+    MainView *mainView = [[MainView alloc] initWithFrame:mainScreenBounds];
+    [viewController.view addSubview:mainView];
 
     // // Create a label
     // UILabel *label  = [[UILabel alloc] init];
@@ -66,11 +105,11 @@ struct CData {
 
     //zig_render(&c_data);
 
-    CAShapeLayer *circleLayer = [CAShapeLayer layer];
-    [circleLayer setPath:[[UIBezierPath bezierPathWithOvalInRect:CGRectMake(50, 50, 100, 100)] CGPath]];
-    [circleLayer setStrokeColor:[[UIColor redColor] CGColor]];
-    [circleLayer setFillColor:[[UIColor clearColor] CGColor]];
-    [[viewController.view layer] addSublayer:circleLayer];
+    // CAShapeLayer *circleLayer = [CAShapeLayer layer];
+    // [circleLayer setPath:[[UIBezierPath bezierPathWithOvalInRect:CGRectMake(50, 50, 100, 100)] CGPath]];
+    // [circleLayer setStrokeColor:[[UIColor redColor] CGColor]];
+    // [circleLayer setFillColor:[[UIColor clearColor] CGColor]];
+    // [[viewController.view layer] addSublayer:circleLayer];
 
     // CGContextRef context = UIGraphicsGetCurrentContext();
     // CGContextSetLineWidth(context, 2.0);
