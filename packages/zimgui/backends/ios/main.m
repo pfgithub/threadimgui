@@ -29,7 +29,7 @@ extern void objc_draw_rect(CData *ref, CGFloat x, CGFloat y, CGFloat w, CGFloat 
     CGContextFillRect(ref->context, rectangle);
 }
 
-extern void zig_render(CData *ref);
+extern void zig_render(CData *ref, CGFloat w, CGFloat h);
 
 @implementation MainView
 
@@ -45,7 +45,7 @@ extern void zig_render(CData *ref);
     CGContextRef context = UIGraphicsGetCurrentContext();
 
     CData data = {.context = context};
-    zig_render(&data);
+    zig_render(&data, self.frame.size.width, self.frame.size.height);
 }
 
 @end

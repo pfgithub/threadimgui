@@ -36,11 +36,11 @@ const CData = opaque{
     extern fn objc_draw_rect(ref: *CData, x: CGFloat, y: CGFloat, w: CGFloat, h: CGFloat, r: CGFloat, g: CGFloat, b: CGFloat, a: CGFloat) void;
 };
 
-export fn zig_render(ref: *CData) void {
+export fn zig_render(ref: *CData, w: CGFloat, h: CGFloat) void {
     const data = global_data_ptr; // todo make this an arg
 
     // todo actual screen size
-    data.pushEvent(.{ .resize = .{ .x = 0, .y = 0, .w = 200, .h = 200 } }, .{}, data.data);
+    data.pushEvent(.{ .resize = .{ .x = 0, .y = 0, .w = @floatToInt(c_int, w), .h = @floatToInt(c_int, h) } }, .{}, data.data); // this shouldn't have to be sent each frame
     data.renderFrame(Context{ .ref = ref }, .{}, data.data);
 
     // ref.objc_draw_rect(25, 25, 100, 100, 1.0, 0.5, 0.0, 1.0);
