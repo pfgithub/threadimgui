@@ -5,23 +5,29 @@
 #import <QuartzCore/QuartzCore.h>
 
 extern const char* zig_getstring(void);
-extern void objc_panic(void) {
-    // panic
-}
 
 struct CData;
 typedef struct CData CData;
+struct CRerenderKey;
+typedef struct CRerenderKey CRerenderKey;
 
 @interface AppDelegate : UIResponder <UIApplicationDelegate>
 @property (strong, nonatomic) UIWindow *window;
 @end
 
-@interface MainView : UIView
+@interface MainView : UIView <UIGestureRecognizerDelegate>
 @end
 
 struct CData {
     CGContextRef context;
 };
+struct CRerenderKey {
+    MainView* view;
+};
+
+extern void objc_request_rerender(CRerenderKey *rkey) {
+    [rkey->view setNeedsDisplay];
+}
 
 extern void objc_draw_rect(CData *ref, CGFloat x, CGFloat y, CGFloat w, CGFloat h, CGFloat r, CGFloat g, CGFloat b, CGFloat a) {
     CGRect rectangle = CGRectMake(x, y, w, h);
@@ -29,7 +35,8 @@ extern void objc_draw_rect(CData *ref, CGFloat x, CGFloat y, CGFloat w, CGFloat 
     CGContextFillRect(ref->context, rectangle);
 }
 
-extern void zig_render(CData *ref, CGFloat w, CGFloat h);
+extern void zig_render(CData *ref, CRerenderKey *rkey, CGFloat w, CGFloat h);
+extern void zig_tap(CRerenderKey *rkey, CGFloat x, CGFloat y);
 
 @implementation MainView
 
@@ -37,15 +44,37 @@ extern void zig_render(CData *ref, CGFloat w, CGFloat h);
     self = [super initWithFrame:frame];
     if (self) {
         // initialize
+        //   set up a UITapGestureRecognizer
+        //   on tap: send a click and then a release event at the coords.
+        //      in the future, these can be switched to proper tap events.
+        //   also there's probably a gesture recognizer for scrolls, so
+        //      use those for scrolls. alternatively, use scrollviews
+        //      that are created by id and diffed and stuff.
+
+        UITapGestureRecognizer *tapGestureRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(handleTapFrom:)];
+        [self addGestureRecognizer:tapGestureRecognizer];
+        tapGestureRecognizer.delegate = self; // this is supposed to be the app delegate but nah
     }
     return self;
+}
+
+- (void)handleTapFrom:(UITapGestureRecognizer*)sender {
+    if (sender.state == UIGestureRecognizerStateEnded) {
+        // handling code
+        CGPoint location = [sender locationInView:self];
+
+        CRerenderKey rkey = {.view = self};
+        zig_tap(&rkey, location.x, location.y);
+    }
+    // exit(1);
 }
 
 - (void)drawRect:(CGRect)rect {
     CGContextRef context = UIGraphicsGetCurrentContext();
 
     CData data = {.context = context};
-    zig_render(&data, self.frame.size.width, self.frame.size.height);
+    CRerenderKey rkey = {.view = self};
+    zig_render(&data, &rkey, self.frame.size.width, self.frame.size.height);
 }
 
 @end

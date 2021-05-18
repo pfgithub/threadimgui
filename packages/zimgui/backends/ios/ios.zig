@@ -15,8 +15,9 @@ pub const Context = struct {
 };
 
 pub const RerenderRequest = struct {
+    rkey: *CRerenderKey,
     pub fn queueDraw(rr: @This()) void {
-        // TODO
+        rr.rkey.objc_request_rerender();
     }
 };
 
@@ -35,13 +36,23 @@ pub fn startBackend(data: *const backend.OpaquePtrData) error{Failure}!void {
 const CData = opaque{
     extern fn objc_draw_rect(ref: *CData, x: CGFloat, y: CGFloat, w: CGFloat, h: CGFloat, r: CGFloat, g: CGFloat, b: CGFloat, a: CGFloat) void;
 };
+const CRerenderKey = opaque{
+    extern fn objc_request_rerender(rkey: *CRerenderKey) void;
+};
 
-export fn zig_render(ref: *CData, w: CGFloat, h: CGFloat) void {
+export fn zig_render(ref: *CData, rkey: *CRerenderKey, w: CGFloat, h: CGFloat) void {
     const data = global_data_ptr; // todo make this an arg
 
     // todo actual screen size
-    data.pushEvent(.{ .resize = .{ .x = 0, .y = 0, .w = @floatToInt(c_int, w), .h = @floatToInt(c_int, h) } }, .{}, data.data); // this shouldn't have to be sent each frame
-    data.renderFrame(Context{ .ref = ref }, .{}, data.data);
+    data.pushEvent(.{ .resize = .{ .x = 0, .y = 0, .w = @floatToInt(c_int, w), .h = @floatToInt(c_int, h) } }, .{.rkey = rkey}, data.data); // this shouldn't have to be sent each frame
+    data.renderFrame(Context{ .ref = ref }, .{.rkey = rkey}, data.data);
 
     // ref.objc_draw_rect(25, 25, 100, 100, 1.0, 0.5, 0.0, 1.0);
+}
+
+export fn zig_tap(rkey: *CRerenderKey, x: CGFloat, y: CGFloat) void {
+    const data = global_data_ptr;
+
+    data.pushEvent(.{ .mouse_click = .{ .down = true, .x = x, .y = y, .button = 1 } }, .{.rkey = rkey}, data.data);
+    data.pushEvent(.{ .mouse_click = .{ .down = false, .x = x, .y = y, .button = 1 } }, .{.rkey = rkey}, data.data);
 }
