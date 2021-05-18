@@ -488,6 +488,12 @@ pub const ImEvent = struct { // pinned?
         mouse_held: bool,
         mouse_focused: ?MouseFocused,
 
+        focus: ?ID.Ident = null,
+        // if, at the end of the frame, focus_used_this_frame is null:
+        // - diff with the previous and current frame to find which ident to use
+        // - or if there are no idents just keep it null
+        // - also memory has to be kept for two frames instead of one now
+
         scroll_emulation_btn_held: bool,
 
         scroll_focused: ?ScrollFocused,
@@ -510,6 +516,8 @@ pub const ImEvent = struct { // pinned?
         scroll_delta: Point = Point.origin,
 
         key_down: ?Key = null,
+
+        focus_used_this_frame: bool = false,
 
         request_rerender: bool = false,
     },
