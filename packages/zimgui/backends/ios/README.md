@@ -20,6 +20,8 @@ open (xcode-select --print-path)"/Applications/Simulator.app"
 make all run
 ```
 
+TODO make it possible to specify which simulator to run with
+
 # notes:
 
 - is it possible to use build-exe with this and have the entrypoint in zig?
