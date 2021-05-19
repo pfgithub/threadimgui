@@ -302,4 +302,11 @@ and if that turns out to not be enough and there's more to render, set the imev 
 
 # notes
 
+- router?
+- it would be nice to support standard ios navigation like with pushing screens and showing those things that
+  come up from the bottom and stuff and do all that with system components so it matches the system rather
+  than doing it all custom.
+
+# notes
+
 - https://github.com/nektro/zig-tracy todo
