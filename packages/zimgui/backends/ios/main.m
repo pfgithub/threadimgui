@@ -93,7 +93,7 @@ extern void objc_display_text(CTextLayout *layout, CData *cref, CGFloat x, CGFlo
 
     // TODO
     CGFloat layout_height = 0.0;
-    CGContextTranslateCTM(context, 0, cref->h);
+    CGContextTranslateCTM(context, x, y + 200);
     CGContextScaleCTM(context, 1.0, -1.0);
     
     // for some reason, the text is being placed
