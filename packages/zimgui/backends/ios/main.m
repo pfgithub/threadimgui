@@ -36,13 +36,66 @@ extern void objc_draw_rect(CData *ref, CGFloat x, CGFloat y, CGFloat w, CGFloat 
     CGContextFillRect(ref->context, rectangle);
 }
 
-// extern CTextLayout *objc_layout_text(void) {
-//     // malloc(sizeof(CTextLayout))
-// }
-// extern void objc_drop_text(CTextLayout *layout) {
-//     // CFRelease(layout->frame), path, framesetter
-//     // free(layout)
-// }
+// bytes: u8, index: c_long
+extern CTextLayout *objc_layout(UInt8 *in_string_ptr, long in_string_len) {
+    CTextLayout* tl = malloc(sizeof(CTextLayout));
+
+    CGMutablePathRef path = CGPathCreateMutable();
+    CGRect bounds = CGRectMake(0.0, 0.0, 200.0, 200.0);
+    CGPathAddRect(path, NULL, bounds);
+
+    // CFStringRef textString = CFSTR("Hello, World! I know nothing in the world that has as much power as a word.");
+    // https://developer.apple.com/documentation/corefoundation/1543419-cfstringcreatewithbytes?language=objc
+    CFStringRef textString = CFStringCreateWithBytes(kCFAllocatorDefault, in_string_ptr, in_string_len, kCFStringEncodingUTF8, false);
+
+    // Create a mutable attributed string with a max length of 0.
+    // The max length is a hint as to how much internal storage to reserve.
+    // 0 means no hint.
+    CFMutableAttributedStringRef attrString =
+        CFAttributedStringCreateMutable(kCFAllocatorDefault, 0)
+    ;
+    
+    // Copy the textString into the newly created attrString
+    CFAttributedStringReplaceString(
+        attrString, CFRangeMake(0, 0), textString
+    );
+    CFRelease(textString);
+
+    CTFramesetterRef framesetter =
+        CTFramesetterCreateWithAttributedString(attrString)
+    ;
+    CFRelease(attrString);
+
+    CTFrameRef frame = CTFramesetterCreateFrame(
+        framesetter, CFRangeMake(0, 0), path, NULL
+    );
+
+    // return the frame, path, framesetter
+    tl->frame = frame;
+    tl->framesetter = framesetter;
+    tl->path = path;
+
+    return tl;
+}
+extern void objc_display_text(CTextLayout *layout, CGContextRef context, CGFloat x, CGFloat y) {
+    // Draw the specified frame in the given context.
+    CGContextSaveGState(context);
+
+    // TODO
+    CGFloat layout_height = 0.0;
+    CGContextTranslateCTM(context, x, y + layout_height);
+    CGContextScaleCTM(context, 1.0, -1.0);
+    
+    CTFrameDraw(layout->frame, context);
+
+    CGContextRestoreGState(context);
+}
+extern void objc_drop_layout(CTextLayout *layout) {
+    CFRelease(layout->frame);
+    CFRelease(layout->path);
+    CFRelease(layout->framesetter);
+    free(layout);
+}
 
 extern void objc_layout_text_sample(void) {
     // here's the complete sample
