@@ -47,7 +47,7 @@ pub const TextLayout = struct {
 pub const Context = struct {
     ref: *CData,
 
-    pub fn renderText(ctx: Context, point: structures.Point, text: TextLayout, color: structures.Color) void {
+    pub fn renderText(ctx: Context, point: structures.Point, text: TextLayout) void {
         text.layout.objc_display_text(ctx.ref, point.x, point.y);
         // TODO color
     }

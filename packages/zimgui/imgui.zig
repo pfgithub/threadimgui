@@ -19,7 +19,6 @@ pub const RenderNode = struct { value: union(enum) {
     },
     text: struct {
         layout: backend.TextLayout,
-        color: Color,
     },
     text_line: struct {
         line: backend.TextLayoutLine,
@@ -146,6 +145,7 @@ pub const FontSize = enum {
 };
 const AllFontOpts = struct {
     size: FontSize,
+    color: ThemeColor,
     family: FontFamily,
     weight: FontWeight,
     underline: bool,
@@ -253,6 +253,7 @@ pub const primitives = struct {
         pub fn all(opts: FontOpts) AllFontOpts {
             return AllFontOpts{
                 .size = opts.size,
+                .color = opts.color,
                 .family = opts.family,
                 .weight = opts.weight,
                 .underline = opts.underline,
@@ -271,7 +272,6 @@ pub const primitives = struct {
 
         ctx.putRenderNode(RenderNode{ .value = .{ .text = .{
             .layout = layout,
-            .color = opts.color.getColor(),
         } } });
 
         return VLayoutManager.Child{
@@ -289,7 +289,6 @@ pub const primitives = struct {
 
         ctx.putRenderNode(RenderNode{ .value = .{ .text = .{
             .layout = layout,
-            .color = opts.color.getColor(),
         } } });
 
         return Widget{
@@ -743,7 +742,7 @@ pub const ImEvent = struct { // pinned?
                     cr.renderRectangle(rect.bg_color, .{ .x = offset.x, .y = offset.y, .w = rect.wh.w, .h = rect.wh.h }, rect.radius);
                 },
                 .text => |text| {
-                    cr.renderText(offset, text.layout, text.color);
+                    cr.renderText(offset, text.layout);
                 },
                 .text_line => |tl| {
                     cr.renderTextLine(offset, tl.line, tl.color);

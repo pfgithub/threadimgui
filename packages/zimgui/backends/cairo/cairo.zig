@@ -270,7 +270,7 @@ pub const Context = struct {
         ctx.setRgba(color);
         cairo_fill(cr);
     }
-    pub fn renderText(ctx: Context, point: Point, text: TextLayout, color: Color) void {
+    pub fn renderText(ctx: Context, point: Point, text: TextLayout) void {
         const cr = ctx.cr;
         ctx.setRgba(color);
         cairo_save(cr);

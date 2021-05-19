@@ -151,4 +151,5 @@ pub const CursorEnum = enum {
 
 pub const TextAttr = union(enum) {
     underline,
+    color: Color,
 };

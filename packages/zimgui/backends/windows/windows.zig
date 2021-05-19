@@ -58,7 +58,7 @@ pub const Context = struct {
             @floatToInt(c_int, radius * 2),
         );
     }
-    pub fn renderText(ctx: Context, point: Point, text: TextLayout, color: Color) void {
+    pub fn renderText(ctx: Context, point: Point, text: TextLayout) void {
         // TODO
     }
     pub fn layoutText(ctx: Context, font: [*:0]const u8, text: []const u8, width: ?c_int, left_offset: c_int, attrs: void) TextLayout {

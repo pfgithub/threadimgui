@@ -98,7 +98,7 @@ extern void objc_display_text(CTextLayout *layout, CData *cref, CGFloat x, CGFlo
     
     // for some reason, the text is being placed
     // in the middle of the screen? not sure why
-    
+
     CTFrameDraw(layout->frame, context);
 
     CGContextRestoreGState(context);

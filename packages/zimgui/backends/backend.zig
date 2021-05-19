@@ -135,12 +135,12 @@ pub const Context = struct {
         }
         ctx.value.renderRectangle(color, rect, radius);
     }
-    pub fn renderText(ctx: Context, point: structures.Point, text: TextLayout, color: structures.Color) void {
+    pub fn renderText(ctx: Context, point: structures.Point, text: TextLayout) void {
         if (!@hasDecl(backend.Context, "renderText")) {
             warn.once(@src(), "Context.renderText");
             return;
         }
-        ctx.value.renderText(point, text.value, color);
+        ctx.value.renderText(point, text.value);
     }
     pub fn renderTextLine(ctx: Context, point: structures.Point, text: TextLayoutLine, color: structures.Color) void {
         if (@hasDecl(backend.Context, "renderTextLine")) {
