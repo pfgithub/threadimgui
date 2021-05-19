@@ -15,5 +15,23 @@
     "CFBundlePackageType":"APPL",
     "CFBundleSignature":"????",
     "CFBundleDevelopmentRegion":"en",
-    "CFBundleShortVersionString":"1.0.0"
+    "CFBundleShortVersionString":"1.0.0",
+    "UIRequiredDeviceCapabilities":["armv7"],
+    "UILaunchStoryboardName":"LaunchScreen",
+    "_other": {
+        "CFBundleName":"$(PRODUCT_NAME)",
+        "CFBundleIdentifier":"$(PRODUCT_BUNDLE_IDENTIFIER)",
+        "CFBundleInfoDictionaryVersion":"6.0",
+        "CFBundleVersion":"1",
+        "CFBundleExecutable":"$(EXECUTABLE_NAME)",
+        "LSRequiresIPhoneOS":true,
+        "UISupportedInterfaceOrientations":["UIInterfaceOrientationPortrait","UIInterfaceOrientationLandscapeLeft","UIInterfaceOrientationLandscapeRight"],
+        "UISupportedInterfaceOrientations~ipad":["UIInterfaceOrientationPortrait","UIInterfaceOrientationPortraitUpsideDown","UIInterfaceOrientationLandscapeLeft","UIInterfaceOrientationLandscapeRight"],
+        "CFBundlePackageType":"$(PRODUCT_BUNDLE_PACKAGE_TYPE)",
+        "CFBundleDevelopmentRegion":"$(DEVELOPMENT_LANGUAGE)",
+        "CFBundleShortVersionString":"1.0",
+
+        "UIRequiredDeviceCapabilities":["armv7"],
+        "UILaunchStoryboardName":"LaunchScreen"
+    }
 }

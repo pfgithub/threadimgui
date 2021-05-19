@@ -21,17 +21,45 @@ pub fn cairoScale(int: c_int) f64 {
     return @intToFloat(f64, int) / SCALE;
 }
 
+extern fn objc_layout(in_string_ptr: [*]const u8, in_string_len: c_long) *CTextLayout;
+const CTextLayout = opaque {
+    extern fn objc_drop_layout(layout: *CTextLayout) void;
+    extern fn objc_display_text(layout: *CTextLayout, context: *CData, x: CGFloat, y: CGFloat) void;
+};
+
+pub const TextLayout = struct {
+    layout: *CTextLayout,
+    pub fn deinit(layout: TextLayout) void {
+        layout.layout.objc_drop_layout();
+    }
+    pub fn getSize(layout: TextLayout) structures.WH {
+        // var w: c_int = 0;
+        // var h: c_int = 0;
+        // pango_layout_get_size(layout.layout, &w, &h);
+        // return .{ .w = cairoScale(w), .h = cairoScale(h) };
+        return .{.w = 25, .h = 25};
+    }
+    // pub fn lines(layout: TextLayout) TextLayoutLinesIter {
+    //     return .{ .node = pango_layout_get_lines_readonly(layout.layout) };
+    // }
+};
+
 pub const Context = struct {
     ref: *CData,
 
+    pub fn renderText(ctx: Context, point: structures.Point, text: TextLayout, color: structures.Color) void {
+        text.layout.objc_display_text(ctx.ref, point.x, point.y);
+        // TODO color
+    }
     pub fn renderRectangle(ctx: Context, color: structures.Color, rect: structures.Rect, radius: f64) void {
         // std.log.info("rounded rect called!", .{});
         ctx.ref.objc_draw_rect(rect.x, rect.y, rect.w, rect.h, color.r, color.g, color.b, color.a);
     }
 
-    // pub fn layoutText(ctx: Context, font: [*:0]const u8, text: []const u8, width: ?c_int, left_offset: c_int, attrs: TextAttrList) TextLayout {
-    //     // ignore the attrs for now. ignore the width for now.
-    // }
+    pub fn layoutText(ctx: Context, font: [*:0]const u8, text: []const u8, width: ?c_int, left_offset: c_int, attrs: void) TextLayout {
+        const layout = objc_layout(text.ptr, @intCast(c_long, text.len));
+        return TextLayout{ .layout = layout };
+    }
 };
 
 pub const RerenderRequest = struct {
