@@ -239,15 +239,18 @@ pub const TextAttrList = struct {
     pub fn addRange(al: TextAttrList, start_usz: usize, end_usz: usize, format: TextAttr) void {
         const start = @intCast(guint, start_usz + shape_indent_char.len);
         const end = @intCast(guint, end_usz + shape_indent_char.len);
-        switch (format) {
-            .underline => {
-                const attr = pango_attr_underline_new(.PANGO_UNDERLINE_SINGLE);
-                attribute_set_range(attr, start, end);
-                pango_attr_list_insert(al.attr_list, attr);
-            },
-        }
+        const attr = switch (format) {
+            .underline => pango_attr_underline_new(.PANGO_UNDERLINE_SINGLE),
+            .color => |col| pango_attr_foreground_new(toGuint16(col.r), toGuint16(col.g), toGuint16(col.b)), // if(alpha) pango_attr_foreground_alpha_new
+        };
+        attribute_set_range(attr, start, end);
+        pango_attr_list_insert(al.attr_list, attr);
     }
 };
+
+pub fn toGuint16(float: f64) guint16 {
+    return @floatToInt(guint16, float * std.math.maxInt(guint16));
+}
 
 pub const Context = struct {
     cr: *cairo_t,
@@ -272,7 +275,7 @@ pub const Context = struct {
     }
     pub fn renderText(ctx: Context, point: Point, text: TextLayout) void {
         const cr = ctx.cr;
-        ctx.setRgba(color);
+        ctx.setRgba(.{ .r = 0, .g = 0, .b = 0, .a = 1 });
         cairo_save(cr);
         cairo_move_to(cr, point.x, point.y);
         pango_cairo_show_layout(cr, text.layout);

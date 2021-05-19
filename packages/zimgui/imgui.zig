@@ -830,6 +830,7 @@ pub const ImEvent = struct { // pinned?
 
             const attrs = backend.TextAttrList.new();
             if (key.font_opts.underline) attrs.addRange(0, 0 + text_dupe.len, .underline);
+            attrs.addRange(0, 0 + text_dupe.len, .{ .color = key.font_opts.color.getColor() });
             const layout = imev.frame.cr.layoutText(font_str.ptr, text_dupe, .{ .width = key.width, .left_offset = key.font_opts.left_offset }, attrs);
 
             const cache_value: TextCacheValue = .{
