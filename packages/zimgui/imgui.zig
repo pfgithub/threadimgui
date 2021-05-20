@@ -828,10 +828,10 @@ pub const ImEvent = struct { // pinned?
             // (in c, this is created using pango_attr_underline_new(.PANGO_UNDERLINE_SINGLE) and then set the attr)
             // start index and end index
 
-            const attrs = backend.TextAttrList.new();
+            const attrs = backend.TextAttrList.new(text_dupe);
             if (key.font_opts.underline) attrs.addRange(0, 0 + text_dupe.len, .underline);
             attrs.addRange(0, 0 + text_dupe.len, .{ .color = key.font_opts.color.getColor() });
-            const layout = imev.frame.cr.layoutText(font_str.ptr, text_dupe, .{ .width = key.width, .left_offset = key.font_opts.left_offset }, attrs);
+            const layout = imev.frame.cr.layoutText(font_str.ptr, .{ .width = key.width, .left_offset = key.font_opts.left_offset }, attrs);
 
             const cache_value: TextCacheValue = .{
                 .layout = layout,

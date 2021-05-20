@@ -56,11 +56,11 @@ pub const Context = struct {
         ctx.ref.objc_draw_rect(rect.x, rect.y, rect.w, rect.h, color.r, color.g, color.b, color.a);
     }
 
-    pub fn layoutText(ctx: Context, font: [*:0]const u8, text: []const u8, width: ?c_int, left_offset: c_int, attrs: void) TextLayout {
+    pub fn layoutText(ctx: Context, font: [*:0]const u8, width: ?c_int, left_offset: c_int, attrs: []const u8) TextLayout {
         const maxw: CGFloat = if (width) |w| cairoScale(w) else 10_000;
         const maxh: CGFloat = 10_000;
 
-        const layout = objc_layout(text.ptr, @intCast(c_long, text.len), maxw, maxh);
+        const layout = objc_layout(attrs.ptr, @intCast(c_long, attrs.len), maxw, maxh);
         return TextLayout{ .layout = layout };
     }
 };

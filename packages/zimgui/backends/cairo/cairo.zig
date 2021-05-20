@@ -233,8 +233,9 @@ const shape_indent_char = "\u{200b}";
 
 pub const TextAttrList = struct {
     attr_list: *PangoAttrList,
-    pub fn new() TextAttrList {
-        return .{ .attr_list = pango_attr_list_new().? };
+    text: []const u8,
+    pub fn new(text: []const u8) TextAttrList {
+        return .{ .attr_list = pango_attr_list_new().?, .text = text };
     }
     pub fn addRange(al: TextAttrList, start_usz: usize, end_usz: usize, format: TextAttr) void {
         const start = @intCast(guint, start_usz + shape_indent_char.len);
@@ -299,8 +300,9 @@ pub const Context = struct {
         const cr = ctx.cr;
         cairo_restore(cr);
     }
-    pub fn layoutText(ctx: Context, font: [*:0]const u8, text: []const u8, width: ?c_int, left_offset: c_int, attrs: TextAttrList) TextLayout {
+    pub fn layoutText(ctx: Context, font: [*:0]const u8, width: ?c_int, left_offset: c_int, attrs: TextAttrList) TextLayout {
         const cr = ctx.cr;
+        const text = attrs.text;
         // if (layout == null) {
         const layout = pango_cairo_create_layout(cr) orelse @panic("no layout"); // ?*PangoLayout, g_object_unref(layout)
 

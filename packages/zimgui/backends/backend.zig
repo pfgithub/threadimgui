@@ -41,9 +41,10 @@ pub const warn = struct {
 
 pub const TextAttrList = struct {
     const FakeTextAttrList = struct {
-        pub fn new() FakeTextAttrList {
+        text: []const u8,
+        pub fn new(text: []const u8) FakeTextAttrList {
             warn.once(@src(), "TextAttrList.new");
-            return .{};
+            return .{ .text = text };
         }
         pub fn addRange(a: FakeTextAttrList, start: usize, end: usize, format: structures.TextAttr) void {
             warn.once(@src(), "TextAttrList.addRange");
@@ -51,8 +52,8 @@ pub const TextAttrList = struct {
     };
     const BackendValue = if (@hasDecl(backend, "TextAttrList")) backend.TextAttrList else FakeTextAttrList;
     value: BackendValue,
-    pub fn new() TextAttrList {
-        return .{ .value = BackendValue.new() };
+    pub fn new(text: []const u8) TextAttrList {
+        return .{ .value = BackendValue.new(text) };
     }
     pub fn addRange(a: TextAttrList, start: usize, end: usize, format: structures.TextAttr) void {
         a.value.addRange(start, end, format);
@@ -166,17 +167,16 @@ pub const Context = struct {
         width: ?c_int,
         left_offset: ?c_int = null,
     };
-    pub fn layoutText(ctx: Context, font: [*:0]const u8, text: []const u8, opts: TextLayoutOpts, attrs: TextAttrList) TextLayout {
+    pub fn layoutText(ctx: Context, font: [*:0]const u8, opts: TextLayoutOpts, attrs: TextAttrList) TextLayout {
         if (!@hasDecl(backend.Context, "layoutText") and TextLayout.BackendValue == TextLayout.FakeTextLayout) {
             warn.once(@src(), "Context.layoutText");
             return TextLayout{ .value = .{ .size = .{ .w = 25, .h = 25 } } };
         }
         return .{ .value = ctx.value.layoutText(
             font,
-            text,
             opts.width,
             opts.left_offset orelse 0,
-            if (TextAttrList.BackendValue == TextAttrList.FakeTextAttrList) {} else attrs.value,
+            if (TextAttrList.BackendValue == TextAttrList.FakeTextAttrList) attrs.value.text else attrs.value,
         ) };
     }
 };
