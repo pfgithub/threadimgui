@@ -1418,6 +1418,12 @@ pub fn renderBaseRoot(id: ID, imev: *ImEvent, isc: *IdStateCache, wh: WH, data: 
         ctx.place(data.rootFnGeneric(rootfn_id, imev, isc, wh, data.root_fn_content), Point.origin);
     }
 
+    if (true) {
+        // debug stuff
+
+        ctx.place(primitives.rect(imev, .{ .w = 25, .h = 25 }, .{ .bg = .red }), imev.persistent.mouse_position);
+    }
+
     return ctx.result();
 }
 
