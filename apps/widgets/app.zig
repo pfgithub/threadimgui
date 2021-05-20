@@ -118,7 +118,7 @@ pub fn renderRoot(id_arg: im.ID.Arg, imev: *im.ImEvent, isc: *im.IdStateCache, w
         //   <clicked_key.render>
         // |>
 
-        if (focused_key.focused) {
+        if (focused_key.show_focus_ring) {
             // sctx.place(focused_key.setFocusRing(item_wh), im.Point.origin);
 
             sctx.place(im.primitives.rect(imev, .{ .w = 2, .h = 2 }, .{ .bg = .red }), im.Point.origin);

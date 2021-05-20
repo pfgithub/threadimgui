@@ -907,10 +907,11 @@ pub const ImEvent = struct { // pinned?
 
     pub fn useFocusable(imev: *ImEvent, id_h: ID.Arg, reason: FocusableReason) FocusableState {
         const id = id_h.id.forSrc(@src());
+        const focused = if (imev.persistent.focus) |f| f.id.eql(id) else false;
         return FocusableState{
             .key = .{ .id = id, .reason = reason },
-            .focused = if (imev.persistent.focus) |f| f.id.eql(id) else false,
-            .show_focus_ring = true, // if the focus was keyboard initiated (tab key)
+            .focused = focused,
+            .show_focus_ring = focused and if (imev.persistent.focus) |f| (@enumToInt(f.reason) >= @enumToInt(reason)) else false, // if the focus was keyboard initiated (tab key)
         };
     }
 
