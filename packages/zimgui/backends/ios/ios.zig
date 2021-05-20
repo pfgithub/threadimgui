@@ -123,11 +123,20 @@ const CRerenderKey = opaque {
     extern fn objc_request_rerender(rkey: *CRerenderKey) void;
 };
 
+var prev_w: c_int = -1;
+var prev_h: c_int = -1;
+
 export fn zig_render(ref: *CData, rkey: *CRerenderKey, w: CGFloat, h: CGFloat) void {
     const data = global_data_ptr; // todo make this an arg
 
-    // todo actual screen size
-    data.pushEvent(.{ .resize = .{ .x = 0, .y = 0, .w = @floatToInt(c_int, w), .h = @floatToInt(c_int, h) } }, .{ .rkey = rkey }, data.data); // this shouldn't have to be sent each frame
+    const new_w = @floatToInt(c_int, w);
+    const new_h = @floatToInt(c_int, h);
+
+    if(prev_w != new_w or prev_h != new_h) {
+        prev_w = new_w;
+        prev_h = new_h;
+        data.pushEvent(.{ .resize = .{ .x = 0, .y = 0, .w = new_w, .h = new_h } }, .{ .rkey = rkey }, data.data);
+    }
     data.renderFrame(Context{ .ref = ref }, .{ .rkey = rkey }, data.data);
 
     // ref.objc_draw_rect(25, 25, 100, 100, 1.0, 0.5, 0.0, 1.0);
