@@ -723,52 +723,37 @@ pub const ImEvent = struct { // pinned?
                             // →
                             std.log.info("advance focus", .{});
 
-                            // the basic algorithm
-                            // blk:
-                            // - if(no focus):
-                            // - - const first_focus = walker.find(.focusable) orelse break :blk
-                            // - - imev.setFocus(first_focus);
-                            // - - break :blk
-                            // - const current_focus = walker.find(.focusable where id.eql(current_focus)) orelse @panic("TODO catch this earlier and diff with .focus_used_this_frame");
-                            // - const next_focus = walker.find(.focusable) orelse:
-                            // - - walker.reset();
-                            // - - imev.setFocus(walker.find(.focusable) orelse unreachable)
-                            // - - break :blk
-                            // - imev.setFocus(next_focus)
-                            // - break :blk
-
                             var walker = imev.frame.render_result.walk(imev.persistentAlloc());
                             defer walker.deinit();
-                            while (walker.next()) |node| {
-                                switch (node.value) {
-                                    .focusable => |fabl| {
-                                        if (imev.persistent.focus) |f| {
-                                            if (fabl.id.eql(f.id)) {
-                                                const nf = while (walker.next()) |v| switch (v.value) {
-                                                    .focusable => |*q| break q,
-                                                    else => {},
-                                                } else {
-                                                    var walker2 = imev.frame.render_result.walk(imev.persistentAlloc());
-                                                    defer walker2.deinit();
-                                                    const ff = while (walker2.next()) |v| switch (v.value) {
-                                                        .focusable => |*q| break q,
-                                                        else => {},
-                                                    } else unreachable;
-                                                    imev.setFocus(ff.id, .keyboard);
-                                                    break;
-                                                };
-                                                imev.setFocus(nf.id, .keyboard);
-                                                break;
-                                            }
-                                        } else {
-                                            imev.setFocus(fabl.id, .keyboard);
-                                            break;
-                                        }
-                                    },
-                                    else => {},
+
+                            blk: {
+                                // advance the walker to the focused node (if there is one)
+                                if (imev.persistent.focus) |pfocus| {
+                                    while (walker.next()) |node| switch (node.value) {
+                                        .focusable => |*fabl| {
+                                            if (fabl.id.eql(pfocus.id)) break;
+                                        },
+                                        else => {},
+                                    } else @panic("TODO catch this earlier and diff with .focus_used_this_frame");
                                 }
-                            } else {
-                                std.log.info("No match found.", .{});
+
+                                // find the next focusable node after the current one, wrapping if needed
+                                const next_focus = while (walker.next()) |node| switch (node.value) {
+                                    .focusable => |*fabl| break fabl,
+                                    else => {},
+                                } else blkt: {
+                                    if (imev.persistent.focus == null) break :blk;
+                                    walker.deinit();
+                                    walker = imev.frame.render_result.walk(imev.persistentAlloc());
+                                    while (walker.next()) |node| switch (node.value) {
+                                        .focusable => |*fabl| break :blkt fabl,
+                                        else => {},
+                                    };
+                                    break :blk;
+                                };
+
+                                // set the focus
+                                imev.setFocus(next_focus.id, .keyboard);
                             }
                         } else if (key.key == .left_tab or (key.key == .tab and key.modifiers.shift)) {
                             // the basic algorithm
