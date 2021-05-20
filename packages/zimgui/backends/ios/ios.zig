@@ -24,6 +24,7 @@ pub fn cairoScale(int: c_int) f64 {
 extern fn objc_layout(in_string_ptr: [*]const u8, in_string_len: c_long, width_constraint: CGFloat, height_constraint: CGFloat) *CTextLayout;
 const CTextLayout = opaque {
     extern fn objc_drop_layout(layout: *CTextLayout) void;
+    extern fn objc_measure_layout(layout: *CTextLayout, w: *CGFloat, h: *CGFloat) void;
     extern fn objc_display_text(layout: *CTextLayout, context: *CData, x: CGFloat, y: CGFloat) void;
 };
 
@@ -35,7 +36,7 @@ pub const TextLayout = struct {
     pub fn getSize(layout: TextLayout) structures.WH {
         var w: CGFloat = 0;
         var h: CGFloat = 0;
-        objc_measure_layout(layout.layout, &w, &h);
+        layout.layout.objc_measure_layout(&w, &h);
         return .{ .w = w, .h = h };
     }
     // pub fn lines(layout: TextLayout) TextLayoutLinesIter {

@@ -106,16 +106,16 @@ extern CTextLayout *objc_layout(const UInt8 *in_string_ptr, long in_string_len, 
     tl->frame = frame;
     tl->framesetter = framesetter;
     tl->path = path;
-    tl->width = total_height;
-    tl->height = max_w;
+    tl->width = max_w;
+    tl->height = total_height;
     tl->width_constraint = width_constraint;
     tl->height_constraint = height_constraint;
 
     return tl;
 }
-extern void objc_measure_layout(CTextLayout *layout, CGFloat *x, CGFloat *h) {
-    *x = layout->width;
-    *y = layout->height;
+extern void objc_measure_layout(CTextLayout *layout, CGFloat *w, CGFloat *h) {
+    *w = layout->width;
+    *h = layout->height;
 }
 extern void objc_display_text(CTextLayout *layout, CData *cref, CGFloat x, CGFloat y) {
     CGContextRef context = cref->context;
