@@ -62,7 +62,7 @@ export fn zig_button_release_event(widget: *GtkWidget, event: *GdkEventButton, d
 }
 export fn zig_motion_notify_event(widget: *GtkWidget, event: *GdkEventMotion, data: *OpaqueData) callconv(.C) gboolean {
     // std.log.info("Mouse to ({}, {})", .{ event.x, event.y });
-    if (false) data.zig.pushEvent(.{ .mouse_move = .{ .x = event.x, .y = event.y } }, rrFrom(data.darea), data.zig.data);
+    if (true) data.zig.pushEvent(.{ .mouse_move = .{ .x = event.x, .y = event.y } }, rrFrom(data.darea), data.zig.data);
     return 1;
 }
 const SCROLL_SPEED = 55;

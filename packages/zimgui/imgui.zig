@@ -597,6 +597,13 @@ pub const ImEvent = struct { // pinned?
         return !std.meta.eql(unpr_evs.start, unpr_evs.end); // AKA: unpr_evs.len >= 2
     }
     pub fn startFrame(imev: *ImEvent, cr: backend.Context, should_render: bool) void {
+        if (!imev.persistent.mouse_held) {
+            if (imev.persistent.mouse_focused) |mf| {
+                mf.deinit(imev.persistentAlloc());
+            }
+            imev.persistent.mouse_focused = null;
+        }
+
         if (!imev.persistent.is_first_frame) if (imev.persistent.unprocessed_events.shift(imev.persistent.real_allocator)) |ev| {
             switch (ev) {
                 .resize => |rsz| {
@@ -651,12 +658,6 @@ pub const ImEvent = struct { // pinned?
                 else => {},
             }
 
-            if (!imev.persistent.mouse_held and !imev.frame.mouse_up) {
-                if (imev.persistent.mouse_focused) |mf| {
-                    mf.deinit(imev.persistentAlloc());
-                }
-                imev.persistent.mouse_focused = null;
-            }
             if (imev.persistent.scroll_focused) |sf| sf.deinit(imev.persistentAlloc());
             imev.persistent.scroll_focused = null;
 

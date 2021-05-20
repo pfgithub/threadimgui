@@ -322,4 +322,12 @@ and if that turns out to not be enough and there's more to render, set the imev 
 
 # notes
 
+- event handling v2
+- an event is recieved and we got a draw request. what to do?
+- 1: get the first event and:
+- - loop over last frame's items and update the thing.
+- nvm this works. event stuff does need some work though, the code is quite messy.
+
+# notes
+
 - https://github.com/nektro/zig-tracy todo
