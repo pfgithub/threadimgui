@@ -717,6 +717,20 @@ pub const ImEvent = struct { // pinned?
                             // →
                             std.log.info("advance focus", .{});
 
+                            // the basic algorithm
+                            // blk:
+                            // - if(no focus):
+                            // - - const first_focus = walker.find(.focusable) orelse break :blk
+                            // - - imev.setFocus(first_focus);
+                            // - - break :blk
+                            // - const current_focus = walker.find(.focusable where id.eql(current_focus)) orelse @panic("TODO catch this earlier and diff with .focus_used_this_frame");
+                            // - const next_focus = walker.find(.focusable) orelse:
+                            // - - walker.reset();
+                            // - - imev.setFocus(walker.find(.focusable) orelse unreachable)
+                            // - - break :blk
+                            // - imev.setFocus(next_focus)
+                            // - break :blk
+
                             var walker = imev.frame.render_result.walk(imev.persistentAlloc());
                             defer walker.deinit();
                             while (walker.next()) |node| {
@@ -760,6 +774,22 @@ pub const ImEvent = struct { // pinned?
                                     else => {},
                                 }
                             } else {
+                                // the basic algorithm
+                                //
+                                // var prev: ?thing = null;
+                                // blk:
+                                // - if(no focus):
+                                // - - walker.every(.focusable, &prev)
+                                // - - if(prev) imev.setFocus(prev)
+                                // - - break :blk
+                                // - walker.every(.focusable, &prev, until id.eql(current_focus)) orelse @panic("TODO catch this earlier and diff with .focus_used_this_frame");
+                                // - const prev_focus = prev orelse:
+                                // - - walker.every(.focusable, &prev)
+                                // - - imev.setFocus(prev orelse unreachable)
+                                // - - break :blk
+                                // - imev.setFocus(prev_focus)
+                                // - break :blk
+
                                 std.log.info("No match found.", .{});
                             }
                         } else if (key.key == .left_tab or (key.key == .tab and key.modifiers.shift)) {
