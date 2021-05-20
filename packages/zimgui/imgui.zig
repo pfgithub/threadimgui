@@ -647,6 +647,13 @@ pub const ImEvent = struct { // pinned?
         const unpr_evs = imev.persistent.unprocessed_events;
         return !std.meta.eql(unpr_evs.start, unpr_evs.end); // AKA: unpr_evs.len >= 2
     }
+    fn setFocus(imev: *ImEvent, id: ID.Ident, reason: FocusableReason) void {
+        if (imev.persistent.focus) |f| f.deinit(imev.persistentAlloc());
+        imev.persistent.focus = .{
+            .id = id.dupe(imev.persistentAlloc()),
+            .reason = reason,
+        };
+    }
     pub fn startFrame(imev: *ImEvent, cr: backend.Context, should_render: bool) void {
         if (!imev.persistent.mouse_held) {
             if (imev.persistent.mouse_focused) |mf| {
@@ -655,8 +662,7 @@ pub const ImEvent = struct { // pinned?
             imev.persistent.mouse_focused = null;
         }
         if (!imev.persistent.is_first_frame) if (imev.frame.next_frame_focus) |nff| {
-            if (imev.persistent.focus) |f| f.deinit(imev.persistentAlloc());
-            imev.persistent.focus = nff.dupe(imev.persistentAlloc());
+            imev.setFocus(nff.id, nff.reason);
             imev.frame.next_frame_focus = null;
         };
 
@@ -748,51 +754,38 @@ pub const ImEvent = struct { // pinned?
                                                         .focusable => |*q| break q,
                                                         else => {},
                                                     } else unreachable;
-                                                    if (imev.persistent.focus) |pf| pf.deinit(imev.persistentAlloc());
-                                                    imev.persistent.focus = WFocused{
-                                                        .id = ff.id.dupe(imev.persistentAlloc()),
-                                                        .reason = .keyboard,
-                                                    };
+                                                    imev.setFocus(ff.id, .keyboard);
                                                     break;
                                                 };
-                                                if (imev.persistent.focus) |pf| pf.deinit(imev.persistentAlloc());
-                                                imev.persistent.focus = WFocused{
-                                                    .id = nf.id.dupe(imev.persistentAlloc()),
-                                                    .reason = .keyboard,
-                                                };
+                                                imev.setFocus(nf.id, .keyboard);
                                                 break;
                                             }
                                         } else {
-                                            if (imev.persistent.focus) |pf| pf.deinit(imev.persistentAlloc());
-                                            imev.persistent.focus = WFocused{
-                                                .id = fabl.id.dupe(imev.persistentAlloc()),
-                                                .reason = .keyboard,
-                                            };
+                                            imev.setFocus(fabl.id, .keyboard);
                                             break;
                                         }
                                     },
                                     else => {},
                                 }
                             } else {
-                                // the basic algorithm
-                                //
-                                // var prev: ?thing = null;
-                                // blk:
-                                // - if(no focus):
-                                // - - walker.every(.focusable, &prev)
-                                // - - if(prev) imev.setFocus(prev)
-                                // - - break :blk
-                                // - walker.every(.focusable, &prev, until id.eql(current_focus)) orelse @panic("TODO catch this earlier and diff with .focus_used_this_frame");
-                                // - const prev_focus = prev orelse:
-                                // - - walker.every(.focusable, &prev)
-                                // - - imev.setFocus(prev orelse unreachable)
-                                // - - break :blk
-                                // - imev.setFocus(prev_focus)
-                                // - break :blk
-
                                 std.log.info("No match found.", .{});
                             }
                         } else if (key.key == .left_tab or (key.key == .tab and key.modifiers.shift)) {
+                            // the basic algorithm
+                            //
+                            // var prev: ?thing = null;
+                            // blk:
+                            // - if(no focus):
+                            // - - walker.every(.focusable, &prev)
+                            // - - if(prev) imev.setFocus(prev)
+                            // - - break :blk
+                            // - walker.every(.focusable, &prev, until id.eql(current_focus)) orelse @panic("TODO catch this earlier and diff with .focus_used_this_frame");
+                            // - const prev_focus = prev orelse:
+                            // - - walker.every(.focusable, &prev)
+                            // - - imev.setFocus(prev orelse unreachable)
+                            // - - break :blk
+                            // - imev.setFocus(prev_focus)
+                            // - break :blk
                             std.log.info("devance focus", .{});
                         }
                     }
