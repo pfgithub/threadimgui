@@ -154,6 +154,14 @@ pub fn renderSidebar(
 
     ctx.place(im.primitives.rect(imev, wh, .{ .bg = .gray100 }), im.Point.origin);
 
+    var y: f64 = 25; // put a "open devtools" button here or something
+
+    const hline = renderHLine(imev, .gray300, wh.w);
+    ctx.place(hline.node, .{ .x = 0, .y = y });
+    y += hline.h;
+
+    const wh_rem: im.WH = .{ .w = wh.w, .h = wh.h - y };
+
     const scroll_state = isc.useStateCustomInit(id.push(@src()), im.VirtualScrollHelper);
     if (!scroll_state.initialized) scroll_state.ptr.* = im.VirtualScrollHelper.init(imev.persistentAlloc(), 0);
 
@@ -164,11 +172,11 @@ pub fn renderSidebar(
         scroll_state.ptr.scroll(scrolling.delta.y);
     }
 
-    const sbo = SidebarRender{ .width = wh.w, .active_tab = active_tab, .show_sidebar = show_sidebar };
-    const content_render = scroll_state.ptr.render(id.push(@src()), imev, sbo, wh.h, 0);
-    ctx.place(content_render, im.Point.origin);
+    const sbo = SidebarRender{ .width = wh_rem.w, .active_tab = active_tab, .show_sidebar = show_sidebar };
+    const content_render = scroll_state.ptr.render(id.push(@src()), imev, sbo, wh_rem.h, 0);
+    ctx.place(content_render, .{ .x = 0, .y = y });
 
-    // var vlayout = VLayout{ .wh = wh };
+    // var vlayout = VLayout{ .wh = wh_rem };
     // inline for (@typeInfo(ActiveTab).Enum.fields) |field| {
     //     // /
     //     // for now just a normal vertical placer but eventually this should be switched to a scrollable vertical placer
