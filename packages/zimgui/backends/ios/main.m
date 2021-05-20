@@ -26,10 +26,23 @@ struct CData {
 };
 struct CRerenderKey {
     MainView* view;
+    bool during_drawrect;
 };
 
+extern void objc_log(const UInt8 *message) {
+    NSLog(@"%s", message);
+}
+
 extern void objc_request_rerender(CRerenderKey *rkey) {
-    [rkey->view setNeedsDisplay];
+    if(rkey->during_drawrect) {
+        // TODO
+        MainView *view = rkey->view;
+        [NSTimer scheduledTimerWithTimeInterval:0 repeats:false block:^(NSTimer *timer) {
+            [view setNeedsDisplay];
+        }];
+    }else {
+        [rkey->view setNeedsDisplay];
+    }
 }
 
 extern void objc_draw_rect(CData *ref, CGFloat x, CGFloat y, CGFloat w, CGFloat h, CGFloat r, CGFloat g, CGFloat b, CGFloat a) {
@@ -200,7 +213,7 @@ extern void zig_tap(CRerenderKey *rkey, CGFloat x, CGFloat y);
         // handling code
         CGPoint location = [sender locationInView:self];
 
-        CRerenderKey rkey = {.view = self};
+        CRerenderKey rkey = {.view = self, .during_drawrect = false};
         zig_tap(&rkey, location.x, location.y);
     }
     // exit(1);
@@ -210,7 +223,7 @@ extern void zig_tap(CRerenderKey *rkey, CGFloat x, CGFloat y);
     CGContextRef context = UIGraphicsGetCurrentContext();
 
     CData data = {.context = context, .w = self.frame.size.width, .h = self.frame.size.height};
-    CRerenderKey rkey = {.view = self};
+    CRerenderKey rkey = {.view = self, .during_drawrect = true};
     zig_render(&data, &rkey, data.w, data.h);
 }
 

@@ -89,7 +89,18 @@ pub const Context = struct {
 pub const RerenderRequest = struct {
     rkey: *CRerenderKey,
     pub fn queueDraw(rr: @This()) void {
+        std.log.info("Draw queued.", .{});
         rr.rkey.objc_request_rerender();
+    }
+};
+
+extern fn objc_log(text: [*:0]const u8) void;
+pub const StartBackend = struct {
+    pub fn log(comptime message_level: std.log.Level, comptime scope: @Type(.EnumLiteral), comptime format: []const u8, args: anytype) void {
+        const text = std.fmt.allocPrint0(std.heap.c_allocator, "[zig] " ++ format, args) catch @panic("oom");
+        defer std.heap.c_allocator.free(text);
+
+        objc_log(text.ptr);
     }
 };
 

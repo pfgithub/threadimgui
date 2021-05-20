@@ -582,7 +582,8 @@ pub const ImEvent = struct { // pinned?
         if (imev.persistent.mouse_focused) |mf| mf.deinit(imev.persistentAlloc());
         if (imev.persistent.scroll_focused) |sf| sf.deinit(imev.persistentAlloc());
     }
-    pub fn addEvent(imev: *ImEvent, event: RawEvent) !void {
+    /// returns true if a rerender is requested, false otherwise.
+    pub fn addEvent(imev: *ImEvent, event: RawEvent) !bool {
         // could use an arena allocator, unfortunately arena allocators are created at frame start
         // rather than on init 🙲 frame end.
         // TODO consolidate similar events
@@ -597,8 +598,12 @@ pub const ImEvent = struct { // pinned?
                     .w = @intToFloat(f64, rsz.w),
                     .h = @intToFloat(f64, rsz.h),
                 };
+                return false;
             },
-            else => try imev.persistent.unprocessed_events.push(imev.persistent.real_allocator, event),
+            else => {
+                try imev.persistent.unprocessed_events.push(imev.persistent.real_allocator, event);
+                return true;
+            }
         }
     }
     pub fn prerender(imev: *ImEvent) bool {
@@ -1465,8 +1470,8 @@ pub fn pushEvent(ev: RawEvent, rr: backend.RerenderRequest, data: ExecData) void
     // at the start of next frame rather than calling the fn thing
     // anyway probably not necessary but there may be some events where it's useful
 
-    imev.addEvent(ev) catch @panic("oom");
-    rr.queueDraw();
+    const req_rr = imev.addEvent(ev) catch @panic("oom");
+    if(req_rr) rr.queueDraw();
 }
 
 const ExecData = struct {
