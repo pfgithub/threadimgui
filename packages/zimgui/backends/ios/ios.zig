@@ -22,8 +22,8 @@ pub fn cairoScale(int: c_int) f64 {
 }
 
 const CAttributedString = opaque {
-    extern fn objc_new_attrstring(ptr: [*]u8, len: c_long) *CAttributedString;
-    extern fn objc_addattr_color(attrstr: *CAttributedString, CGFloat r, CGFloat g, CGFloat b, CGFloat a);
+    extern fn objc_new_attrstring(ptr: [*]const u8, len: c_long) *CAttributedString;
+    extern fn objc_addattr_color(attrstr: *CAttributedString, r: CGFloat, g: CGFloat, b: CGFloat, a: CGFloat) void;
 };
 
 pub const TextAttrList = struct {
@@ -31,7 +31,7 @@ pub const TextAttrList = struct {
     pub fn new(text: []const u8) TextAttrList {
         return .{ .attrstr = CAttributedString.objc_new_attrstring(text.ptr, @intCast(c_long, text.len)) };
     }
-    pub fn addRange(al: TextAttrList, start_usz: usize, end_usz: usize, format: TextAttr) void {
+    pub fn addRange(al: TextAttrList, start_usz: usize, end_usz: usize, format: structures.TextAttr) void {
         // TODO use start_usz, end_usz. These are in bytes, but CFStringRef uses utf-16 or something.
         switch (format) {
             .underline => backend.warn.once(@src(), "TextAttrList.addRange(.underline)"),
@@ -42,7 +42,7 @@ pub const TextAttrList = struct {
     }
 };
 
-extern fn objc_layout(in_string_ptr: [*]const u8, in_string_len: c_long, width_constraint: CGFloat, height_constraint: CGFloat) *CTextLayout;
+extern fn objc_layout(attrstr: *CAttributedString, width_constraint: CGFloat, height_constraint: CGFloat) *CTextLayout;
 const CTextLayout = opaque {
     extern fn objc_drop_layout(layout: *CTextLayout) void;
     extern fn objc_measure_layout(layout: *CTextLayout, w: *CGFloat, h: *CGFloat) void;
@@ -77,11 +77,11 @@ pub const Context = struct {
         ctx.ref.objc_draw_rect(rect.x, rect.y, rect.w, rect.h, color.r, color.g, color.b, color.a);
     }
 
-    pub fn layoutText(ctx: Context, font: [*:0]const u8, width: ?c_int, left_offset: c_int, attrs: []const u8) TextLayout {
+    pub fn layoutText(ctx: Context, font: [*:0]const u8, width: ?c_int, left_offset: c_int, attrs: TextAttrList) TextLayout {
         const maxw: CGFloat = if (width) |w| cairoScale(w) else 10_000;
         const maxh: CGFloat = 10_000;
 
-        const layout = objc_layout(attrs.ptr, @intCast(c_long, attrs.len), maxw, maxh);
+        const layout = objc_layout(attrs.attrstr, maxw, maxh);
         return TextLayout{ .layout = layout };
     }
 };

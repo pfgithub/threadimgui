@@ -79,7 +79,7 @@ extern void objc_drop_attrstring(CAttributedString *attrstr) {
     free(attrstr);
 }
 // note the range is in utf-16 code pairs so glhf
-extern void objc_addattr_color(CAttributedString *attrstr, CGFloat r, CGFloat g, CGFloat b, CGFloat a) void {
+extern void objc_addattr_color(CAttributedString *attrstr, CGFloat r, CGFloat g, CGFloat b, CGFloat a) {
     // Create a color that will be added as an attribute to the attrString.
     CGColorSpaceRef rgbColorSpace = CGColorSpaceCreateDeviceRGB();
     CGFloat components[] = { r, g, b, a };
@@ -87,7 +87,7 @@ extern void objc_addattr_color(CAttributedString *attrstr, CGFloat r, CGFloat g,
     CGColorSpaceRelease(rgbColorSpace);
 
     // Set the color of the first 12 chars to red.
-    CFAttributedStringSetAttribute(attrString, CFRangeMake(0, CFAttributedStringGetLength(attrstr->masr)),
+    CFAttributedStringSetAttribute(attrstr->masr, CFRangeMake(0, CFAttributedStringGetLength(attrstr->masr)),
         kCTForegroundColorAttributeName, red
     );
 }
