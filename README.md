@@ -330,4 +330,10 @@ and if that turns out to not be enough and there's more to render, set the imev 
 
 # notes
 
+- separate init/event backends from rendering backends
+- like cairo should be seperate from gtk
+- gtk should handle events and routing, cairo should handle drawing
+
+# notes
+
 - https://github.com/nektro/zig-tracy todo
