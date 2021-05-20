@@ -309,4 +309,17 @@ and if that turns out to not be enough and there's more to render, set the imev 
 
 # notes
 
+- current ios issue:
+- replicate in desktop by disabling mouse motion events
+- ok so
+- click and release is simple, but we currently use 3 frames instead of the expected 2 to handle it
+
+# notes
+
+- test backend?
+- for running tests
+- like post a few events and then run and see what happens and if it does the right thing
+
+# notes
+
 - https://github.com/nektro/zig-tracy todo
