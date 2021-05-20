@@ -189,7 +189,7 @@ pub const RenderCtx = struct {
         ctx.nodes.push(ctx.imev.arena(), node) catch @panic("oom");
     }
     pub fn result(ctx: *RenderCtx) RenderResult {
-        return ctx.nodes.start;
+        return .{ .value = ctx.nodes.start };
     }
     pub fn place(ctx: *RenderCtx, node: RenderResult, point: Point) void {
         ctx.putRenderNode(.{ .value = .{ .place = .{
@@ -198,7 +198,39 @@ pub const RenderCtx = struct {
         } } });
     }
 };
-pub const RenderResult = ?*Queue(RenderNode).Node;
+pub const RenderResult = struct {
+    value: ?*Queue(RenderNode).Node,
+    pub fn walk(rr: RenderResult, alloc: *std.mem.Allocator) RenderWalker {
+        return RenderWalker.init(alloc, rr);
+    }
+};
+pub const RenderWalker = struct {
+    stack: std.ArrayList(*Queue(RenderNode).Node),
+    pub fn init(alloc: *std.mem.Allocator, root_node: RenderResult) RenderWalker {
+        var al = std.ArrayList(*Queue(RenderNode).Node).init(alloc);
+        if (root_node.value) |v| al.append(v) catch @panic("oom");
+        return RenderWalker{ .stack = al };
+    }
+    pub fn deinit(rw: RenderWalker) void {
+        rw.stack.deinit();
+    }
+    pub fn next(rw: *RenderWalker) ?*const RenderNode {
+        var res = rw.stack.popOrNull() orelse return null;
+        if (res.next) |nxt| {
+            rw.stack.append(nxt) catch @panic("oom");
+        }
+        switch (res.value.value) {
+            .place => |plc| {
+                if (plc.node.value) |v| rw.stack.append(v) catch @panic("oom");
+            },
+            .clipping_rect => |clr| {
+                if (clr.node.value) |v| rw.stack.append(v) catch @panic("oom");
+            },
+            else => {},
+        }
+        return &res.value;
+    }
+};
 
 pub const Widget = struct {
     wh: WH,
@@ -684,6 +716,52 @@ pub const ImEvent = struct { // pinned?
                         if (key.key == .tab and !key.modifiers.shift) {
                             // →
                             std.log.info("advance focus", .{});
+
+                            var walker = imev.frame.render_result.walk(imev.persistentAlloc());
+                            defer walker.deinit();
+                            while (walker.next()) |node| {
+                                switch (node.value) {
+                                    .focusable => |fabl| {
+                                        if (imev.persistent.focus) |f| {
+                                            if (fabl.id.eql(f.id)) {
+                                                const nf = while (walker.next()) |v| switch (v.value) {
+                                                    .focusable => |*q| break q,
+                                                    else => {},
+                                                } else {
+                                                    var walker2 = imev.frame.render_result.walk(imev.persistentAlloc());
+                                                    defer walker2.deinit();
+                                                    const ff = while (walker2.next()) |v| switch (v.value) {
+                                                        .focusable => |*q| break q,
+                                                        else => {},
+                                                    } else unreachable;
+                                                    if (imev.persistent.focus) |pf| pf.deinit(imev.persistentAlloc());
+                                                    imev.persistent.focus = WFocused{
+                                                        .id = ff.id.dupe(imev.persistentAlloc()),
+                                                        .reason = .keyboard,
+                                                    };
+                                                    break;
+                                                };
+                                                if (imev.persistent.focus) |pf| pf.deinit(imev.persistentAlloc());
+                                                imev.persistent.focus = WFocused{
+                                                    .id = nf.id.dupe(imev.persistentAlloc()),
+                                                    .reason = .keyboard,
+                                                };
+                                                break;
+                                            }
+                                        } else {
+                                            if (imev.persistent.focus) |pf| pf.deinit(imev.persistentAlloc());
+                                            imev.persistent.focus = WFocused{
+                                                .id = fabl.id.dupe(imev.persistentAlloc()),
+                                                .reason = .keyboard,
+                                            };
+                                            break;
+                                        }
+                                    },
+                                    else => {},
+                                }
+                            } else {
+                                std.log.info("No match found.", .{});
+                            }
                         } else if (key.key == .left_tab or (key.key == .tab and key.modifiers.shift)) {
                             std.log.info("devance focus", .{});
                         }
@@ -719,7 +797,7 @@ pub const ImEvent = struct { // pinned?
         };
     }
     pub fn handleEvent(imev: *ImEvent, nodes: RenderResult, offset: Point, clip: Rect) void {
-        var nodeiter = nodes;
+        var nodeiter = nodes.value;
         const cr = imev.frame.cr;
         while (nodeiter) |node| {
             const rnode: RenderNode = node.value;
@@ -774,7 +852,7 @@ pub const ImEvent = struct { // pinned?
     // devance tabfocus: loop over things, saving each tabfocus in a variable. once the
     //     current id is found, set the focus to the previous tabfocus 🙲 return. if there was no prev, don't update.
     pub fn internalRender(imev: *ImEvent, nodes: RenderResult, offset: Point, clip: Rect) void {
-        var nodeiter = nodes;
+        var nodeiter = nodes.value;
         const cr = imev.frame.cr;
         while (nodeiter) |node| {
             const rnode: RenderNode = node.value;
