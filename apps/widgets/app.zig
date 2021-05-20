@@ -86,8 +86,10 @@ pub fn renderRoot(id_arg: im.ID.Arg, imev: *im.ImEvent, isc: *im.IdStateCache, w
 
         const clicked_key = imev.useClickable(id.push(@src()));
         const focused_key = imev.useFocusable(id.push(@src()), .keyboard);
-        // focused_key.render(); position doesn't matter
-        // if(clicked_key.mouse down this frame) focused_key.setFocused()
+        if (clicked_key.focused) |f| {
+            // TODO if(f.mouse down this frame)
+            if (f.on_mouse_down) focused_key.key.focus(imev, .mouse);
+        }
 
         var hovering: bool = false;
         if (clicked_key.focused) |f| {
@@ -102,7 +104,7 @@ pub fn renderRoot(id_arg: im.ID.Arg, imev: *im.ImEvent, isc: *im.IdStateCache, w
 
         const item_wh: im.WH = .{ .w = 25, .h = 25 };
 
-        sctx.place(im.primitives.rect(imev, .{ .w = 25, .h = 25 }, .{ .bg = if (hovering) .gray300 else .gray200, .rounded = .sm }), im.Point.origin);
+        sctx.place(im.primitives.rect(imev, item_wh, .{ .bg = if (hovering) .gray300 else .gray200, .rounded = .sm }), im.Point.origin);
         const stxt = im.primitives.text(imev, .{ .size = .sm, .color = .white }, imev.fmt("{d}", .{i}));
         sctx.place(stxt.node, item_wh.setUL(im.Point.origin).positionCenter(stxt.wh).ul());
         sctx.place(clicked_key.key.node(imev, item_wh), im.Point.origin);
@@ -115,6 +117,16 @@ pub fn renderRoot(id_arg: im.ID.Arg, imev: *im.ImEvent, isc: *im.IdStateCache, w
         //   <center| <text .font-sm.text-white "{d}" .{i}> |>
         //   <clicked_key.render>
         // |>
+
+        if (focused_key.focused) {
+            // sctx.place(focused_key.setFocusRing(item_wh), im.Point.origin);
+
+            sctx.place(im.primitives.rect(imev, .{ .w = 2, .h = 2 }, .{ .bg = .red }), im.Point.origin);
+
+            // instead of this, what if getting the focus node was a two-step
+            // 1: place it
+            // 2: transform and set its wh
+        }
 
         items_lm.put(.{ .wh = item_wh, .node = sctx.result() }) orelse break;
     }

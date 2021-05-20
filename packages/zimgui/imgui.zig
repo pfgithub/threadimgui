@@ -471,6 +471,22 @@ pub const IdStateCache = struct {
         isc.hm.deinit(alloc);
     }
 };
+
+pub const WFocused = struct {
+    id: ID.Ident,
+    reason: FocusableReason,
+
+    pub fn dupe(focused: WFocused, alloc: *std.mem.Allocator) WFocused {
+        return .{
+            .id = focused.id.dupe(alloc),
+            .reason = focused.reason,
+        };
+    }
+    pub fn deinit(focused: WFocused, alloc: *std.mem.Allocator) void {
+        focused.id.deinit(alloc);
+    }
+};
+
 pub const ImEvent = struct { // pinned?
     // structures that are created at init.
     persistent: struct {
@@ -487,7 +503,7 @@ pub const ImEvent = struct { // pinned?
         mouse_held: bool,
         mouse_focused: ?MouseFocused,
 
-        focus: ?ID.Ident = null,
+        focus: ?WFocused = null,
         // if, at the end of the frame, focus_used_this_frame is null:
         // - diff with the previous and current frame to find which ident to use
         // - or if there are no idents just keep it null
@@ -517,6 +533,7 @@ pub const ImEvent = struct { // pinned?
         key_down: ?Key = null,
 
         focus_used_this_frame: bool = false,
+        next_frame_focus: ?WFocused = null,
 
         request_rerender: bool = false,
     },
@@ -532,6 +549,7 @@ pub const ImEvent = struct { // pinned?
         id: ID.Ident, // saved across frames, must be duplicated and freed
         hover: bool,
         mouse_up: bool,
+        on_mouse_down: bool,
         fn deinit(mf: MouseFocused, alloc: *std.mem.Allocator) void {
             mf.id.deinit(alloc);
         }
@@ -581,6 +599,7 @@ pub const ImEvent = struct { // pinned?
 
         if (imev.persistent.mouse_focused) |mf| mf.deinit(imev.persistentAlloc());
         if (imev.persistent.scroll_focused) |sf| sf.deinit(imev.persistentAlloc());
+        if (imev.persistent.focus) |f| f.deinit(imev.persistentAlloc());
     }
     /// returns true if a rerender is requested, false otherwise.
     pub fn addEvent(imev: *ImEvent, event: RawEvent) !bool {
@@ -603,6 +622,11 @@ pub const ImEvent = struct { // pinned?
             }
             imev.persistent.mouse_focused = null;
         }
+        if (!imev.persistent.is_first_frame) if (imev.frame.next_frame_focus) |nff| {
+            if (imev.persistent.focus) |f| f.deinit(imev.persistentAlloc());
+            imev.persistent.focus = nff.dupe(imev.persistentAlloc());
+            imev.frame.next_frame_focus = null;
+        };
 
         if (!imev.persistent.is_first_frame) if (imev.persistent.unprocessed_events.shift(imev.persistent.real_allocator)) |ev| {
             switch (ev) {
@@ -712,6 +736,7 @@ pub const ImEvent = struct { // pinned?
                             .id = cable.id.dupe(imev.persistentAlloc()),
                             .hover = contains_point,
                             .mouse_up = imev.frame.mouse_up,
+                            .on_mouse_down = imev.frame.mouse_down,
                         };
                     }
                 },
@@ -734,6 +759,10 @@ pub const ImEvent = struct { // pinned?
             nodeiter = node.next;
         }
     }
+    // advance tabfocus: loop over things until finding a focusable with the current id
+    //     the next focusable found is the next tab id. then return. if there is no next focusable, don't update.
+    // devance tabfocus: loop over things, saving each tabfocus in a variable. once the
+    //     current id is found, set the focus to the previous tabfocus 🙲 return. if there was no prev, don't update.
     pub fn internalRender(imev: *ImEvent, nodes: RenderResult, offset: Point, clip: Rect) void {
         var nodeiter = nodes;
         const cr = imev.frame.cr;
@@ -860,6 +889,7 @@ pub const ImEvent = struct { // pinned?
                 ClickableState.Focused{
                 .hover = mfx.hover,
                 .click = mfx.mouse_up and mfx.hover,
+                .on_mouse_down = mfx.on_mouse_down,
             } //
             ) else null else null,
         };
@@ -879,8 +909,8 @@ pub const ImEvent = struct { // pinned?
         const id = id_h.id.forSrc(@src());
         return FocusableState{
             .key = .{ .id = id, .reason = reason },
-            .focused = false,
-            .show_focus_ring = false, // if the focus was keyboard initiated (tab key)
+            .focused = if (imev.persistent.focus) |f| f.id.eql(id) else false,
+            .show_focus_ring = true, // if the focus was keyboard initiated (tab key)
         };
     }
 
@@ -920,6 +950,7 @@ pub const ClickableState = struct {
     const Focused = struct {
         hover: bool,
         click: bool,
+        on_mouse_down: bool,
         // other stuff
         // clicking: bool
         // click: bool
@@ -962,8 +993,13 @@ pub const FocusableKey = struct {
         // and select a new focused item and rerender. repeat the process if that happens again.
         return ctx.result();
     }
+
+    pub fn focus(key: FocusableKey, imev: *ImEvent, reason: FocusableReason) void {
+        imev.frame.next_frame_focus = .{ .id = key.id, .reason = reason };
+        imev.invalidate();
+    }
 };
-const FocusableReason = enum { keyboard, screenreader };
+const FocusableReason = enum { mouse, keyboard, screenreader };
 pub const FocusableState = struct {
     key: FocusableKey,
     focused: bool,
