@@ -911,7 +911,7 @@ pub const ImEvent = struct { // pinned?
         return FocusableState{
             .key = .{ .id = id, .reason = reason },
             .focused = focused,
-            .show_focus_ring = focused and if (imev.persistent.focus) |f| (@enumToInt(f.reason) >= @enumToInt(reason)) else false, // if the focus was keyboard initiated (tab key)
+            .show_focus_ring = focused and if (imev.persistent.focus) |f| (@enumToInt(f.reason) >= @enumToInt(FocusableReason.keyboard)) else false, // if the focus was keyboard initiated (tab key)
         };
     }
 
