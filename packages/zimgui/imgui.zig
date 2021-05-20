@@ -588,23 +588,8 @@ pub const ImEvent = struct { // pinned?
         // rather than on init 🙲 frame end.
         // TODO consolidate similar events
 
-        switch (event) {
-            .resize => |rsz| {
-                imev.persistent.internal_screen_offset = .{
-                    .x = @intToFloat(f64, rsz.x),
-                    .y = @intToFloat(f64, rsz.y),
-                };
-                imev.persistent.screen_size = .{
-                    .w = @intToFloat(f64, rsz.w),
-                    .h = @intToFloat(f64, rsz.h),
-                };
-                return true;
-            },
-            else => {
-                try imev.persistent.unprocessed_events.push(imev.persistent.real_allocator, event);
-                return true;
-            }
-        }
+        try imev.persistent.unprocessed_events.push(imev.persistent.real_allocator, event);
+        return true;
     }
     pub fn prerender(imev: *ImEvent) bool {
         if (imev.persistent.is_first_frame) return true;
@@ -614,7 +599,16 @@ pub const ImEvent = struct { // pinned?
     pub fn startFrame(imev: *ImEvent, cr: backend.Context, should_render: bool) void {
         if (!imev.persistent.is_first_frame) if (imev.persistent.unprocessed_events.shift(imev.persistent.real_allocator)) |ev| {
             switch (ev) {
-                .resize => unreachable,
+                .resize => |rsz| {
+                    imev.persistent.internal_screen_offset = .{
+                        .x = @intToFloat(f64, rsz.x),
+                        .y = @intToFloat(f64, rsz.y),
+                    };
+                    imev.persistent.screen_size = .{
+                        .w = @intToFloat(f64, rsz.w),
+                        .h = @intToFloat(f64, rsz.h),
+                    };
+                },
                 .mouse_click => |mclick| {
                     imev.persistent.mouse_position = .{ .x = mclick.x, .y = mclick.y };
                     // TODO make this an enum for cross platform support
@@ -658,7 +652,9 @@ pub const ImEvent = struct { // pinned?
             }
 
             if (!imev.persistent.mouse_held and !imev.frame.mouse_up) {
-                if (imev.persistent.mouse_focused) |mf| mf.deinit(imev.persistentAlloc());
+                if (imev.persistent.mouse_focused) |mf| {
+                    mf.deinit(imev.persistentAlloc());
+                }
                 imev.persistent.mouse_focused = null;
             }
             if (imev.persistent.scroll_focused) |sf| sf.deinit(imev.persistentAlloc());
