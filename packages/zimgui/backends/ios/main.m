@@ -48,12 +48,13 @@ typedef struct {
     CGFloat height_constraint;
 } CTextLayout;
 
-// bytes: u8, index: c_long
-extern CTextLayout *objc_layout(const UInt8 *in_string_ptr, long in_string_len, CGFloat width_constraint, CGFloat height_constraint) {
-    CTextLayout* tl = malloc(sizeof(CTextLayout));
+typedef struct {
+    CFMutableAttributedStringRef masr;
+} CAttributedString;
 
-    // CFStringRef textString = CFSTR("Hello, World! I know nothing in the world that has as much power as a word.");
-    // https://developer.apple.com/documentation/corefoundation/1543419-cfstringcreatewithbytes?language=objc
+extern CAttributedString *objc_new_attrstring(const UInt8 *in_string_ptr, long in_string_len) {
+    CAttributedString* attrstr = malloc(sizeof(CAttributedString));
+
     CFStringRef textString = CFStringCreateWithBytes(kCFAllocatorDefault, in_string_ptr, in_string_len, kCFStringEncodingUTF8, false);
 
     // Create a mutable attributed string with a max length of 0.
@@ -69,10 +70,36 @@ extern CTextLayout *objc_layout(const UInt8 *in_string_ptr, long in_string_len, 
     );
     CFRelease(textString);
 
+    attrstr->masr = attrString;
+
+    return attrstr;
+}
+extern void objc_drop_attrstring(CAttributedString *attrstr) {
+    CFRelease(attrstr->masr);
+    free(attrstr);
+}
+// note the range is in utf-16 code pairs so glhf
+extern void objc_addattr_color(CAttributedString *attrstr, CGFloat r, CGFloat g, CGFloat b, CGFloat a) void {
+    // Create a color that will be added as an attribute to the attrString.
+    CGColorSpaceRef rgbColorSpace = CGColorSpaceCreateDeviceRGB();
+    CGFloat components[] = { r, g, b, a };
+    CGColorRef red = CGColorCreate(rgbColorSpace, components);
+    CGColorSpaceRelease(rgbColorSpace);
+
+    // Set the color of the first 12 chars to red.
+    CFAttributedStringSetAttribute(attrString, CFRangeMake(0, CFAttributedStringGetLength(attrstr->masr)),
+        kCTForegroundColorAttributeName, red
+    );
+}
+
+// bytes: u8, index: c_long
+extern CTextLayout *objc_layout(CAttributedString* attrstr, CGFloat width_constraint, CGFloat height_constraint) {
+    CTextLayout* tl = malloc(sizeof(CTextLayout));
+
     CTFramesetterRef framesetter =
-        CTFramesetterCreateWithAttributedString(attrString)
+        CTFramesetterCreateWithAttributedString(attrstr->masr)
     ;
-    CFRelease(attrString);
+    objc_drop_attrstring(attrstr);
 
     CGMutablePathRef path = CGPathCreateMutable();
     CGRect bounds = CGRectMake(0.0, 0.0, width_constraint, height_constraint);

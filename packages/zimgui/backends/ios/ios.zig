@@ -21,6 +21,27 @@ pub fn cairoScale(int: c_int) f64 {
     return @intToFloat(f64, int) / SCALE;
 }
 
+const CAttributedString = opaque {
+    extern fn objc_new_attrstring(ptr: [*]u8, len: c_long) *CAttributedString;
+    extern fn objc_addattr_color(attrstr: *CAttributedString, CGFloat r, CGFloat g, CGFloat b, CGFloat a);
+};
+
+pub const TextAttrList = struct {
+    attrstr: *CAttributedString,
+    pub fn new(text: []const u8) TextAttrList {
+        return .{ .attrstr = CAttributedString.objc_new_attrstring(text.ptr, @intCast(c_long, text.len)) };
+    }
+    pub fn addRange(al: TextAttrList, start_usz: usize, end_usz: usize, format: TextAttr) void {
+        // TODO use start_usz, end_usz. These are in bytes, but CFStringRef uses utf-16 or something.
+        switch (format) {
+            .underline => backend.warn.once(@src(), "TextAttrList.addRange(.underline)"),
+            .color => |col| {
+                al.attrstr.objc_addattr_color(col.r, col.g, col.b, col.a);
+            },
+        }
+    }
+};
+
 extern fn objc_layout(in_string_ptr: [*]const u8, in_string_len: c_long, width_constraint: CGFloat, height_constraint: CGFloat) *CTextLayout;
 const CTextLayout = opaque {
     extern fn objc_drop_layout(layout: *CTextLayout) void;

@@ -148,7 +148,7 @@ fn renderRichtextSpan(id_arg: ID.Arg, imev: *ImEvent, isc: *IdStateCache, span: 
 
     switch (span) {
         .text => |txt| {
-            const placed_text = primitives.textLayout(imev, args.width, .{ .color = .red, .size = .sm, .left_offset = args.start_offset }, txt.str);
+            const placed_text = primitives.textLayout(imev, args.width, .{ .color = .white, .size = .sm, .left_offset = args.start_offset }, txt.str);
             // get lines
             // pango_cairo_show_layout_line https://docs.gtk.org/PangoCairo/func.show_layout_line.html
             var lines_iter = placed_text.lines();
