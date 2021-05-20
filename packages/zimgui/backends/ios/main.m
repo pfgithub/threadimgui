@@ -86,9 +86,13 @@ extern void objc_addattr_color(CAttributedString *attrstr, CGFloat r, CGFloat g,
     CGColorRef red = CGColorCreate(rgbColorSpace, components);
     CGColorSpaceRelease(rgbColorSpace);
 
-    // Set the color of the first 12 chars to red.
     CFAttributedStringSetAttribute(attrstr->masr, CFRangeMake(0, CFAttributedStringGetLength(attrstr->masr)),
         kCTForegroundColorAttributeName, red
+    );
+
+    CTFontRef helvetica = CTFontCreateWithName(CFSTR("Helvetica"), 14.0, NULL);
+    CFAttributedStringSetAttribute(attrstr->masr, CFRangeMake(0, CFAttributedStringGetLength(attrstr->masr)),
+        kCTFontAttributeName, helvetica
     );
 }
 
