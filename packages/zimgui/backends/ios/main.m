@@ -187,6 +187,7 @@ extern void objc_drop_layout(CTextLayout *layout) {
 
 extern void zig_render(CData *ref, CRerenderKey *rkey, CGFloat w, CGFloat h);
 extern void zig_tap(CRerenderKey *rkey, CGFloat x, CGFloat y);
+extern void zig_scroll(CRerenderKey *rkey, CGFloat x, CGFloat y, CGFloat sx, CGFloat sy);
 
 @implementation MainView
 
@@ -203,20 +204,39 @@ extern void zig_tap(CRerenderKey *rkey, CGFloat x, CGFloat y);
 
         UITapGestureRecognizer *tapGestureRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(handleTapFrom:)];
         [self addGestureRecognizer:tapGestureRecognizer];
-        tapGestureRecognizer.delegate = self; // this is supposed to be the app delegate but nah
+        tapGestureRecognizer.delegate = self;
+
+        UIPanGestureRecognizer *panGestureRecognizer = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(handlePanFrom:)];
+        [self addGestureRecognizer:panGestureRecognizer];
+        panGestureRecognizer.delegate = self;
+
+        // TODO UIHoverGestureRecognizer
+        // note: ipadOS/macOS only so be careful with it
     }
     return self;
 }
 
 - (void)handleTapFrom:(UITapGestureRecognizer*)sender {
     if (sender.state == UIGestureRecognizerStateEnded) {
-        // handling code
         CGPoint location = [sender locationInView:self];
 
         CRerenderKey rkey = {.view = self, .during_drawrect = false};
         zig_tap(&rkey, location.x, location.y);
     }
-    // exit(1);
+}
+
+- (void)handlePanFrom:(UIPanGestureRecognizer*)sender {
+    if (sender.state == UIGestureRecognizerStateBegan
+    || sender.state == UIGestureRecognizerStateChanged
+    || sender.state == UIGestureRecognizerStateEnded) {
+        // begin
+        CGPoint location = [sender locationInView:self];
+        CGPoint offset = [sender translationInView:self];
+
+        CRerenderKey rkey = {.view = self, .during_drawrect = false};
+        zig_scroll(&rkey, location.x, location.y, -offset.x, -offset.y);
+        [sender setTranslation:CGPointMake(0, 0) inView:self]; // not great
+    }
 }
 
 - (void)drawRect:(CGRect)rect {

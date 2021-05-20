@@ -148,3 +148,10 @@ export fn zig_tap(rkey: *CRerenderKey, x: CGFloat, y: CGFloat) void {
     data.pushEvent(.{ .mouse_click = .{ .down = true, .x = x, .y = y, .button = 1 } }, .{ .rkey = rkey }, data.data);
     data.pushEvent(.{ .mouse_click = .{ .down = false, .x = x, .y = y, .button = 1 } }, .{ .rkey = rkey }, data.data);
 }
+export fn zig_scroll(rkey: *CRerenderKey, x: CGFloat, y: CGFloat, sx: CGFloat, sy: CGFloat) void {
+    const data = global_data_ptr;
+
+    data.pushEvent(.{ .mouse_move = .{ .x = x, .y = y } }, .{ .rkey = rkey }, data.data);
+    data.pushEvent(.{ .scroll = .{ .scroll_x = sx, .scroll_y = sy } }, .{ .rkey = rkey }, data.data); // shouldn't scroll have a coordinate?
+}
+// maybe use UIScrollView for the bounce effect? not sure what exactly that would entail
