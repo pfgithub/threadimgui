@@ -19,6 +19,8 @@ pub const KeyModifiers = packed struct {
 };
 pub const Key = enum {
     f12,
+    tab,
+    left_tab,
     unsupported,
 };
 

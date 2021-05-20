@@ -31,11 +31,19 @@ pub fn time_() u64 {
 // https://gitlab.gnome.org/GNOME/gtk/blob/master/gdk/gdkkeysyms.h
 const KeyMap = enum(guint) {
     f12 = GDK_KEY_F12,
+    tab = GDK_KEY_Tab,
+    left_tab = GDK_KEY_ISO_Left_Tab,
     _,
     pub fn toKey(raw: KeyMap) Key {
-        return switch (raw) {
+        return switch (raw) { // this could just be an inline switch
             .f12 => .f12,
-            _ => .unsupported,
+            .tab => .tab,
+            .left_tab => .left_tab,
+            _ => {
+                // https://code.woboq.org/gtk/gtk/gdk/gdkkeysyms.h.html
+                std.log.info("Missing key {x:0<4}", .{@enumToInt(raw)});
+                return .unsupported;
+            },
         };
     }
 };

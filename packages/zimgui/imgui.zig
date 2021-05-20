@@ -668,16 +668,26 @@ pub const ImEvent = struct { // pinned?
                     imev.frame.scroll_delta = .{ .x = sev.scroll_x, .y = sev.scroll_y };
                 },
                 .key => |key| {
-                    // std.log.info("key: {s}{s}{s}{s}{s}{s}{s}", .{
-                    //     (&[_][]const u8{ "↑", "↓" })[@boolToInt(key.down)],
-                    //     @tagName(key.key),
-                    //     (&[_][]const u8{ "", " ⌃" })[@boolToInt(key.modifiers.ctrl)],
-                    //     (&[_][]const u8{ "", " ⎇ " })[@boolToInt(key.modifiers.alt)],
-                    //     (&[_][]const u8{ "", " ⇧" })[@boolToInt(key.modifiers.shift)],
-                    //     (&[_][]const u8{ "", " ⌘" })[@boolToInt(key.modifiers.win)],
-                    //     "",
-                    // });
+                    std.log.info("key: {s}{s}{s}{s}{s}{s}{s}", .{
+                        (&[_][]const u8{ "↑", "↓" })[@boolToInt(key.down)],
+                        @tagName(key.key),
+                        (&[_][]const u8{ "", " ⌃" })[@boolToInt(key.modifiers.ctrl)],
+                        (&[_][]const u8{ "", " ⎇ " })[@boolToInt(key.modifiers.alt)],
+                        (&[_][]const u8{ "", " ⇧" })[@boolToInt(key.modifiers.shift)],
+                        (&[_][]const u8{ "", " ⌘" })[@boolToInt(key.modifiers.win)],
+                        "",
+                    });
                     if (key.down) imev.frame.key_down = key.key;
+
+                    // pattern matching would useful here to make sure the match was against all the modifiers
+                    if (key.down and !key.modifiers.ctrl and !key.modifiers.alt and !key.modifiers.win) {
+                        if (key.key == .tab and !key.modifiers.shift) {
+                            // →
+                            std.log.info("advance focus", .{});
+                        } else if (key.key == .left_tab or (key.key == .tab and key.modifiers.shift)) {
+                            std.log.info("devance focus", .{});
+                        }
+                    }
                 },
                 else => {},
             }
