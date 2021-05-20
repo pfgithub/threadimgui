@@ -42,15 +42,15 @@ typedef struct {
     CTFramesetterRef framesetter;
     CTFrameRef frame;
     CGMutablePathRef path;
+    CGFloat width;
+    CGFloat height;
+    CGFloat width_constraint;
+    CGFloat height_constraint;
 } CTextLayout;
 
 // bytes: u8, index: c_long
-extern CTextLayout *objc_layout(const UInt8 *in_string_ptr, long in_string_len) {
+extern CTextLayout *objc_layout(const UInt8 *in_string_ptr, long in_string_len, CGFloat width_constraint, CGFloat height_constraint) {
     CTextLayout* tl = malloc(sizeof(CTextLayout));
-
-    CGMutablePathRef path = CGPathCreateMutable();
-    CGRect bounds = CGRectMake(0.0, 0.0, 200.0, 200.0);
-    CGPathAddRect(path, NULL, bounds);
 
     // CFStringRef textString = CFSTR("Hello, World! I know nothing in the world that has as much power as a word.");
     // https://developer.apple.com/documentation/corefoundation/1543419-cfstringcreatewithbytes?language=objc
@@ -74,17 +74,48 @@ extern CTextLayout *objc_layout(const UInt8 *in_string_ptr, long in_string_len) 
     ;
     CFRelease(attrString);
 
+    CGMutablePathRef path = CGPathCreateMutable();
+    CGRect bounds = CGRectMake(0.0, 0.0, width_constraint, height_constraint);
+    CGPathAddRect(path, NULL, bounds);
+
     CTFrameRef frame = CTFramesetterCreateFrame(
         framesetter, CFRangeMake(0, 0), path, NULL
     );
     // I should be able to drop the path and framesetter now right? no reason to keep them
 
+    CFArrayRef lineArray = CTFrameGetLines(frame);
+    CFIndex j = 0;
+    CFIndex lineCount = CFArrayGetCount(lineArray);
+    CGFloat total_height = 0;
+    CGFloat h = 0;
+    CGFloat ascent;
+    CGFloat descent;
+    CGFloat leading;
+    CGFloat max_w = 0;
+
+    for (j=0; j < lineCount; j++)
+    {
+        CTLineRef currentLine = (CTLineRef)CFArrayGetValueAtIndex(lineArray, j);
+        double line_w = CTLineGetTypographicBounds(currentLine, &ascent, &descent, &leading);
+        h = ascent + descent + leading;
+        if(line_w > max_w) max_w = line_w;
+        total_height += h;
+    }
+
     // return the frame, path, framesetter
     tl->frame = frame;
     tl->framesetter = framesetter;
     tl->path = path;
+    tl->width = total_height;
+    tl->height = max_w;
+    tl->width_constraint = width_constraint;
+    tl->height_constraint = height_constraint;
 
     return tl;
+}
+extern void objc_measure_layout(CTextLayout *layout, CGFloat *x, CGFloat *h) {
+    *x = layout->width;
+    *y = layout->height;
 }
 extern void objc_display_text(CTextLayout *layout, CData *cref, CGFloat x, CGFloat y) {
     CGContextRef context = cref->context;
@@ -93,7 +124,7 @@ extern void objc_display_text(CTextLayout *layout, CData *cref, CGFloat x, CGFlo
 
     // TODO
     CGFloat layout_height = 0.0;
-    CGContextTranslateCTM(context, x, y + 200);
+    CGContextTranslateCTM(context, x, y + layout->height_constraint);
     CGContextScaleCTM(context, 1.0, -1.0);
     
     // for some reason, the text is being placed

@@ -21,7 +21,7 @@ pub fn cairoScale(int: c_int) f64 {
     return @intToFloat(f64, int) / SCALE;
 }
 
-extern fn objc_layout(in_string_ptr: [*]const u8, in_string_len: c_long) *CTextLayout;
+extern fn objc_layout(in_string_ptr: [*]const u8, in_string_len: c_long, width_constraint: CGFloat, height_constraint: CGFloat) *CTextLayout;
 const CTextLayout = opaque {
     extern fn objc_drop_layout(layout: *CTextLayout) void;
     extern fn objc_display_text(layout: *CTextLayout, context: *CData, x: CGFloat, y: CGFloat) void;
@@ -33,11 +33,10 @@ pub const TextLayout = struct {
         layout.layout.objc_drop_layout();
     }
     pub fn getSize(layout: TextLayout) structures.WH {
-        // var w: c_int = 0;
-        // var h: c_int = 0;
-        // pango_layout_get_size(layout.layout, &w, &h);
-        // return .{ .w = cairoScale(w), .h = cairoScale(h) };
-        return .{.w = 25, .h = 25};
+        var w: CGFloat = 0;
+        var h: CGFloat = 0;
+        objc_measure_layout(layout.layout, &w, &h);
+        return .{ .w = w, .h = h };
     }
     // pub fn lines(layout: TextLayout) TextLayoutLinesIter {
     //     return .{ .node = pango_layout_get_lines_readonly(layout.layout) };
@@ -57,7 +56,10 @@ pub const Context = struct {
     }
 
     pub fn layoutText(ctx: Context, font: [*:0]const u8, text: []const u8, width: ?c_int, left_offset: c_int, attrs: void) TextLayout {
-        const layout = objc_layout(text.ptr, @intCast(c_long, text.len));
+        const maxw: CGFloat = if (width) |w| cairoScale(w) else 10_000;
+        const maxh: CGFloat = 10_000;
+
+        const layout = objc_layout(text.ptr, @intCast(c_long, text.len), maxw, maxh);
         return TextLayout{ .layout = layout };
     }
 };
@@ -81,10 +83,10 @@ pub fn startBackend(data: *const backend.OpaquePtrData) error{Failure}!void {
     // data.pushEvent(.{ .resize = .{ .x = 0, .y = 0, .w = 200, .h = 200 } }, .{}, data.data);
 }
 
-const CData = opaque{
+const CData = opaque {
     extern fn objc_draw_rect(ref: *CData, x: CGFloat, y: CGFloat, w: CGFloat, h: CGFloat, r: CGFloat, g: CGFloat, b: CGFloat, a: CGFloat) void;
 };
-const CRerenderKey = opaque{
+const CRerenderKey = opaque {
     extern fn objc_request_rerender(rkey: *CRerenderKey) void;
 };
 
@@ -92,8 +94,8 @@ export fn zig_render(ref: *CData, rkey: *CRerenderKey, w: CGFloat, h: CGFloat) v
     const data = global_data_ptr; // todo make this an arg
 
     // todo actual screen size
-    data.pushEvent(.{ .resize = .{ .x = 0, .y = 0, .w = @floatToInt(c_int, w), .h = @floatToInt(c_int, h) } }, .{.rkey = rkey}, data.data); // this shouldn't have to be sent each frame
-    data.renderFrame(Context{ .ref = ref }, .{.rkey = rkey}, data.data);
+    data.pushEvent(.{ .resize = .{ .x = 0, .y = 0, .w = @floatToInt(c_int, w), .h = @floatToInt(c_int, h) } }, .{ .rkey = rkey }, data.data); // this shouldn't have to be sent each frame
+    data.renderFrame(Context{ .ref = ref }, .{ .rkey = rkey }, data.data);
 
     // ref.objc_draw_rect(25, 25, 100, 100, 1.0, 0.5, 0.0, 1.0);
 }
@@ -101,6 +103,6 @@ export fn zig_render(ref: *CData, rkey: *CRerenderKey, w: CGFloat, h: CGFloat) v
 export fn zig_tap(rkey: *CRerenderKey, x: CGFloat, y: CGFloat) void {
     const data = global_data_ptr;
 
-    data.pushEvent(.{ .mouse_click = .{ .down = true, .x = x, .y = y, .button = 1 } }, .{.rkey = rkey}, data.data);
-    data.pushEvent(.{ .mouse_click = .{ .down = false, .x = x, .y = y, .button = 1 } }, .{.rkey = rkey}, data.data);
+    data.pushEvent(.{ .mouse_click = .{ .down = true, .x = x, .y = y, .button = 1 } }, .{ .rkey = rkey }, data.data);
+    data.pushEvent(.{ .mouse_click = .{ .down = false, .x = x, .y = y, .button = 1 } }, .{ .rkey = rkey }, data.data);
 }
