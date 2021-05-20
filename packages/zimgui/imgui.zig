@@ -598,7 +598,7 @@ pub const ImEvent = struct { // pinned?
                     .w = @intToFloat(f64, rsz.w),
                     .h = @intToFloat(f64, rsz.h),
                 };
-                return false;
+                return true;
             },
             else => {
                 try imev.persistent.unprocessed_events.push(imev.persistent.real_allocator, event);
