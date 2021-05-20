@@ -1467,7 +1467,7 @@ pub fn pushEvent(ev: RawEvent, rr: backend.RerenderRequest, data: ExecData) void
     // anyway probably not necessary but there may be some events where it's useful
 
     const req_rr = imev.addEvent(ev) catch @panic("oom");
-    if(req_rr) rr.queueDraw();
+    if (req_rr) rr.queueDraw();
 }
 
 const ExecData = struct {
