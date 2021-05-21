@@ -17,8 +17,10 @@ supported interaction methods:
 - (wip) touch
 - (planned) screenreader + screenreader emulation in the devtools
 
-other features:
+planned stuff:
 
+- (planned) custom styling + decouple styling from imgui.zig
+- (planned) built in rich text editing component, somewhat similar to slate
 - (planned) drag and drop
 - (planned) automatic light/dark mode
 - (planned) automated ui testing
