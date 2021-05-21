@@ -214,7 +214,7 @@ pub const RenderWalker = struct {
     pub fn deinit(rw: RenderWalker) void {
         rw.stack.deinit();
     }
-    pub fn next(rw: *RenderWalker) ?*const RenderNode {
+    pub fn next(rw: *RenderWalker) ?*RenderNode {
         var res = rw.stack.popOrNull() orelse return null;
         if (res.next) |nxt| {
             rw.stack.append(nxt) catch @panic("oom");
@@ -772,6 +772,46 @@ pub const ImEvent = struct { // pinned?
                             // - imev.setFocus(prev_focus)
                             // - break :blk
                             std.log.info("devance focus", .{});
+
+                            var walker = imev.frame.render_result.walk(imev.persistentAlloc());
+                            defer walker.deinit();
+
+                            blk: {
+                                var prev_focus: ?*const ID.Ident = null;
+                                var current_focus: ?*const ID.Ident = null;
+                                // advance the walker to the focused node (if there is one)
+                                // else: advance the walker to the end
+                                if (imev.persistent.focus) |pfocus| {
+                                    while (walker.next()) |node| switch (node.value) {
+                                        .focusable => |*fabl| {
+                                            prev_focus = current_focus;
+                                            current_focus = &fabl.id;
+                                            if (fabl.id.eql(pfocus.id)) break;
+                                        },
+                                        else => {},
+                                    } else @panic("TODO catch this earlier and diff with .focus_used_this_frame");
+                                } else {
+                                    while (walker.next()) |node| switch (node.value) {
+                                        .focusable => |*fabl| {
+                                            prev_focus = &fabl.id;
+                                        },
+                                        else => {},
+                                    };
+                                }
+
+                                if (prev_focus == null) {
+                                    if (imev.persistent.focus == null) break :blk;
+                                    while (walker.next()) |node| switch (node.value) {
+                                        .focusable => |*fabl| {
+                                            prev_focus = &fabl.id;
+                                        },
+                                        else => {},
+                                    };
+                                }
+                                if (prev_focus) |pfid| imev.setFocus(pfid.*, .keyboard);
+
+                                break :blk;
+                            }
                         }
                     }
                 },
