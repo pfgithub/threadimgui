@@ -647,7 +647,12 @@ pub const ImEvent = struct { // pinned?
         const unpr_evs = imev.persistent.unprocessed_events;
         return !std.meta.eql(unpr_evs.start, unpr_evs.end); // AKA: unpr_evs.len >= 2
     }
-    fn setFocus(imev: *ImEvent, id: ID.Ident, reason: FocusableReason) void {
+    const FocusDirection = enum { manual, from_left, from_right };
+    /// focusdirection is used for eg scroll views. they might have content above that they don't know about,
+    /// so if you tab from the top you would expect the scrollview to scroll all the way to the top and set focus
+    /// to the first item, but from the bottom you would expect the scrollview to just scroll up a little bit.
+    /// manual focusdirection generally should never be triggered in situations like that.
+    fn setFocus(imev: *ImEvent, id: ID.Ident, reason: FocusableReason, direction: FocusDirection) void {
         if (imev.persistent.focus) |f| f.deinit(imev.persistentAlloc());
         imev.persistent.focus = .{
             .id = id.dupe(imev.persistentAlloc()),
@@ -662,7 +667,7 @@ pub const ImEvent = struct { // pinned?
             imev.persistent.mouse_focused = null;
         }
         if (!imev.persistent.is_first_frame) if (imev.frame.next_frame_focus) |nff| {
-            imev.setFocus(nff.id, nff.reason);
+            imev.setFocus(nff.id, nff.reason, .manual);
             imev.frame.next_frame_focus = null;
         };
 
@@ -753,7 +758,7 @@ pub const ImEvent = struct { // pinned?
                                 };
 
                                 // set the focus
-                                imev.setFocus(next_focus.id, .keyboard);
+                                imev.setFocus(next_focus.id, .keyboard, .from_left);
                             }
                         } else if (key.key == .left_tab or (key.key == .tab and key.modifiers.shift)) {
                             // the basic algorithm
@@ -808,7 +813,7 @@ pub const ImEvent = struct { // pinned?
                                         else => {},
                                     };
                                 }
-                                if (prev_focus) |pfid| imev.setFocus(pfid.*, .keyboard);
+                                if (prev_focus) |pfid| imev.setFocus(pfid.*, .keyboard, .from_right);
 
                                 break :blk;
                             }
