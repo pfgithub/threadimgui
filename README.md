@@ -4,9 +4,25 @@ download a latest master binary of zig from [here](https://ziglang.org/download/
 
 supported platforms:
 
-- linux
-- windows (wip)
-- (eventually) others
+- linux: gtk3/cairo
+- (wip) windows: Windows/gdi
+- (wip) ios: UIKit/CoreGraphics
+- (planned) android: ???/skia
+- (planned) web: events/(canvas | html nodes | webgl)
+- (planned) my own os
+
+supported interaction methods:
+
+- keyboard/mouse + IME events
+- (wip) touch
+- (planned) screenreader + screenreader emulation in the devtools
+
+other features:
+
+- (planned) drag and drop
+- (planned) automatic light/dark mode
+- (planned) automated ui testing
+- (planned) native navigation (eg: ios push screen and stuff)
 
 if you are on windows, use `-Dtarget=native-native-gnu` otherwise you need to install some sdk or something
 
@@ -16,6 +32,8 @@ run the application with `zig build run`
 
 - open devtools with `f12`
 - running the windows version on linux: `zig build run -Dtarget=x86_64-windows-gnu`
+
+building the ios version (requires a mac with xcode installed): `cd packages/zimgui/backends/ios` and read the README.md
 
 # overview
 
