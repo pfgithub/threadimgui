@@ -163,10 +163,12 @@ pub const FontFamily = enum {
 pub const FontSize = enum {
     sm, // 0.875rem ≈ 10.541pt
     base, // 1rem ≈ 12.0468pt
+    xl5, // 3rem ≈ 36.1404pt
     pub fn getString(fsize: FontSize) []const u8 {
         return switch (fsize) {
             .sm => "10.541",
             .base => "12.0468",
+            .xl5 => "36.1404",
         };
     }
 };
