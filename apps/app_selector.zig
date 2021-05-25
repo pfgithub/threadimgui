@@ -10,6 +10,7 @@ const ActiveTab = enum {
     demo,
     widgets,
     threadimgui,
+    scroll,
     pub fn item(at: ActiveTab) SidebarItem {
         return switch (at) {
             .demo => .{
@@ -23,6 +24,10 @@ const ActiveTab = enum {
             .threadimgui => .{
                 .title = "ThreadReader",
                 .desc = "An implementation of ThreadReader in zimgui",
+            },
+            .scroll => .{
+                .title = "Scroll",
+                .desc = "Testing out scrolling functionality",
             },
         };
     }
@@ -200,6 +205,7 @@ pub fn renderContent(id_arg: im.ID.Arg, imev: *im.ImEvent, isc: *im.IdStateCache
 
             return @import("threadimgui/app.zig").renderRoot(id.push(@src()), imev, isc, wh, sample.ptr.*);
         },
+        .scroll => return @import("scroll/app.zig").renderRoot(id.push(@src()), imev, isc, wh, 0),
     }
 }
 

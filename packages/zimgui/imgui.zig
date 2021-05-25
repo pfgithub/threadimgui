@@ -82,6 +82,33 @@ pub const RoundedStyle = enum {
         };
     }
 };
+
+pub const Sample = struct {
+    const black = ColorStyle.wrapping(SampleColors, .black);
+};
+pub const ColorStyle = struct {
+    enum_key: u32, // since this is a u32, it can also store a full hex rgba color if needed.
+    get_color_fn: fn(enum_key: u32, imev: *ImEvent) Color,
+    pub fn getColor(col: ColorStyle, imev: *ImEvent) Color {
+        return col.get_color_fn(col.enum_key, imev);
+    }
+
+    // alternatively, this could just be two colors, one dark mode and one light mode. that's 8 u64s rather than 2 though
+    // and less extensible (eg high contrast mode) although high contrast mode might be something that's handled differently
+    // like the point of high contrast is to add more borders and stuff. ah eg : text scaling, this doesn't handle that.
+    // unless text scaling is just a global modifier.
+
+    // also, this has the advantage that it can be used as a hashmap key (whereas floats can't)
+};
+
+// TODO union(enum) {custom: Color} and also this needs to be customizable
+// and support dark/light mode and stuff
+// ALTERNATIVELY
+// .{.color = Style.black}
+// and then Style.black is a constant of type ColorStyle which has a
+// fn to get the color
+// that's actually a much better idea. do that. have functions accept
+// ColorStyle rather than accepting Color
 pub const ThemeColor = enum {
     black,
     gray100,
