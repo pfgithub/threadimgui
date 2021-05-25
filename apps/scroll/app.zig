@@ -105,6 +105,14 @@ pub fn renderRoot(id_arg: ID.Arg, imev: *ImEvent, isc: *IdStateCache, wh: ui.WH,
 }
 
 fn renderTestScroller() void {
+    // TODO make a demo app that looks like this
+    // https://i.imgur.com/LpfdR5K.png
+    // that requires many things
+    // the pattern described above for placing objects and handling upwards and downwards size negotiations
+    // a scroller for static objects
+    // a scroller for virtual objects
+    // linkage between different scrollers (very important)
+
     // make some sample content
     //
     //   Heading (.text-lg)
