@@ -4,6 +4,8 @@ const backend = @import("backends/backend.zig");
 pub const ID = @import("id.zig").ID;
 pub usingnamespace @import("structures.zig");
 const build_opts = @import("build_options");
+const callback = @import("callbacks").callback;
+const Callback = @import("callbacks").Callback;
 
 pub const StartBackend = backend.StartBackend;
 
@@ -35,6 +37,63 @@ pub const RenderNode = struct { value: union(enum) {
     clickable: struct {
         id: ID.Ident, // owned by the arena
         wh: WH,
+        //cb: Callback(OnClick, void),
+        // wait callbacks mean we no longer need
+        // identifiers right? yeah, the identifiers
+        // are used in the IdStateCache
+        // is that true? no I don't think so right?
+        // what does the callback get
+        // idk like the callback could get uuh
+        // onMouseDown, onMouseUp, onMouseMove
+        // uuh
+        // what do callbacks look like?
+        // here's a button
+
+        // <Button {
+        //   <Clickable onev=callback(
+        //     imev.arenaDupe( state_ptr ),
+        //     () => { state.hoverState = ev.hoverState },
+        //   ) {
+        //     <Rect {<Inset.y-m2.x-m4 {
+        //       <Text "hi">
+        //     }>}>
+        //   }>
+        // }>
+        //
+        // ok what I'm worried about
+        // what if you're hovering over a thing and it gets
+        // dropped from view
+        // it might be worth it having a global isc? like
+        // one that drops things that fall out of view?
+        // vs the local one that keeps things that
+        // are not in view
+        // because the worry is when it reappears it might
+        // no longer be hovered and it won't ever be told that
+        // because it's an event thing
+        //
+        // also part 2: an id is def. needed (also woah
+        // ralt works really well on this machine)
+        // anyway an id is needed because it needs to
+        // know who to send events to while clicking
+        // and dragging. so you click down on a thing
+        // and it needs to store that id and send drag
+        // events to that id.
+        //
+        // so it does need an id.
+        //
+        // ok so I guess the interface : imgui will have
+        // a root leve
+        //
+        // wait uuh what happens when you unfocus something
+        // it calls the callback right?
+        //
+        // yeah ok so if something gets deleted before it's
+        // unfocused, the cb will never get called b/c the
+        // id will no longer be in the tree. so that's why
+        // stuff related to event focus state should be
+        // stored in an imev idstatecache vs stuff related
+        // to like state that should be more persistent
+        // than that should be in a passed in isc.
     },
     scrollable: struct {
         id: ID.Ident, // owned by the arena
@@ -88,7 +147,7 @@ pub const Sample = struct {
 };
 pub const ColorStyle = struct {
     enum_key: u32, // since this is a u32, it can also store a full hex rgba color if needed.
-    get_color_fn: fn(enum_key: u32, imev: *ImEvent) Color,
+    get_color_fn: fn (enum_key: u32, imev: *ImEvent) Color,
     pub fn getColor(col: ColorStyle, imev: *ImEvent) Color {
         return col.get_color_fn(col.enum_key, imev);
     }
@@ -1048,6 +1107,16 @@ pub const ImEvent = struct { // pinned?
         }
     }
 
+    // TODO:
+    // backend.clickable(.{w, h}, callback(arena_allocated_data, CbFn));
+    // and then useClickable will just be a wrapper
+    // while I replace the fns
+    // so useClickable will just be
+    // var cs: *ClickableState = useState(ClickableState);
+    // return {…}
+    // and then the clickablestate key has a
+    // fn that just returns the backend clickable
+
     /// this should assert that the resulting clickablestate is placed
     /// ideally this could be done by the language in the typesystem,
     /// but zig doesn't have a way to do that.
@@ -1637,7 +1706,7 @@ pub fn renderBaseRoot(id: ID, imev: *ImEvent, isc: *IdStateCache, wh: WH, data: 
 }
 
 pub fn renderFrame(cr: backend.Context, rr: backend.RerenderRequest, data: ExecData) void {
-    const timer = std.time.Timer.start() catch @panic("bad timer");
+    var timer = std.time.Timer.start() catch @panic("bad timer");
     const imev = data.imev;
     const root_state_cache = data.root_state_cache;
 
@@ -1655,6 +1724,10 @@ pub fn renderFrame(cr: backend.Context, rr: backend.RerenderRequest, data: ExecD
     render_count += 1;
     imev.startFrame(cr, true);
     id = ID.init(imev.persistentAlloc(), imev.arena());
+
+    const timer_end = timer.lap();
+    std.log.info("Rerender x{} in {}ns", .{ render_count, timer_end });
+
     imev.endFrameRender(renderBaseRoot(id, imev, root_state_cache, imev.persistent.screen_size, data));
     id.deinit();
     root_state_cache.cleanupUnused(imev);
@@ -1662,6 +1735,8 @@ pub fn renderFrame(cr: backend.Context, rr: backend.RerenderRequest, data: ExecD
     if (imev.frame.request_rerender) {
         rr.queueDraw();
     }
+
+    std.log.info("Draw in        {}ns", .{timer.read()});
 
     // std.log.info("rerender×{} in {}ns", .{ render_count, timer.read() }); // max allowed time is 4ms
 }
@@ -1673,6 +1748,8 @@ pub fn pushEvent(ev: RawEvent, rr: backend.RerenderRequest, data: ExecData) void
     // or even with render set to true, just tell it to render the returned root
     // at the start of next frame rather than calling the fn thing
     // anyway probably not necessary but there may be some events where it's useful
+
+    std.log.info("Event queued. Queuing redraw (TODO switch to callbacks for this reason. callbacks can update data and then only call imev.invalidate() if it's needed", .{});
 
     const req_rr = imev.addEvent(ev) catch @panic("oom");
     if (req_rr) rr.queueDraw();

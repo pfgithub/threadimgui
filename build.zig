@@ -36,7 +36,7 @@ pub fn build(b: *std.build.Builder) void {
         .cairo_gtk3, .windows => b.addExecutable(app_name, main_file),
         .ios => b.addStaticLibrary(app_name, main_file),
     };
-    if(render_backend == .ios) {
+    if (render_backend == .ios) {
         exe.bundle_compiler_rt = true;
     }
     exe.setTarget(target);
@@ -44,8 +44,10 @@ pub fn build(b: *std.build.Builder) void {
 
     exe.addBuildOption(RenderBackend, "render_backend", render_backend);
     exe.addBuildOption(bool, "devtools_enabled", devtools_enabled);
+    exe.addPackagePath("callbacks", "packages/callbacks/callbacks.zig");
     exe.addPackage(.{ .name = "imgui", .path = "packages/zimgui/main.zig", .dependencies = &[_]std.build.Pkg{
         .{ .name = "build_options", .path = "zig-cache/" ++ app_name ++ "_build_options.zig" },
+        .{ .name = "callbacks", .path = "packages/callbacks/callbacks.zig" },
     } }); // hack workaround. ideally some fn to make a custom build options thing and return a std.build.Pkg
     switch (render_backend) {
         .cairo_gtk3 => {
