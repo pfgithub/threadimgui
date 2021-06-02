@@ -57,7 +57,7 @@ pub fn renderImage(id_arg: ID.Arg, imev: *ImEvent, options: ImagePlaceholderOpti
 pub const LabelOptions = struct {
     size: ui.FontSize,
     color: ui.ThemeColor,
-    weight: ui.FontWeight = .bold,
+    weight: ui.FontWeight = .normal,
 };
 pub fn renderLabel(id_arg: ID.Arg, imev: *ImEvent, text: []const u8, bounds: Bounds, options: LabelOptions) PlacedWidget {
     if (bounds.w == null or bounds.h != null) @panic("TODO renderLabel");
