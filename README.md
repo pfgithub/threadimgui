@@ -55,6 +55,10 @@ unlike other imgui implementations, you can get the size of a widget before plac
 almost anything you could make using html/css and it is often much easier to make things because you don't have to deal with
 a layout manager that's actively trying to prevent you from doing what you want.
 
+# todo
+
+- switch from `f64` to a native float type (eg: `f32` or `f64` depending on system)
+
 # notes
 
 neat imgui stuff:

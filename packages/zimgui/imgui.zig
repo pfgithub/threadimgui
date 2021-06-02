@@ -13,6 +13,27 @@ pub fn range(max: usize) []const void {
     return @as([]const void, &[_]void{}).ptr[0..max];
 }
 
+pub const MouseEvent = struct {
+    /// coords, relative to the clickable node origin
+    x: f64,
+    y: f64,
+
+    // /// offsets from last frame
+    // dx: f64,
+    // dy: f64,
+
+    state: enum { down, held, up, none },
+
+    button: c_int, // TODO fix
+};
+pub const EventUsed = enum {
+    /// don't propagate the event. eg you hit the ⭾tab key and the focused editor wants to eat it
+    /// so it doesn't perform the default action of advancing focus
+    used,
+    /// continue propagating the event
+    ignored,
+};
+
 pub const RenderNode = struct { value: union(enum) {
     rectangle: struct {
         wh: WH,
@@ -29,6 +50,8 @@ pub const RenderNode = struct { value: union(enum) {
     place: struct {
         node: RenderResult,
         offset: Point,
+        // should event nodes go inside of Place?
+        // idk
     },
     clipping_rect: struct {
         node: RenderResult,
@@ -37,7 +60,7 @@ pub const RenderNode = struct { value: union(enum) {
     clickable: struct {
         id: ID.Ident, // owned by the arena
         wh: WH,
-        //cb: Callback(OnClick, void),
+        // cb: Callback(MouseEvent, EventUsed),
         // wait callbacks mean we no longer need
         // identifiers right? yeah, the identifiers
         // are used in the IdStateCache
@@ -94,6 +117,8 @@ pub const RenderNode = struct { value: union(enum) {
         // stored in an imev idstatecache vs stuff related
         // to like state that should be more persistent
         // than that should be in a passed in isc.
+        //
+        // ok I'm doing it I'm doing callbacks
     },
     scrollable: struct {
         id: ID.Ident, // owned by the arena
