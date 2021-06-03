@@ -38,6 +38,55 @@ const RichtextSpanText = union(enum) {
     text: TextLine,
 };
 
+fn selectEmojiNode(data: SelectEmojiData) void {
+    // basically
+    //   if mouse_x > w/2:
+    //    index = 1
+    //   else
+    //    index = 0
+    // also, respond to cursor moves
+    //   onCursorMove(crsr) if(index == 0 && crsr.left) crsr.goLeft(); if(index == 0 && crsr.right) crsr.post(1);
+    //   if(index == 1 && crsr.left) crsr.post(0); if(index == 1 && crsr.right) crsr.goRight();
+    // and then renderEmojiNode should do a background using the selection color if the emoji node is selected
+}
+
+fn renderEmojiNode(left_offset: f64) RenderedRichtextSpan {
+    const selxn_state = useSpanSelection();
+
+    startRectangle(.{ .w = 10, .h = 10 }); // scale with font, eg if this is in a heading do like larger.
+    renderImage(id.push(@src()), imev, .{ .alt = "image alt text", .aspect = 1.0 }, b.bounds);
+    endRectangle();
+
+    return .{ .key = selxn_state, .callback = callback(imev.arenaDupe(SelectEmojiData{ .w = 10 }), selectEmojiNode) };
+}
+
+// ok text selection
+//
+// when you click, it goes to the root RichtextEditor and that then dispatches the click to
+// you (eg the text span)
+//
+// then you, the text span, choose where inside yourself the cursor goes based on the mouse
+// location.
+//
+// if you're eg an embedded component like a button, you can respond to click events yourself
+// but you still need to respond to the RichtextEditor dispatched selection events. those will
+// come if a click and drag was started left of you and went over you. also you need to draw
+// what it looks like when you're selected. also you need to handle cursor move events and
+// report the cursor location and stuff
+//
+//
+//
+// how do these richtext editor-dispatched events work? - this is part of the reason to switch
+// to callbacks. selection should never change anything's layout so it can all be done in event
+// handlers. (but obviously the event handlers will invalidate because the selection needs to be drawn)
+//
+// ok how do these events work
+//
+// so with keys it's kinda complicated because stuff needs to be passed up and down and you make
+// a mess
+//
+// it seems relatively easy with callbacks
+
 // the richtext editor
 // an array of paragraphs, kinda similar to google forms but very different
 // some notes for making a good wyswig markdown editor using this
