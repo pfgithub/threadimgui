@@ -13,7 +13,10 @@ pub fn range(max: usize) []const void {
     return @as([]const void, &[_]void{}).ptr[0..max];
 }
 
+pub const MouseState = enum { down, held, up, none };
 pub const MouseEvent = struct {
+    imev: *ImEvent,
+
     /// coords, relative to the clickable node origin
     x: f64,
     y: f64,
@@ -22,9 +25,11 @@ pub const MouseEvent = struct {
     // dx: f64,
     // dy: f64,
 
-    state: enum { down, held, up, none },
+    state: MouseState,
 
     button: c_int, // TODO fix
+
+    overlap: bool, // is this necessary? I think the event handler could decide on its own if it was clicked or not or smth
 };
 pub const EventUsed = enum {
     /// don't propagate the event. eg you hit the ⭾tab key and the focused editor wants to eat it
@@ -60,7 +65,7 @@ pub const RenderNode = struct { value: union(enum) {
     clickable: struct {
         id: ID.Ident, // owned by the arena
         wh: WH,
-        // cb: Callback(MouseEvent, EventUsed),
+        cb: Callback(MouseEvent, EventUsed),
         // wait callbacks mean we no longer need
         // identifiers right? yeah, the identifiers
         // are used in the IdStateCache
@@ -643,6 +648,7 @@ pub const ImEvent = struct { // pinned?
         current_cursor: CursorEnum,
         allow_event_introspection: bool, // to set this a helper fn needs to be made. this must be set and then used next frame, not this frame.
         is_first_frame: bool,
+        interaction_isc: IdStateCache,
 
         mouse_position: Point,
         mouse_held: bool,
@@ -692,9 +698,6 @@ pub const ImEvent = struct { // pinned?
     };
     const MouseFocused = struct {
         id: ID.Ident, // saved across frames, must be duplicated and freed
-        hover: bool,
-        mouse_up: bool,
-        on_mouse_down: bool,
         fn deinit(mf: MouseFocused, alloc: *std.mem.Allocator) void {
             mf.id.deinit(alloc);
         }
@@ -718,6 +721,7 @@ pub const ImEvent = struct { // pinned?
                 .current_cursor = .default,
                 .allow_event_introspection = false,
                 .is_first_frame = true,
+                .interaction_isc = IdStateCache.init(alloc),
 
                 .mouse_position = .{ .x = -1, .y = -1 },
                 .mouse_held = false,
@@ -745,6 +749,8 @@ pub const ImEvent = struct { // pinned?
         if (imev.persistent.mouse_focused) |mf| mf.deinit(imev.persistentAlloc());
         if (imev.persistent.scroll_focused) |sf| sf.deinit(imev.persistentAlloc());
         if (imev.persistent.focus) |f| f.deinit(imev.persistentAlloc());
+
+        imev.persistent.interaction_isc.deinit();
     }
     /// returns true if a rerender is requested, false otherwise.
     pub fn addEvent(imev: *ImEvent, event: RawEvent) !bool {
@@ -978,6 +984,14 @@ pub const ImEvent = struct { // pinned?
                     imev.handleEvent(clip_rect.node, offset, clip_rect.wh.setUL(offset).overlap(clip));
                 },
                 .clickable => |cable| {
+                    // what is this shouldn't handleEvent be called with the uuh
+                    // I should do like a
+                    // uuh
+                    // when you click or mouse move
+                    // it should find the thing and do it
+                    // rather than whatever this is with the mouse position stuff
+                    // like why are events even in imev.frame and imev.persistent if they're just going to get
+                    // dispatched immediately
                     const contains_point = offset.toRectBR(cable.wh).overlap(clip).containsPoint(imev.persistent.mouse_position);
                     const active_is_this = if (imev.persistent.mouse_focused) |mfx| ( //
                         mfx.id.eql(cable.id) //
@@ -988,10 +1002,18 @@ pub const ImEvent = struct { // pinned?
                         if (imev.persistent.mouse_focused) |mf| mf.deinit(imev.persistentAlloc());
                         imev.persistent.mouse_focused = MouseFocused{
                             .id = cable.id.dupe(imev.persistentAlloc()),
-                            .hover = contains_point,
-                            .mouse_up = imev.frame.mouse_up,
-                            .on_mouse_down = imev.frame.mouse_down,
+                            // .hover = contains_point,
+                            // .mouse_up = imev.frame.mouse_up,
+                            // .on_mouse_down = imev.frame.mouse_down,
                         };
+                        _ = cable.cb.call(MouseEvent{
+                            .imev = imev,
+                            .x = imev.persistent.mouse_position.x - offset.x,
+                            .y = imev.persistent.mouse_position.y - offset.y,
+                            .state = if (imev.frame.mouse_up) MouseState.up else if (imev.frame.mouse_down) MouseState.down else if (imev.persistent.mouse_held) MouseState.held else MouseState.none,
+                            .button = 1,
+                            .overlap = contains_point,
+                        });
                     }
                 },
                 .scrollable => |sable| {
@@ -1083,6 +1105,7 @@ pub const ImEvent = struct { // pinned?
                 } else unreachable;
             }
         }
+        imev.persistent.interaction_isc.cleanupUnused(imev);
 
         imev.frame.arena_allocator.deinit();
     }
@@ -1145,17 +1168,42 @@ pub const ImEvent = struct { // pinned?
     /// this should assert that the resulting clickablestate is placed
     /// ideally this could be done by the language in the typesystem,
     /// but zig doesn't have a way to do that.
+    fn onClickableClicked(state: *ClickablePersistentState, ev: MouseEvent) EventUsed {
+        state.clicking = ev.state != .none;
+        state.focus = ev.overlap or ev.state != .none;
+        state.on_mouse_down = ev.state == .down;
+        state.on_mouse_up = ev.state == .up;
+        state.hover = ev.overlap;
+        ev.imev.invalidate();
+        return .used;
+    }
+    const ClickablePersistentState = struct {
+        // reset these every frame
+        on_mouse_up: bool = false,
+        on_mouse_down: bool = false,
+
+        // store these across frames
+        hover: bool = false,
+        clicking: bool = false,
+        focus: bool = false,
+    };
     pub fn useClickable(imev: *ImEvent, id_h: ID.Arg) ClickableState {
-        const id = id_h.id.forSrc(@src());
+        const id = id_h.id;
+        var saved_clickable_state = imev.persistent.interaction_isc.useStateDefault(id.push(@src()), ClickablePersistentState{});
+
+        const is_mouse_up_frame = saved_clickable_state.on_mouse_up;
+        saved_clickable_state.on_mouse_up = false;
+        const is_mouse_down_frame = saved_clickable_state.on_mouse_down;
+        saved_clickable_state.on_mouse_down = false;
+        if (!saved_clickable_state.clicking and !saved_clickable_state.hover) saved_clickable_state.focus = false;
+
         return ClickableState{
-            .key = .{ .id = id },
-            .focused = if (imev.persistent.mouse_focused) |mfx| if (mfx.id.eql(id)) ( //
-                ClickableState.Focused{
-                .hover = mfx.hover,
-                .click = mfx.mouse_up and mfx.hover,
-                .on_mouse_down = mfx.on_mouse_down,
-            } //
-            ) else null else null,
+            .key = .{ .id = id.forSrc(@src()), .cb = callback(saved_clickable_state, onClickableClicked) },
+            .focused = if (saved_clickable_state.focus) ClickableState.Focused{
+                .hover = saved_clickable_state.hover,
+                .click = is_mouse_up_frame and saved_clickable_state.hover,
+                .on_mouse_down = is_mouse_down_frame,
+            } else null,
         };
     }
 
@@ -1194,9 +1242,10 @@ pub const Src = ID.Src;
 
 pub const ClickableKey = struct {
     id: ID.Ident,
+    cb: Callback(MouseEvent, EventUsed),
     pub fn node(key: ClickableKey, imev: *ImEvent, wh: WH) RenderResult {
         var ctx = imev.render();
-        ctx.putRenderNode(.{ .value = .{ .clickable = .{ .id = key.id, .wh = wh } } });
+        ctx.putRenderNode(.{ .value = .{ .clickable = .{ .id = key.id, .wh = wh, .cb = key.cb } } });
         return ctx.result();
     }
     pub fn wrap(key: ClickableKey, imev: *ImEvent, widget: Widget) Widget {
