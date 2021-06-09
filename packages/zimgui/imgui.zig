@@ -638,7 +638,18 @@ pub const WFocused = struct {
 };
 
 pub const ImEvent = struct { // pinned?
-    // structures that are created at init.
+    const MouseFocused = struct {
+        /// saved across frames, must be duplicated and freed
+        id: ID.Ident,
+        /// this must be updated every frame, otherwise it will have pointers to
+        /// invalid data. call the callback and say it's a mouse out event on mouse out I guess.
+        cb: Callback(MouseEvent, EventUsed),
+        fn deinit(mf: MouseFocused, alloc: *std.mem.Allocator) void {
+            mf.id.deinit(alloc);
+        }
+    };
+
+    /// structures that are created at init.
     persistent: struct {
         unprocessed_events: Queue(RawEvent),
         real_allocator: *std.mem.Allocator,
@@ -650,8 +661,6 @@ pub const ImEvent = struct { // pinned?
         is_first_frame: bool,
         interaction_isc: IdStateCache,
 
-        mouse_position: Point,
-        mouse_held: bool,
         mouse_focused: ?MouseFocused,
 
         focus: ?WFocused = null,
@@ -676,9 +685,6 @@ pub const ImEvent = struct { // pinned?
         cursor: CursorEnum = .default,
         render_result: RenderResult = undefined,
 
-        mouse_down: bool = false,
-        mouse_up: bool = false,
-
         scroll_delta: Point = Point.origin,
 
         key_down: ?Key = null,
@@ -694,12 +700,6 @@ pub const ImEvent = struct { // pinned?
         delta: Point,
         fn deinit(sf: ScrollFocused, alloc: *std.mem.Allocator) void {
             sf.id.deinit(alloc);
-        }
-    };
-    const MouseFocused = struct {
-        id: ID.Ident, // saved across frames, must be duplicated and freed
-        fn deinit(mf: MouseFocused, alloc: *std.mem.Allocator) void {
-            mf.id.deinit(alloc);
         }
     };
 
@@ -723,8 +723,6 @@ pub const ImEvent = struct { // pinned?
                 .is_first_frame = true,
                 .interaction_isc = IdStateCache.init(alloc),
 
-                .mouse_position = .{ .x = -1, .y = -1 },
-                .mouse_held = false,
                 .mouse_focused = null,
 
                 .scroll_emulation_btn_held = false,
@@ -804,6 +802,7 @@ pub const ImEvent = struct { // pinned?
                 },
                 .mouse_click => |mclick| {
                     imev.persistent.mouse_position = .{ .x = mclick.x, .y = mclick.y };
+
                     // TODO make this an enum for cross platform support
                     if (mclick.button == 1) {
                         if (mclick.down) {
