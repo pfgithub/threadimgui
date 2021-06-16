@@ -62,69 +62,7 @@ pub const RenderNode = struct { value: union(enum) {
         node: RenderResult,
         wh: WH,
     },
-    clickable: struct {
-        id: ID.Ident, // owned by the arena
-        wh: WH,
-        cb: Callback(MouseEvent, EventUsed),
-        // wait callbacks mean we no longer need
-        // identifiers right? yeah, the identifiers
-        // are used in the IdStateCache
-        // is that true? no I don't think so right?
-        // what does the callback get
-        // idk like the callback could get uuh
-        // onMouseDown, onMouseUp, onMouseMove
-        // uuh
-        // what do callbacks look like?
-        // here's a button
-
-        // <Button {
-        //   <Clickable onev=callback(
-        //     imev.arenaDupe( state_ptr ),
-        //     () => { state.hoverState = ev.hoverState },
-        //   ) {
-        //     <Rect {<Inset.y-m2.x-m4 {
-        //       <Text "hi">
-        //     }>}>
-        //   }>
-        // }>
-        //
-        // ok what I'm worried about
-        // what if you're hovering over a thing and it gets
-        // dropped from view
-        // it might be worth it having a global isc? like
-        // one that drops things that fall out of view?
-        // vs the local one that keeps things that
-        // are not in view
-        // because the worry is when it reappears it might
-        // no longer be hovered and it won't ever be told that
-        // because it's an event thing
-        //
-        // also part 2: an id is def. needed (also woah
-        // ralt works really well on this machine)
-        // anyway an id is needed because it needs to
-        // know who to send events to while clicking
-        // and dragging. so you click down on a thing
-        // and it needs to store that id and send drag
-        // events to that id.
-        //
-        // so it does need an id.
-        //
-        // ok so I guess the interface : imgui will have
-        // a root leve
-        //
-        // wait uuh what happens when you unfocus something
-        // it calls the callback right?
-        //
-        // yeah ok so if something gets deleted before it's
-        // unfocused, the cb will never get called b/c the
-        // id will no longer be in the tree. so that's why
-        // stuff related to event focus state should be
-        // stored in an imev idstatecache vs stuff related
-        // to like state that should be more persistent
-        // than that should be in a passed in isc.
-        //
-        // ok I'm doing it I'm doing callbacks
-    },
+    clickable: ClickableNode,
     scrollable: struct {
         id: ID.Ident, // owned by the arena
         wh: WH,
@@ -134,6 +72,12 @@ pub const RenderNode = struct { value: union(enum) {
         focusable_by: FocusableReason,
     },
 } };
+
+const ClickableNode = struct {
+    id: ID.Ident, // owned by the arena
+    wh: WH,
+    cb: Callback(MouseEvent, EventUsed),
+};
 
 pub const Width = enum {
     none,
@@ -776,13 +720,61 @@ pub const ImEvent = struct { // pinned?
             .reason = reason,
         };
     }
+    // const RenderResultIter = struct {
+    //     index: ?RenderResult,
+    //     // mode: enum{enter, next} = .enter, // this would be for if you could get enter and leave events
+    //     // in the loop but you can't.
+    //     // the entire renderresult thing could be switched to just a linked list instead of
+    //     // having these objects which you have to descend into
+    //     // like it could say set_offset(x, y) and then set_offset(-x, -y)
+    //     // that might be a good idea idk
+    //     pub fn next(iter: *RenderResultIter) ?RenderResult {
+    //         if(iter.index == null) return null;
+    //         const res = iter.index.?;
+    //         var index = res;
+    //         switch()
+    //         return res;
+    //     }
+    // };
+    // wait there's literally a walker already what am I doing
+    const MouseFocusTarget = struct {
+        node: *ClickableNode,
+        offset: Point,
+    };
+    const MouseFocusTargetResult = struct {same: bool, previous: ?MouseFocusTarget, current: ?MouseFocusTarget};
+    fn findMouseFocusTarget(imev: *ImEvent, pos: Point) MouseFocusTargetResult {
+        var match: ?MouseFocusTarget = null;
+        // var iter = RenderResultIter{.index = imev.render_result};
+        // while(iter.next()) |itm| switch(itm.node) {
+        //     .clickable => |cable| {
+
+        //     },
+        // };
+        var walker = imev.frame.render_result.walk(imev.persistentAlloc());
+        defer walker.deinit();
+        while(walker.next()) |node| switch(node.value) {
+            .clickable => |*cable| {
+                var offset: Point = .{.x = 0, .y = 0};
+                for(walker.stack.items) |it| switch(it.value.value) {
+                    .place => |place| {
+                        offset.x += place.offset.x;
+                        offset.y += place.offset.y;
+                    },
+                    else => {},
+                };
+                if(cable.wh.setUL(offset).containsPoint(pos)) {
+                    match = .{.node = cable, .offset = offset};
+                }
+            },
+            else => {},
+        };
+        return .{.same = false, .previous = null, .current = match};
+    }
+    // the mouse focus target should be just for the current frame probably right?
+    // yeah it should store an id and then findMouseFocusTarget can search for
+    // that ID in the tree.
+    fn setMouseFocusTarget(imev: *ImEvent, id: ID.Ident) void {}
     pub fn startFrame(imev: *ImEvent, cr: backend.Context, should_render: bool) void {
-        if (!imev.persistent.mouse_held) {
-            if (imev.persistent.mouse_focused) |mf| {
-                mf.deinit(imev.persistentAlloc());
-            }
-            imev.persistent.mouse_focused = null;
-        }
         if (!imev.persistent.is_first_frame) if (imev.frame.next_frame_focus) |nff| {
             imev.setFocus(nff.id, nff.reason, .manual);
             imev.frame.next_frame_focus = null;
@@ -801,28 +793,50 @@ pub const ImEvent = struct { // pinned?
                     };
                 },
                 .mouse_click => |mclick| {
-                    imev.persistent.mouse_position = .{ .x = mclick.x, .y = mclick.y };
+                    // imev.persistent.mouse_position = .{ .x = mclick.x, .y = mclick.y };
+                    // so: after finding the mouse focus this has to :: if the previous thing is becoming unfocused, send a mouse
+                    // event there telling it it has lost focus. and then the thing gaining focus, send an event there.
+                    const target = imev.findMouseFocusTarget(.{.x = mclick.x, .y = mclick.y});
+                    if(!target.same and mclick.down) {
+                        if(target.previous) |prev| _ = prev.node.cb.call(.{
+                            .imev = imev,
+                            .state = .up,
+                            .button = 1,
+                            .x = mclick.x - prev.offset.x,
+                            .y = mclick.y - prev.offset.y,
+                            .overlap = false,
+                        });
+                    }
+                    if(target.current) |curr| _ = curr.node.cb.call(.{
+                        .imev = imev,
+                        .state = if(mclick.down) .down else .up,
+                        .button = 1,
+                        .x = mclick.x - curr.offset.x,
+                        .y = mclick.y - curr.offset.y,
+                        .overlap = true,
+                    });
 
                     // TODO make this an enum for cross platform support
-                    if (mclick.button == 1) {
-                        if (mclick.down) {
-                            imev.frame.mouse_down = true;
-                            imev.persistent.mouse_held = true;
-                        } else {
-                            imev.frame.mouse_up = true;
-                            imev.persistent.mouse_held = false;
-                        }
-                    } else if (mclick.button == 2) {
-                        imev.persistent.scroll_emulation_btn_held = mclick.down;
-                    }
+                    // if (mclick.button == 1) {
+                    //     if (mclick.down) {
+                    //         imev.frame.mouse_down = true;
+                    //         imev.persistent.mouse_held = true;
+                    //     } else {
+                    //         imev.frame.mouse_up = true;
+                    //         imev.persistent.mouse_held = false;
+                    //     }
+                    // } else if (mclick.button == 2) {
+                    //     imev.persistent.scroll_emulation_btn_held = mclick.down;
+                    // }
                 },
                 .mouse_move => |mmove| {
-                    if (imev.persistent.scroll_emulation_btn_held) {
-                        const mdiff_x = mmove.x - imev.persistent.mouse_position.x;
-                        const mdiff_y = mmove.y - imev.persistent.mouse_position.y;
-                        imev.frame.scroll_delta = .{ .x = -mdiff_x, .y = -mdiff_y };
-                    }
-                    imev.persistent.mouse_position = .{ .x = mmove.x, .y = mmove.y };
+                    // TODO
+                    // if (imev.persistent.scroll_emulation_btn_held) {
+                    //     const mdiff_x = mmove.x - imev.persistent.mouse_position.x;
+                    //     const mdiff_y = mmove.y - imev.persistent.mouse_position.y;
+                    //     imev.frame.scroll_delta = .{ .x = -mdiff_x, .y = -mdiff_y };
+                    // }
+                    // imev.persistent.mouse_position = .{ .x = mmove.x, .y = mmove.y };
                 },
                 .scroll => |sev| {
                     // imev.persistent.mouse_position = .{ .x = sev.mouse_x, .y = sev.mouse_y };
@@ -982,48 +996,16 @@ pub const ImEvent = struct { // pinned?
                 .clipping_rect => |clip_rect| {
                     imev.handleEvent(clip_rect.node, offset, clip_rect.wh.setUL(offset).overlap(clip));
                 },
-                .clickable => |cable| {
-                    // what is this shouldn't handleEvent be called with the uuh
-                    // I should do like a
-                    // uuh
-                    // when you click or mouse move
-                    // it should find the thing and do it
-                    // rather than whatever this is with the mouse position stuff
-                    // like why are events even in imev.frame and imev.persistent if they're just going to get
-                    // dispatched immediately
-                    const contains_point = offset.toRectBR(cable.wh).overlap(clip).containsPoint(imev.persistent.mouse_position);
-                    const active_is_this = if (imev.persistent.mouse_focused) |mfx| ( //
-                        mfx.id.eql(cable.id) //
-                    ) else ( //
-                        contains_point //
-                    );
-                    if (active_is_this) {
-                        if (imev.persistent.mouse_focused) |mf| mf.deinit(imev.persistentAlloc());
-                        imev.persistent.mouse_focused = MouseFocused{
-                            .id = cable.id.dupe(imev.persistentAlloc()),
-                            // .hover = contains_point,
-                            // .mouse_up = imev.frame.mouse_up,
-                            // .on_mouse_down = imev.frame.mouse_down,
-                        };
-                        _ = cable.cb.call(MouseEvent{
-                            .imev = imev,
-                            .x = imev.persistent.mouse_position.x - offset.x,
-                            .y = imev.persistent.mouse_position.y - offset.y,
-                            .state = if (imev.frame.mouse_up) MouseState.up else if (imev.frame.mouse_down) MouseState.down else if (imev.persistent.mouse_held) MouseState.held else MouseState.none,
-                            .button = 1,
-                            .overlap = contains_point,
-                        });
-                    }
-                },
+                .clickable => |cable| {},
                 .scrollable => |sable| {
-                    const contains_point = offset.toRectBR(sable.wh).overlap(clip).containsPoint(imev.persistent.mouse_position);
-                    if (contains_point and !(imev.frame.scroll_delta.x == 0 and imev.frame.scroll_delta.y == 0)) {
-                        if (imev.persistent.scroll_focused) |sf| sf.deinit(imev.persistentAlloc());
-                        imev.persistent.scroll_focused = ScrollFocused{
-                            .id = sable.id.dupe(imev.persistentAlloc()),
-                            .delta = imev.frame.scroll_delta,
-                        };
-                    }
+                    // const contains_point = offset.toRectBR(sable.wh).overlap(clip).containsPoint(imev.persistent.mouse_position);
+                    // if (contains_point and !(imev.frame.scroll_delta.x == 0 and imev.frame.scroll_delta.y == 0)) {
+                    //     if (imev.persistent.scroll_focused) |sf| sf.deinit(imev.persistentAlloc());
+                    //     imev.persistent.scroll_focused = ScrollFocused{
+                    //         .id = sable.id.dupe(imev.persistentAlloc()),
+                    //         .delta = imev.frame.scroll_delta,
+                    //     };
+                    // }
                 },
                 .focusable => |fable| {
                     // do nothing.
