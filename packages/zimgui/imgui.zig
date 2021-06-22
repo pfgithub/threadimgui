@@ -791,57 +791,22 @@ pub const ImEvent = struct { // pinned?
                         .w = @intToFloat(f64, rsz.w),
                         .h = @intToFloat(f64, rsz.h),
                     };
+                    // this event does not need to propagate anywhere
                 },
                 .mouse_click => |mclick| {
-                    // imev.persistent.mouse_position = .{ .x = mclick.x, .y = mclick.y };
-                    // so: after finding the mouse focus this has to :: if the previous thing is becoming unfocused, send a mouse
-                    // event there telling it it has lost focus. and then the thing gaining focus, send an event there.
-                    const target = imev.findMouseFocusTarget(.{.x = mclick.x, .y = mclick.y});
-                    if(!target.same and mclick.down) {
-                        if(target.previous) |prev| _ = prev.node.cb.call(.{
-                            .imev = imev,
-                            .state = .up,
-                            .button = 1,
-                            .x = mclick.x - prev.offset.x,
-                            .y = mclick.y - prev.offset.y,
-                            .overlap = false,
-                        });
-                    }
-                    if(target.current) |curr| _ = curr.node.cb.call(.{
-                        .imev = imev,
-                        .state = if(mclick.down) .down else .up,
-                        .button = 1,
-                        .x = mclick.x - curr.offset.x,
-                        .y = mclick.y - curr.offset.y,
-                        .overlap = true,
-                    });
-
-                    // TODO make this an enum for cross platform support
-                    // if (mclick.button == 1) {
-                    //     if (mclick.down) {
-                    //         imev.frame.mouse_down = true;
-                    //         imev.persistent.mouse_held = true;
-                    //     } else {
-                    //         imev.frame.mouse_up = true;
-                    //         imev.persistent.mouse_held = false;
-                    //     }
-                    // } else if (mclick.button == 2) {
-                    //     imev.persistent.scroll_emulation_btn_held = mclick.down;
-                    // }
                 },
                 .mouse_move => |mmove| {
-                    // TODO
-                    // if (imev.persistent.scroll_emulation_btn_held) {
-                    //     const mdiff_x = mmove.x - imev.persistent.mouse_position.x;
-                    //     const mdiff_y = mmove.y - imev.persistent.mouse_position.y;
-                    //     imev.frame.scroll_delta = .{ .x = -mdiff_x, .y = -mdiff_y };
-                    // }
-                    // imev.persistent.mouse_position = .{ .x = mmove.x, .y = mmove.y };
+                    // how to handle this:
+                    // - if there is a current mouse focus and the mouse is clicked:
+                    //   - send the event to that item and update its hover state and stuff
+                    // - else (or if the saved focused item could not be found):
+                    //   - get the previous and current focused items
+                    //   - if they're different:
+                    //     - send a MouseOut event to the previous item
+                    //     - send a MouseIn event to the next item
+                    //   -  send a MouseMotion event to the current focused item
                 },
-                .scroll => |sev| {
-                    // imev.persistent.mouse_position = .{ .x = sev.mouse_x, .y = sev.mouse_y };
-                    imev.frame.scroll_delta = .{ .x = sev.scroll_x, .y = sev.scroll_y };
-                },
+                .scroll => |sev| {},
                 .key => |key| {
                     std.log.info("key: {s}{s}{s}{s}{s}{s}{s}", .{
                         (&[_][]const u8{ "↑", "↓" })[@boolToInt(key.down)],
@@ -852,114 +817,9 @@ pub const ImEvent = struct { // pinned?
                         (&[_][]const u8{ "", " ⌘" })[@boolToInt(key.modifiers.win)],
                         "",
                     });
-                    if (key.down) imev.frame.key_down = key.key;
-
-                    // pattern matching would useful here to make sure the match was against all the modifiers
-                    if (key.down and !key.modifiers.ctrl and !key.modifiers.alt and !key.modifiers.win) {
-                        if (key.key == .tab and !key.modifiers.shift) {
-                            // →
-                            std.log.info("advance focus", .{});
-
-                            var walker = imev.frame.render_result.walk(imev.persistentAlloc());
-                            defer walker.deinit();
-
-                            blk: {
-                                // advance the walker to the focused node (if there is one)
-                                if (imev.persistent.focus) |pfocus| {
-                                    while (walker.next()) |node| switch (node.value) {
-                                        .focusable => |*fabl| {
-                                            if (fabl.id.eql(pfocus.id)) break;
-                                        },
-                                        else => {},
-                                    } else @panic("TODO catch this earlier and diff with .focus_used_this_frame");
-                                }
-
-                                // find the next focusable node after the current one, wrapping if needed
-                                const next_focus = while (walker.next()) |node| switch (node.value) {
-                                    .focusable => |*fabl| break fabl,
-                                    else => {},
-                                } else blkt: {
-                                    if (imev.persistent.focus == null) break :blk;
-                                    walker.deinit();
-                                    walker = imev.frame.render_result.walk(imev.persistentAlloc());
-                                    while (walker.next()) |node| switch (node.value) {
-                                        .focusable => |*fabl| break :blkt fabl,
-                                        else => {},
-                                    };
-                                    break :blk;
-                                };
-
-                                // set the focus
-                                imev.setFocus(next_focus.id, .keyboard, .from_left);
-                            }
-                        } else if (key.key == .left_tab or (key.key == .tab and key.modifiers.shift)) {
-                            // the basic algorithm
-                            //
-                            // var prev: ?thing = null;
-                            // blk:
-                            // - if(no focus):
-                            // - - walker.every(.focusable, &prev)
-                            // - - if(prev) imev.setFocus(prev)
-                            // - - break :blk
-                            // - walker.every(.focusable, &prev, until id.eql(current_focus)) orelse @panic("TODO catch this earlier and diff with .focus_used_this_frame");
-                            // - const prev_focus = prev orelse:
-                            // - - walker.every(.focusable, &prev)
-                            // - - imev.setFocus(prev orelse unreachable)
-                            // - - break :blk
-                            // - imev.setFocus(prev_focus)
-                            // - break :blk
-                            std.log.info("devance focus", .{});
-
-                            var walker = imev.frame.render_result.walk(imev.persistentAlloc());
-                            defer walker.deinit();
-
-                            blk: {
-                                var prev_focus: ?*const ID.Ident = null;
-                                var current_focus: ?*const ID.Ident = null;
-                                // advance the walker to the focused node (if there is one)
-                                // else: advance the walker to the end
-                                if (imev.persistent.focus) |pfocus| {
-                                    while (walker.next()) |node| switch (node.value) {
-                                        .focusable => |*fabl| {
-                                            prev_focus = current_focus;
-                                            current_focus = &fabl.id;
-                                            if (fabl.id.eql(pfocus.id)) break;
-                                        },
-                                        else => {},
-                                    } else @panic("TODO catch this earlier and diff with .focus_used_this_frame");
-                                } else {
-                                    while (walker.next()) |node| switch (node.value) {
-                                        .focusable => |*fabl| {
-                                            prev_focus = &fabl.id;
-                                        },
-                                        else => {},
-                                    };
-                                }
-
-                                if (prev_focus == null) {
-                                    if (imev.persistent.focus == null) break :blk;
-                                    while (walker.next()) |node| switch (node.value) {
-                                        .focusable => |*fabl| {
-                                            prev_focus = &fabl.id;
-                                        },
-                                        else => {},
-                                    };
-                                }
-                                if (prev_focus) |pfid| imev.setFocus(pfid.*, .keyboard, .from_right);
-
-                                break :blk;
-                            }
-                        }
-                    }
                 },
                 else => {},
             }
-
-            if (imev.persistent.scroll_focused) |sf| sf.deinit(imev.persistentAlloc());
-            imev.persistent.scroll_focused = null;
-
-            const soffset = imev.persistent.internal_screen_offset;
-            imev.handleEvent(imev.frame.render_result, soffset, imev.persistent.screen_size.setUL(soffset));
         };
 
         if (imev.persistent.is_first_frame) imev.persistent.is_first_frame = false //
@@ -980,41 +840,6 @@ pub const ImEvent = struct { // pinned?
             .arena_allocator = std.heap.ArenaAllocator.init(imev.persistent.real_allocator),
             .cr = cr,
         };
-    }
-    pub fn handleEvent(imev: *ImEvent, nodes: RenderResult, offset: Point, clip: Rect) void {
-        var nodeiter = nodes.value;
-        const cr = imev.frame.cr;
-        while (nodeiter) |node| {
-            const rnode: RenderNode = node.value;
-            switch (rnode.value) {
-                .rectangle => {},
-                .text => {},
-                .text_line => {},
-                .place => |place| {
-                    imev.handleEvent(place.node, .{ .x = offset.x + place.offset.x, .y = offset.y + place.offset.y }, clip);
-                },
-                .clipping_rect => |clip_rect| {
-                    imev.handleEvent(clip_rect.node, offset, clip_rect.wh.setUL(offset).overlap(clip));
-                },
-                .clickable => |cable| {},
-                .scrollable => |sable| {
-                    // const contains_point = offset.toRectBR(sable.wh).overlap(clip).containsPoint(imev.persistent.mouse_position);
-                    // if (contains_point and !(imev.frame.scroll_delta.x == 0 and imev.frame.scroll_delta.y == 0)) {
-                    //     if (imev.persistent.scroll_focused) |sf| sf.deinit(imev.persistentAlloc());
-                    //     imev.persistent.scroll_focused = ScrollFocused{
-                    //         .id = sable.id.dupe(imev.persistentAlloc()),
-                    //         .delta = imev.frame.scroll_delta,
-                    //     };
-                    // }
-                },
-                .focusable => |fable| {
-                    // do nothing.
-                    // once the event is handled, if it still remains and it's a keyboard event and it's the tab key,
-                    // advance the focus.
-                },
-            }
-            nodeiter = node.next;
-        }
     }
     // advance tabfocus: loop over things until finding a focusable with the current id
     //     the next focusable found is the next tab id. then return. if there is no next focusable, don't update.
