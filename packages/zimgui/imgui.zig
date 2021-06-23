@@ -741,7 +741,7 @@ pub const ImEvent = struct { // pinned?
         node: *ClickableNode,
         offset: Point,
     };
-    const MouseFocusTargetResult = struct {same: bool, previous: ?MouseFocusTarget, current: ?MouseFocusTarget};
+    const MouseFocusTargetResult = struct { same: bool, previous: ?MouseFocusTarget, current: ?MouseFocusTarget };
     fn findMouseFocusTarget(imev: *ImEvent, pos: Point) MouseFocusTargetResult {
         var match: ?MouseFocusTarget = null;
         // var iter = RenderResultIter{.index = imev.render_result};
@@ -752,23 +752,23 @@ pub const ImEvent = struct { // pinned?
         // };
         var walker = imev.frame.render_result.walk(imev.persistentAlloc());
         defer walker.deinit();
-        while(walker.next()) |node| switch(node.value) {
+        while (walker.next()) |node| switch (node.value) {
             .clickable => |*cable| {
-                var offset: Point = .{.x = 0, .y = 0};
-                for(walker.stack.items) |it| switch(it.value.value) {
+                var offset: Point = .{ .x = 0, .y = 0 };
+                for (walker.stack.items) |it| switch (it.value.value) {
                     .place => |place| {
                         offset.x += place.offset.x;
                         offset.y += place.offset.y;
                     },
                     else => {},
                 };
-                if(cable.wh.setUL(offset).containsPoint(pos)) {
-                    match = .{.node = cable, .offset = offset};
+                if (cable.wh.setUL(offset).containsPoint(pos)) {
+                    match = .{ .node = cable, .offset = offset };
                 }
             },
             else => {},
         };
-        return .{.same = false, .previous = null, .current = match};
+        return .{ .same = false, .previous = null, .current = match };
     }
     // the mouse focus target should be just for the current frame probably right?
     // yeah it should store an id and then findMouseFocusTarget can search for
@@ -793,7 +793,18 @@ pub const ImEvent = struct { // pinned?
                     };
                     // this event does not need to propagate anywhere
                 },
-                .mouse_click => |mclick| {
+                .mouse_down => |mclick| {
+                    std.log.info("Mouse {} down at {d},{d}", .{ mclick.button, mclick.x, mclick.y });
+                    // - if there is a focused mouse object, @panic("mouse down event without a mouse up event between")
+                    //   - probably not a good idea to error there, should handle these situations and also
+                    //     there are multiple mouse buttons
+                    // -
+                },
+                .mouse_up => |mclick| {
+                    std.log.info("Mouse {} up at {d},{d}", .{ mclick.button, mclick.x, mclick.y });
+                    // - if there is a focused mouse object, @panic("mouse down event without a mouse up event between")
+                    //   - probably not a good idea to error there, there are multiple mouse buttons
+                    // -
                 },
                 .mouse_move => |mmove| {
                     // how to handle this:
@@ -818,7 +829,10 @@ pub const ImEvent = struct { // pinned?
                         "",
                     });
                 },
-                else => {},
+                .textcommit => |text| {
+                    std.log.info("text committed: `{s}`", .{text});
+                },
+                .empty => {},
             }
         };
 
@@ -1606,7 +1620,7 @@ pub fn renderFrame(cr: backend.Context, rr: backend.RerenderRequest, data: ExecD
     id = ID.init(imev.persistentAlloc(), imev.arena());
 
     const timer_end = timer.lap();
-    std.log.info("Rerender x{} in {}ns", .{ render_count, timer_end });
+    // std.log.info("Rerender x{} in {}ns", .{ render_count, timer_end });
 
     imev.endFrameRender(renderBaseRoot(id, imev, root_state_cache, imev.persistent.screen_size, data));
     id.deinit();
@@ -1616,9 +1630,7 @@ pub fn renderFrame(cr: backend.Context, rr: backend.RerenderRequest, data: ExecD
         rr.queueDraw();
     }
 
-    std.log.info("Draw in        {}ns", .{timer.read()});
-
-    // std.log.info("rerender×{} in {}ns", .{ render_count, timer.read() }); // max allowed time is 4ms
+    // std.log.info("Draw in        {}ns", .{timer.read()});
 }
 pub fn pushEvent(ev: RawEvent, rr: backend.RerenderRequest, data: ExecData) void {
     const imev = data.imev;
@@ -1628,8 +1640,6 @@ pub fn pushEvent(ev: RawEvent, rr: backend.RerenderRequest, data: ExecData) void
     // or even with render set to true, just tell it to render the returned root
     // at the start of next frame rather than calling the fn thing
     // anyway probably not necessary but there may be some events where it's useful
-
-    std.log.info("Event queued. Queuing redraw (TODO switch to callbacks for this reason. callbacks can update data and then only call imev.invalidate() if it's needed", .{});
 
     const req_rr = imev.addEvent(ev) catch @panic("oom");
     if (req_rr) rr.queueDraw();

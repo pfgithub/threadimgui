@@ -58,14 +58,24 @@ export fn zig_on_resize_event(widget: *GtkWidget, rect: *GdkRectangle, data: *Op
     data.zig.pushEvent(.{ .resize = .{ .x = rect.x, .y = rect.y, .w = rect.width, .h = rect.height } }, rrFrom(data.darea), data.zig.data);
     return 1;
 }
+fn xButtonToMouseButton(button: c_uint) MouseButton {
+    return switch (button) {
+        1 => .left,
+        2 => .middle,
+        3 => .right,
+        else => .unsupported,
+    };
+}
 export fn zig_button_press_event(widget: *GtkWidget, event: *GdkEventButton, data: *OpaqueData) callconv(.C) gboolean {
     // std.log.info("Button ↓{} at ({}, {})", .{ event.button, event.x, event.y });
-    data.zig.pushEvent(.{ .mouse_click = .{ .down = true, .x = event.x, .y = event.y, .button = event.button } }, rrFrom(data.darea), data.zig.data);
+    // https://developer.gnome.org/gdk3/3.24/gdk3-Event-Structures.html#GdkEventButton
+    if (event.@"type" != .GDK_BUTTON_PRESS) return 1; // GDK_2BUTTON_PRESS occurs when double clicking and GDK_3BUTTON_PRESS when triple clicking
+    data.zig.pushEvent(.{ .mouse_down = .{ .x = event.x, .y = event.y, .button = xButtonToMouseButton(event.button) } }, rrFrom(data.darea), data.zig.data);
     return 1;
 }
 export fn zig_button_release_event(widget: *GtkWidget, event: *GdkEventButton, data: *OpaqueData) callconv(.C) gboolean {
     // std.log.info("Button ↑{} at ({}, {})", .{ event.button, event.x, event.y });
-    data.zig.pushEvent(.{ .mouse_click = .{ .down = false, .x = event.x, .y = event.y, .button = event.button } }, rrFrom(data.darea), data.zig.data);
+    data.zig.pushEvent(.{ .mouse_up = .{ .x = event.x, .y = event.y, .button = xButtonToMouseButton(event.button) } }, rrFrom(data.darea), data.zig.data);
     return 1;
 }
 export fn zig_motion_notify_event(widget: *GtkWidget, event: *GdkEventMotion, data: *OpaqueData) callconv(.C) gboolean {

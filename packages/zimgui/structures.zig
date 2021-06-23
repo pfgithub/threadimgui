@@ -3,12 +3,24 @@ const std = @import("std");
 pub const RawEvent = union(enum) {
     empty: void,
     key: struct { down: bool, key: Key, modifiers: KeyModifiers },
+    /// sent when keyboard input is requested when a key is pressed or the ime commits text
     textcommit: []const u8,
     resize: struct { x: c_int, y: c_int, w: c_int, h: c_int },
-    mouse_click: struct { button: c_uint, x: f64, y: f64, down: bool }, // TODO button: enum{left, middle, right, …}
+    // either this or one unified mouse event. I think this is fine
+    mouse_down: struct { button: MouseButton, x: f64, y: f64 },
+    mouse_up: struct { button: MouseButton, x: f64, y: f64 },
     mouse_move: struct { x: f64, y: f64 },
+    // mouse_doubleclick, // event order: press, release, …, press, dblpress, release
     scroll: struct { scroll_x: f64, scroll_y: f64 },
 };
+
+pub const MouseButton = enum {
+    left,
+    middle,
+    right,
+    unsupported,
+};
+
 pub const KeyModifiers = packed struct {
     shift: bool,
     ctrl: bool,
