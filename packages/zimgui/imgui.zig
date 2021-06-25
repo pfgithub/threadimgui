@@ -52,16 +52,14 @@ pub const RenderNode = struct { value: union(enum) {
         line: backend.TextLayoutLine,
         color: Color,
     },
-    place: struct {
-        node: RenderResult,
+    push_offset: struct {
         offset: Point,
-        // should event nodes go inside of Place?
-        // idk
     },
-    clipping_rect: struct {
-        node: RenderResult,
+    pop_offset,
+    push_clipping_rect: struct {
         wh: WH,
     },
+    pop_clipping_rect,
     clickable: ClickableNode,
     scrollable: struct {
         id: ID.Ident, // owned by the arena
@@ -236,6 +234,8 @@ const TextHashKey = struct {
 pub const RenderCtx = struct {
     imev: *ImEvent,
     nodes: Queue(RenderNode),
+    has_returned: bool = false, // TODO void in release modes
+
     pub fn init(imev: *ImEvent) RenderCtx {
         return RenderCtx{
             .imev = imev,
@@ -248,20 +248,27 @@ pub const RenderCtx = struct {
     // if you return inset(…)
     // this needs a bit of a redo
     pub fn putRenderNode(ctx: *RenderCtx, node: RenderNode) void {
+        if (ctx.has_returned) unreachable;
         ctx.nodes.push(ctx.imev.arena(), node) catch @panic("oom");
     }
+    pub fn putRenderNodes(ctx: *RenderCtx, node: RenderResult) void {
+        if (ctx.has_returned) unreachable;
+        ctx.nodes.pushQueue(node.value);
+    }
     pub fn result(ctx: *RenderCtx) RenderResult {
-        return .{ .value = ctx.nodes.start };
+        if (ctx.has_returned) unreachable;
+        ctx.has_returned = true; // alternatively: ctx.* = undefined, but zig doesn't catch that as a bug as easily.
+        return .{ .value = ctx.nodes };
     }
     pub fn place(ctx: *RenderCtx, node: RenderResult, point: Point) void {
-        ctx.putRenderNode(.{ .value = .{ .place = .{
-            .node = node,
-            .offset = point,
-        } } });
+        if (ctx.has_returned) unreachable;
+        ctx.putRenderNode(.{ .value = .{ .push_offset = .{ .offset = point } } });
+        ctx.putRenderNodes(node);
+        ctx.putRenderNode(.{ .value = .pop_offset });
     }
 };
 pub const RenderResult = struct {
-    value: ?*Queue(RenderNode).Node,
+    value: Queue(RenderNode),
     pub fn walk(rr: RenderResult, alloc: *std.mem.Allocator) RenderWalker {
         return RenderWalker.init(alloc, rr);
     }
@@ -330,10 +337,9 @@ pub const primitives = struct {
     pub fn clippingRect(imev: *ImEvent, size: WH, content: RenderResult) RenderResult {
         var ctx = imev.render();
 
-        ctx.putRenderNode(RenderNode{ .value = .{ .clipping_rect = .{
-            .wh = size,
-            .node = content,
-        } } });
+        ctx.putRenderNode(.{ .value = .{ .push_clipping_rect = .{ .wh = size } } });
+        ctx.putRenderNodes(content);
+        ctx.putRenderNode(.{ .value = .pop_clipping_rect });
 
         return ctx.result();
     }
@@ -432,6 +438,20 @@ pub fn Queue(comptime T: type) type {
             } else {
                 list.start = node;
                 list.end = node;
+            }
+        }
+        /// pushes a queue to the end of this one. *note*: adding additional
+        /// items to the pushed queue after pushing it will be ignored.
+        pub fn pushQueue(list: *This, value: This) void {
+            if (value.start == null) return;
+            if (value.end == null) unreachable;
+
+            if (list.end) |endn| {
+                endn.next = value.start;
+                list.end = value.end;
+            } else {
+                list.start = value.start;
+                list.end = value.end;
             }
         }
         pub fn shift(list: *This, alloc: *std.mem.Allocator) ?T {
@@ -855,12 +875,9 @@ pub const ImEvent = struct { // pinned?
             .cr = cr,
         };
     }
-    // advance tabfocus: loop over things until finding a focusable with the current id
-    //     the next focusable found is the next tab id. then return. if there is no next focusable, don't update.
-    // devance tabfocus: loop over things, saving each tabfocus in a variable. once the
-    //     current id is found, set the focus to the previous tabfocus 🙲 return. if there was no prev, don't update.
-    pub fn internalRender(imev: *ImEvent, nodes: RenderResult, offset: Point, clip: Rect) void {
-        var nodeiter = nodes.value;
+    // TODO make this not recursive, there's no point to it being recursive
+    pub fn internalRender(imev: *ImEvent, nodes: ?*Queue(RenderNode).Node, offset: Point, clip: Rect) ?*Queue(RenderNode).Node {
+        var nodeiter = nodes;
         const cr = imev.frame.cr;
         while (nodeiter) |node| {
             const rnode: RenderNode = node.value;
@@ -874,28 +891,33 @@ pub const ImEvent = struct { // pinned?
                 .text_line => |tl| {
                     cr.renderTextLine(offset, tl.line, tl.color);
                 },
-                .place => |place| {
-                    imev.internalRender(place.node, .{ .x = offset.x + place.offset.x, .y = offset.y + place.offset.y }, clip);
+                .push_offset => |place| {
+                    nodeiter = imev.internalRender(node.next, .{ .x = offset.x + place.offset.x, .y = offset.y + place.offset.y }, clip);
+                    continue;
                 },
-                .clipping_rect => |clip_rect| {
+                .pop_offset => return node.next,
+                .push_clipping_rect => |clip_rect| {
                     const content_clip = clip_rect.wh.setUL(offset).overlap(clip);
                     cr.pushClippingRect(content_clip);
-                    imev.internalRender(clip_rect.node, offset, content_clip);
+                    nodeiter = imev.internalRender(node.next, offset, content_clip);
                     cr.popState();
+                    continue;
                 },
+                .pop_clipping_rect => return node.next,
                 .clickable => {},
                 .scrollable => {},
                 .focusable => {},
             }
             nodeiter = node.next;
         }
+        return undefined; // all push and pop nodes must be matched ; once this is moved to not be recursive this will no longer be needed
     }
     pub fn endFrameRender(imev: *ImEvent, render_v: RenderResult) void {
         if (!imev.frame.should_render) unreachable;
 
         const soffset = imev.persistent.internal_screen_offset;
         const ir_clip = imev.persistent.screen_size.setUL(soffset);
-        imev.internalRender(render_v, soffset, ir_clip);
+        _ = imev.internalRender(render_v.value.start, soffset, ir_clip);
 
         if (imev.frame.cursor != imev.persistent.current_cursor) {
             imev.persistent.current_cursor = imev.frame.cursor;
@@ -1306,7 +1328,7 @@ pub const VirtualScrollHelper = struct {
 
         ctx_outer.place(ctx.result(), Point.origin);
 
-        return ctx.result();
+        return ctx_outer.result();
     }
 
     // issues: if the top node to be rendered was deleted, there will be an issue.
