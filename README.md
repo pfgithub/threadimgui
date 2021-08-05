@@ -37,6 +37,9 @@ run the application with `zig build run`
 
 building the ios version (requires a mac with xcode installed): `cd packages/zimgui/backends/ios` and read the README.md
 
+building for raylib: download raylib for your platform from https://github.com/raysan5/raylib/releases/tag/3.7.0
+and place the extracted folder in `packages/zimgui/backends/raylib/deps/`
+
 # overview
 
 imgui rewrite of the threadreader frontend

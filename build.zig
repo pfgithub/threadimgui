@@ -4,6 +4,7 @@ const RenderBackend = enum {
     cairo_gtk3,
     windows,
     ios,
+    raylib,
     pub fn defaultFor(target: std.zig.CrossTarget) ?RenderBackend {
         if (target.isWindows()) return .windows;
         if (target.isLinux()) return .cairo_gtk3;
@@ -27,13 +28,15 @@ pub fn build(b: *std.build.Builder) void {
         @panic("there is no default backend for this target; select one with -Drenderer=[backend]") //
     ;
 
+    const raylib_version = b.option([]const u8, "raylib-version", "Set the verison if using the raylib backend");
+
     const devtools_enabled = b.option(bool, "devtools", "Enable or disable devtools") orelse (mode == .Debug);
 
     const main_file = "apps/app_selector.zig";
     const app_name = "app_selector";
 
     const exe = switch (render_backend) {
-        .cairo_gtk3, .windows => b.addExecutable(app_name, main_file),
+        .cairo_gtk3, .windows, .raylib => b.addExecutable(app_name, main_file),
         .ios => b.addStaticLibrary(app_name, main_file),
     };
     if (render_backend == .ios) {
@@ -45,10 +48,12 @@ pub fn build(b: *std.build.Builder) void {
     exe.addBuildOption(RenderBackend, "render_backend", render_backend);
     exe.addBuildOption(bool, "devtools_enabled", devtools_enabled);
     exe.addPackagePath("callbacks", "packages/callbacks/callbacks.zig");
-    exe.addPackage(.{ .name = "imgui", .path = "packages/zimgui/main.zig", .dependencies = &[_]std.build.Pkg{
+
+    var imgui_deps = std.ArrayList(std.build.Pkg).init(b.allocator);
+    imgui_deps.appendSlice(&.{
         .{ .name = "build_options", .path = "zig-cache/" ++ app_name ++ "_build_options.zig" },
         .{ .name = "callbacks", .path = "packages/callbacks/callbacks.zig" },
-    } }); // hack workaround. ideally some fn to make a custom build options thing and return a std.build.Pkg
+    }) catch @panic("oom");
     switch (render_backend) {
         .cairo_gtk3 => {
             exe.linkLibC();
@@ -67,7 +72,39 @@ pub fn build(b: *std.build.Builder) void {
         .ios => {
             // idk
         },
+        .raylib => {
+            exe.linkLibC();
+            exe.addIncludeDir("packages/zimgui/backends/raylib/workaround");
+            exe.addCSourceFile("packages/zimgui/backends/raylib/workaround/workaround.c", &.{});
+            imgui_deps.append(
+                .{.name = "raylib", .path = "packages/zimgui/backends/raylib/workaround/raylib.zig"},
+            ) catch @panic("oom");
+
+            const raylib_name = "packages/zimgui/backends/raylib/deps/raylib-{s}_{s}/{s}";
+            const target_name: []const u8 = switch(target.getOsTag()) {
+                .macos => blk: {
+                    exe.linkFramework("CoreVideo");
+                    exe.linkFramework("IOKit");
+                    exe.linkFramework("Cocoa");
+                    exe.linkFramework("GLUT");
+                    exe.linkFramework("OpenGL");
+                    break :blk "macos";
+                },
+                else => @panic("raylib is not supported for this target"),
+            };
+
+            const version = raylib_version orelse {
+                @panic("a raylib version must be set with -Draylib-version=[version] eg 3.7.0");
+            };
+            exe.addIncludeDir(b.fmt(raylib_name, .{version, target_name, "include"}));
+            exe.addObjectFile(b.fmt(raylib_name, .{version, target_name, "lib/libraylib.a"}));
+        },
     }
+    exe.addPackage(.{
+        .name = "imgui",
+        .path = "packages/zimgui/main.zig",
+        .dependencies = imgui_deps.toOwnedSlice(),
+    });
 
     exe.addBuildOption(bool, "enable_tracy", tracy_enabled != null);
     if (tracy_enabled) |tracy_path| {

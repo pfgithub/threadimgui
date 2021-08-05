@@ -4,7 +4,7 @@ const backend = switch (build_opts.render_backend) {
     .cairo_gtk3 => @import("cairo/cairo.zig"),
     .windows => @import("windows/windows.zig"),
     .ios => @import("ios/ios.zig"),
-    // huh a "runtime backend" could be made that calls functions from a vtable
+    .raylib => @import("raylib/raylib.zig"),
 };
 const structures = @import("../structures.zig");
 
@@ -183,7 +183,10 @@ pub const Context = struct {
 pub const RerenderRequest = struct {
     value: backend.RerenderRequest,
     pub fn queueDraw(rr: RerenderRequest) void {
-        rr.value.queueDraw();
+        if(@hasDecl(@TypeOf(rr.value), "queueDraw")) {
+            @compileLog("hey there!");
+            rr.value.queueDraw();
+        } else warn.once(@src(), "RerenderRequest.queueDraw");
     }
 };
 

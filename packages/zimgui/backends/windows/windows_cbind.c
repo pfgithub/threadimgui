@@ -111,7 +111,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         SetCapture(hwnd);
 
         POINTS points = MAKEPOINTS(lParam);
-        zig_on_mouse_click(&wd, statePtr, 1, TRUE, points.x, points.y);
+        zig_on_mouse_click(&wd, statePtr, 0, TRUE, points.x, points.y);
 
     } return 0;
     
@@ -119,7 +119,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         ReleaseCapture();
         
         POINTS points = MAKEPOINTS(lParam);
-        zig_on_mouse_click(&wd, statePtr, 1, FALSE, points.x, points.y);
+        zig_on_mouse_click(&wd, statePtr, 0, FALSE, points.x, points.y);
     } return 0;
     
     case WM_MOUSEMOVE: {

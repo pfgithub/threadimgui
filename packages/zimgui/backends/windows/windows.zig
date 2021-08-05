@@ -15,7 +15,15 @@ export fn zig_on_resize(wd: *WindowData, data: *const backend.OpaquePtrData, wid
 }
 
 export fn zig_on_mouse_click(wd: *WindowData, data: *const backend.OpaquePtrData, btn: u8, clicked: c_int, pt_x: c_short, pt_y: c_short) void {
-    data.pushEvent(.{ .mouse_click = .{ .down = clicked == 1, .x = @intToFloat(f64, pt_x), .y = @intToFloat(f64, pt_y), .button = btn } }, .{ .wd = wd }, data.data);
+    const button: MouseButton = switch(btn) {
+        0 => .left,
+        else => .unsupported,
+    };
+    if(clicked == 1) {
+        data.pushEvent(.{ .mouse_down = .{ .x = @intToFloat(f64, pt_x), .y = @intToFloat(f64, pt_y), .button = button } }, .{ .wd = wd }, data.data);
+    }else if(clicked == 1) {
+        data.pushEvent(.{ .mouse_up = .{ .x = @intToFloat(f64, pt_x), .y = @intToFloat(f64, pt_y), .button = button } }, .{ .wd = wd }, data.data);
+    }
 }
 export fn zig_on_mouse_move(wd: *WindowData, data: *const backend.OpaquePtrData, pt_x: c_short, pt_y: c_short) void {
     data.pushEvent(.{ .mouse_move = .{ .x = @intToFloat(f64, pt_x), .y = @intToFloat(f64, pt_y) } }, .{ .wd = wd }, data.data);
